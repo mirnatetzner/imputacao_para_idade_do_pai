@@ -3,7 +3,12 @@ Pretende-se estudar a fecundidade masculina brasileita a partir da idade do pai 
 
 Pretende-se estimar indicadores TFT e TEFs a partir de métodos de imputação para dados faltantes. 
 
-## PASSO 1
+# Passo 1
 
-Analisar o padrão dos dados faltantes. 
-É MAR, MCAR ou NMAR?
+A primeira etapa é realizar algumas análises exploratórias dos dados. 
+Análise descritiva.
+
+
+# Passo 2 
+
+Verificar através da documentação e de teste específicos, se os dados são MCAR NMAR ou MAR. 
