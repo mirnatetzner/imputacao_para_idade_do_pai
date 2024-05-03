@@ -21,16 +21,45 @@ library(stringr)
 ##-------------------------------------------------------------------
 #conseguindo os dados e salvando o df:
 
-#requisi??o ao ftp datasus das vari?veis selecionadas
+UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO")
 
-DF_RS <- fetch_datasus(year_start = 2010, year_end = 2020, uf = "RS", information_system = "SINASC")
+
+#requisicao ao ftp datasus das variaveis selecionadas
+
+# for (UF in UFs) {
+#   nome <- paste0("Dados_",UF)
+#   name=assign(nome, fetch_datasus(year_start = 2010, year_end = 2020, uf = UF, information_system = "SINASC")) 
+#   save(name,file=paste0(UF, ".Rdata"))
+#   rm(name)
+#   }
+
+# as bases foram salvas sem processamento
 
 
 #processa os dados pelo pacote microdatasus a partir da estrutura do SINASC
-DF_RS <- process_sinasc(DF_RS)
+
+dataset = c("Dados_AC", 'Dados_AL', "Dados_AM", "Dados_AP", "Dados_BA", "Dados_CE", "Dados_DF", "Dados_ES", "Dados_GO",
+            "Dados_MA", "Dados_MG", "Dados_MS", "Dados_MT", "Dados_PA","Dados_PB", "Dados_PE", "Dados_PI", "Dados_PR",
+            "Dados_RJ", "Dados_RN", "Dados_RO", "Dados_RR", "Dados_RS", "Dados_SC", "Dados_SE","Dados_SP", "Dados_TO")
+
+for (i in dataset) {
+  data <- get(i)
+  dataset[i] = process_sinasc(data)
+  }
+ 
+
+#porporção de dados faltantes
+proporcao_faltantes = data.frame()
+
+for (i in dataset) {
+  data <- get(i)
+  proporcao_faltantes = rbind(prop_complete(data$IDADEPAI))
+} 
 
 
-# cria variaveis ?teis:
+
+
+# cria variaveis uteis:
 
 DF_RS = DF_RS %>% 
   mutate(um = 1,
@@ -62,6 +91,7 @@ dfIDADEPAIMAE = cbind(DF_RS$IDADEMAE, DF_RS$IDADEMAE)
 df =as.data.frame(dfIDADEPAIMAE)
 
 #porporção de dados faltantes
+
 prop_complete(DF_RS$IDADEPAI)
 
 # visualiza padrões de dados faltantes
