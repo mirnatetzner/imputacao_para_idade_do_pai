@@ -34,8 +34,8 @@ AC = AC %>%
   mutate(missing = ifelse(is.na(AC$IDADEPAI), 1,0))
 
 AC = AC %>% 
-  mutate(Ano = str_sub(AC$DTNASC , end = 4))
-
+  mutate(Ano = str_sub(AC$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 AL = AL %>% 
   mutate(um = 1,
@@ -45,7 +45,8 @@ AL = AL %>%
   mutate(missing = ifelse(is.na(AL$IDADEPAI), 1,0))
 
 AL = AL %>% 
-  mutate(Ano = str_sub(AL$DTNASC , end = 4))
+  mutate(Ano = str_sub(AL$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 AP = AP %>% 
@@ -56,7 +57,8 @@ AP = AP %>%
   mutate(missing = ifelse(is.na(AP$IDADEPAI), 1,0))
 
 AP = AP %>% 
-  mutate(Ano = str_sub(AP$DTNASC , end = 4))
+  mutate(Ano = str_sub(AP$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 AM = AM %>% 
   mutate(um = 1,
@@ -66,7 +68,8 @@ AM = AM %>%
   mutate(missing = ifelse(is.na(AM$IDADEPAI), 1,0))
 
 AM = AM %>% 
-  mutate(Ano = str_sub(AM$DTNASC , end = 4))
+  mutate(Ano = str_sub(AM$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 BA = BA %>% 
   mutate(um = 1,
@@ -76,7 +79,8 @@ BA = BA %>%
   mutate(missing = ifelse(is.na(BA$IDADEPAI), 1,0))
 
 BA = BA %>% 
-  mutate(Ano = str_sub(BA$DTNASC , end = 4))
+  mutate(Ano = str_sub(BA$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 CE = CE %>% 
   mutate(um = 1,
@@ -86,7 +90,8 @@ CE = CE %>%
   mutate(missing = ifelse(is.na(CE$IDADEPAI), 1,0))
 
 CE = CE %>% 
-  mutate(Ano = str_sub(CE$DTNASC , end = 4))
+  mutate(Ano = str_sub(CE$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 DF = DF %>% 
   mutate(um = 1,
          IDADEPAI = as.factor(IDADEPAI))
@@ -95,7 +100,8 @@ DF = DF %>%
   mutate(missing = ifelse(is.na(DF$IDADEPAI), 1,0))
 
 DF = DF %>% 
-  mutate(Ano = str_sub(DF$DTNASC , end = 4))
+  mutate(Ano = str_sub(DF$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 ES = ES %>% 
@@ -106,7 +112,8 @@ ES = ES %>%
   mutate(missing = ifelse(is.na(ES$IDADEPAI), 1,0))
 
 ES = ES %>% 
-  mutate(Ano = str_sub(ES$DTNASC , end = 4))
+  mutate(Ano = str_sub(ES$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 GO = GO %>% 
@@ -117,7 +124,8 @@ GO = GO %>%
   mutate(missing = ifelse(is.na(GO$IDADEPAI), 1,0))
 
 GO = GO %>% 
-  mutate(Ano = str_sub(GO$DTNASC , end = 4))
+  mutate(Ano = str_sub(GO$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 MA = MA %>% 
@@ -128,7 +136,8 @@ MA = MA %>%
   mutate(missing = ifelse(is.na(MA$IDADEPAI), 1,0))
 
 MA = MA %>% 
-  mutate(Ano = str_sub(MA$DTNASC , end = 4))
+  mutate(Ano = str_sub(MA$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 MT = MT %>% 
@@ -139,7 +148,8 @@ MT = MT %>%
   mutate(missing = ifelse(is.na(MT$IDADEPAI), 1,0))
 
 MT = MT %>% 
-  mutate(Ano = str_sub(MT$DTNASC , end = 4))
+  mutate(Ano = str_sub(MT$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 MS = MS %>% 
@@ -150,7 +160,8 @@ MS = MS %>%
   mutate(missing = ifelse(is.na(MS$IDADEPAI), 1,0))
 
 MS = MS %>% 
-  mutate(Ano = str_sub(MS$DTNASC , end = 4))
+  mutate(Ano = str_sub(MS$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 MG = MG %>% 
@@ -161,7 +172,8 @@ MG = MG %>%
   mutate(missing = ifelse(is.na(MG$IDADEPAI), 1,0))
 
 MG = MG %>% 
-  mutate(Ano = str_sub(MG$DTNASC , end = 4))
+  mutate(Ano = str_sub(MG$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 PA = PA %>% 
@@ -172,7 +184,8 @@ PA = PA %>%
   mutate(missing = ifelse(is.na(PA$IDADEPAI), 1,0))
 
 PA = PA %>% 
-  mutate(Ano = str_sub(PA$DTNASC , end = 4))
+  mutate(Ano = str_sub(PA$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 PB = PB %>% 
@@ -183,7 +196,8 @@ PB = PB %>%
   mutate(missing = ifelse(is.na(PB$IDADEPAI), 1,0))
 
 PB = PB %>% 
-  mutate(Ano = str_sub(PB$DTNASC , end = 4))
+  mutate(Ano = str_sub(PB$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 PR = PR %>% 
@@ -194,7 +208,8 @@ PR = PR %>%
   mutate(missing = ifelse(is.na(PR$IDADEPAI), 1,0))
 
 PR = PR %>% 
-  mutate(Ano = str_sub(PR$DTNASC , end = 4))
+  mutate(Ano = str_sub(PR$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 PE = PE %>% 
@@ -205,7 +220,8 @@ PE = PE %>%
   mutate(missing = ifelse(is.na(PE$IDADEPAI), 1,0))
 
 PE = PE %>% 
-  mutate(Ano = str_sub(PE$DTNASC , end = 4))
+  mutate(Ano = str_sub(PE$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 PI = PI %>% 
   mutate(um = 1,         
@@ -215,7 +231,8 @@ PI = PI %>%
   mutate(missing = ifelse(is.na(PI$IDADEPAI), 1,0))
 
 PI = PI %>% 
-  mutate(Ano = str_sub(PI$DTNASC , end = 4))
+  mutate(Ano = str_sub(PI$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 RJ = RJ %>% 
   mutate(um = 1,
@@ -225,7 +242,8 @@ RJ = RJ %>%
   mutate(missing = ifelse(is.na(RJ$IDADEPAI), 1,0))
 
 RJ = RJ %>% 
-  mutate(Ano = str_sub(RJ$DTNASC , end = 4))
+  mutate(Ano = str_sub(RJ$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 RN = RN %>% 
@@ -236,7 +254,8 @@ RN = RN %>%
   mutate(missing = ifelse(is.na(RN$IDADEPAI), 1,0))
 
 RN = RN %>% 
-  mutate(Ano = str_sub(RN$DTNASC , end = 4))
+  mutate(Ano = str_sub(RN$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 RS = RS %>% 
@@ -247,7 +266,8 @@ RS = RS %>%
   mutate(missing = ifelse(is.na(RS$IDADEPAI), 1,0))
 
 RS = RS %>% 
-  mutate(Ano = str_sub(RS$DTNASC , end = 4))
+  mutate(Ano = str_sub(RS$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 
 RO = RO %>% 
@@ -258,7 +278,8 @@ RO = RO %>%
   mutate(missing = ifelse(is.na(RO$IDADEPAI), 1,0))
 
 RO = RO %>% 
-  mutate(Ano = str_sub(RO$DTNASC , end = 4))
+  mutate(Ano = str_sub(RO$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 RR = RR %>% 
   mutate(um = 1,
@@ -268,7 +289,8 @@ RR = RR %>%
   mutate(missing = ifelse(is.na(RR$IDADEPAI), 1,0))
 
 RR = RR %>% 
-  mutate(Ano = str_sub(RR$DTNASC , end = 4))
+  mutate(Ano = str_sub(RR$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 SC = SC %>% 
   mutate(um = 1,
@@ -278,7 +300,8 @@ SC = SC %>%
   mutate(missing = ifelse(is.na(SC$IDADEPAI), 1,0))
 
 SC = SC %>% 
-  mutate(Ano = str_sub(SC$DTNASC , end = 4))
+  mutate(Ano = str_sub(SC$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 SP = SP %>% 
   mutate(um = 1,
@@ -288,7 +311,8 @@ SP = SP %>%
   mutate(missing = ifelse(is.na(SP$IDADEPAI), 1,0))
 
 SP = SP %>% 
-  mutate(Ano = str_sub(SP$DTNASC , end = 4))
+  mutate(Ano = str_sub(SP$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 SE = SE %>% 
   mutate(um = 1,
@@ -298,7 +322,8 @@ SE = SE %>%
   mutate(missing = ifelse(is.na(SE$IDADEPAI), 1,0))
 
 SE = SE %>% 
-  mutate(Ano = str_sub(SE$DTNASC , end = 4))
+  mutate(Ano = str_sub(SE$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
 
 TO = TO %>% 
   mutate(um = 1,         
@@ -308,7 +333,10 @@ TO = TO %>%
   mutate(missing = ifelse(is.na(TO$IDADEPAI), 1,0))
 
 TO = TO %>% 
-  mutate(Ano = str_sub(TO$DTNASC , end = 4))
+  mutate(Ano = str_sub(TO$DTNASC , end = 4), 
+         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+
+
 
 #--------------------------------------------
 
