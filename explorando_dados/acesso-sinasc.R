@@ -48,17 +48,6 @@ for (i in dataset) {
   }
  
 
-#porporção de dados faltantes
-proporcao_faltantes = data.frame()
-
-for (i in dataset) {
-  data <- get(i)
-  proporcao_faltantes = rbind(prop_complete(data$IDADEPAI))
-} 
-
-
-
-
 # cria variaveis uteis:
 
 DF_RS = DF_RS %>% 
@@ -69,43 +58,12 @@ DF_RS = DF_RS %>%
   mutate(missing = ifelse(is.na(DF_RS$IDADEPAI), 1,0))
 
 DF_RS = DF_RS %>% 
-  mutate(Ano = str_sub(DF_RS$DTNASC , end = -7))
-
+  mutate(Ano = str_sub(DF_RS$DTNASC , start = 5))
 
 
 save(DF_RS,file="DF_RS.Rdata")
 
-
 #-------------------------------------------------------------------
-# analisando
-
-# carrega arquivo j? baixado
-
-setwd("D:/Mirna/ENCE/DISSERTAC?O/DATASUS/bases_estados")
-
-
-load("RJDF.RData")
-
-
-dfIDADEPAIMAE = cbind(DF_RS$IDADEMAE, DF_RS$IDADEMAE)
-df =as.data.frame(dfIDADEPAIMAE)
-
-#porporção de dados faltantes
-
-prop_complete(DF_RS$IDADEPAI)
-
-# visualiza padrões de dados faltantes
-gg_miss_upset(df)
-vis_miss(df, warn_large_data = FALSE)
-ggplot(df,aes(x=V1, y=V2))+geom_miss_point()
-
-missing = subset(DF_RS, subset = DF_RS$missing == 1)
-missing = table(missing$Ano)
-total = table(DF_RS$Ano)
-write.csv(cbind(total, missing), file = "faltantes_BRA.csv")
-
-#visualizar padrao de dados faltantes, mais util quando for analisar todas as variaveis.
-# vis_miss(RJ_DF, warn_large_data = FALSE)
 
 
 #GUI intuitiva:
