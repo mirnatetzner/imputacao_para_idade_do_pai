@@ -35,7 +35,7 @@ AC = AC %>%
 
 AC = AC %>% 
   mutate(Ano = str_sub(AC$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 AL = AL %>% 
   mutate(um = 1,
@@ -46,7 +46,7 @@ AL = AL %>%
 
 AL = AL %>% 
   mutate(Ano = str_sub(AL$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 AP = AP %>% 
@@ -58,7 +58,7 @@ AP = AP %>%
 
 AP = AP %>% 
   mutate(Ano = str_sub(AP$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 AM = AM %>% 
   mutate(um = 1,
@@ -69,7 +69,7 @@ AM = AM %>%
 
 AM = AM %>% 
   mutate(Ano = str_sub(AM$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 BA = BA %>% 
   mutate(um = 1,
@@ -80,7 +80,7 @@ BA = BA %>%
 
 BA = BA %>% 
   mutate(Ano = str_sub(BA$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 CE = CE %>% 
   mutate(um = 1,
@@ -91,7 +91,7 @@ CE = CE %>%
 
 CE = CE %>% 
   mutate(Ano = str_sub(CE$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 DF = DF %>% 
   mutate(um = 1,
          IDADEPAI = as.factor(IDADEPAI))
@@ -101,7 +101,7 @@ DF = DF %>%
 
 DF = DF %>% 
   mutate(Ano = str_sub(DF$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 ES = ES %>% 
@@ -113,7 +113,7 @@ ES = ES %>%
 
 ES = ES %>% 
   mutate(Ano = str_sub(ES$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 GO = GO %>% 
@@ -125,7 +125,7 @@ GO = GO %>%
 
 GO = GO %>% 
   mutate(Ano = str_sub(GO$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 MA = MA %>% 
@@ -137,7 +137,7 @@ MA = MA %>%
 
 MA = MA %>% 
   mutate(Ano = str_sub(MA$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 MT = MT %>% 
@@ -149,7 +149,7 @@ MT = MT %>%
 
 MT = MT %>% 
   mutate(Ano = str_sub(MT$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 MS = MS %>% 
@@ -161,7 +161,7 @@ MS = MS %>%
 
 MS = MS %>% 
   mutate(Ano = str_sub(MS$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 MG = MG %>% 
@@ -173,7 +173,7 @@ MG = MG %>%
 
 MG = MG %>% 
   mutate(Ano = str_sub(MG$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 PA = PA %>% 
@@ -185,7 +185,7 @@ PA = PA %>%
 
 PA = PA %>% 
   mutate(Ano = str_sub(PA$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 PB = PB %>% 
@@ -197,7 +197,7 @@ PB = PB %>%
 
 PB = PB %>% 
   mutate(Ano = str_sub(PB$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 PR = PR %>% 
@@ -209,7 +209,7 @@ PR = PR %>%
 
 PR = PR %>% 
   mutate(Ano = str_sub(PR$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 PE = PE %>% 
@@ -221,7 +221,7 @@ PE = PE %>%
 
 PE = PE %>% 
   mutate(Ano = str_sub(PE$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 PI = PI %>% 
   mutate(um = 1,         
@@ -232,7 +232,7 @@ PI = PI %>%
 
 PI = PI %>% 
   mutate(Ano = str_sub(PI$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 RJ = RJ %>% 
   mutate(um = 1,
@@ -243,7 +243,7 @@ RJ = RJ %>%
 
 RJ = RJ %>% 
   mutate(Ano = str_sub(RJ$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 RN = RN %>% 
@@ -255,7 +255,7 @@ RN = RN %>%
 
 RN = RN %>% 
   mutate(Ano = str_sub(RN$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 RS = RS %>% 
@@ -267,7 +267,7 @@ RS = RS %>%
 
 RS = RS %>% 
   mutate(Ano = str_sub(RS$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 RO = RO %>% 
@@ -279,7 +279,7 @@ RO = RO %>%
 
 RO = RO %>% 
   mutate(Ano = str_sub(RO$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 RR = RR %>% 
   mutate(um = 1,
@@ -290,7 +290,7 @@ RR = RR %>%
 
 RR = RR %>% 
   mutate(Ano = str_sub(RR$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 SC = SC %>% 
   mutate(um = 1,
@@ -301,7 +301,7 @@ SC = SC %>%
 
 SC = SC %>% 
   mutate(Ano = str_sub(SC$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 SP = SP %>% 
   mutate(um = 1,
@@ -312,7 +312,7 @@ SP = SP %>%
 
 SP = SP %>% 
   mutate(Ano = str_sub(SP$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 SE = SE %>% 
   mutate(um = 1,
@@ -323,7 +323,7 @@ SE = SE %>%
 
 SE = SE %>% 
   mutate(Ano = str_sub(SE$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 TO = TO %>% 
   mutate(um = 1,         
@@ -334,7 +334,7 @@ TO = TO %>%
 
 TO = TO %>% 
   mutate(Ano = str_sub(TO$DTNASC , end = 4), 
-         flag_dados_pai_e_mae = ifelse(missing == 0 & !is.na(IDADEMAE),1,0))
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
 
 
 
@@ -521,114 +521,144 @@ TO_idadePai = data.frame( UF = (TO$munResUf),
 #----------------------
 
 
+
 AC_idadePaiMae2 = data.frame( Idade_da_mãe = AC$IDADEMAE,
                               Idade_do_pai = AC$IDADEPAI, 
                               Ano = AC$Ano,
-                              missing = AC$missing)
+                              missing = AC$missing,
+                              flag_mae_n_pai = AC$flag_mae_n_pai)
 AL_idadePaiMae2 = data.frame( Idade_da_mãe = AL$IDADEMAE,
                               Idade_do_pai = AL$IDADEPAI, 
                               Ano = AL$Ano,
-                              missing = AL$missing)
+                              missing = AL$missing,
+                              flag_mae_n_pai = AL$flag_mae_n_pai)
 AP_idadePaiMae2 = data.frame( Idade_da_mãe = AP$IDADEMAE,
                               Idade_do_pai = AP$IDADEPAI, 
                               Ano = AP$Ano,
-                              missing = AP$missing)
+                              missing = AP$missing,
+                              flag_mae_n_pai = AP$flag_mae_n_pai)
 AM_idadePaiMae2 = data.frame( Idade_da_mãe = AM$IDADEMAE,
                               Idade_do_pai = AM$IDADEPAI, 
                               Ano = AM$Ano,
-                              missing = AM$missing)
+                              missing = AM$missing,
+                              flag_mae_n_pai = AM$flag_mae_n_pai)
 BA_idadePaiMae2 = data.frame( Idade_da_mãe = BA$IDADEMAE,
                               Idade_do_pai = BA$IDADEPAI, 
                               Ano = BA$Ano,
-                              missing = BA$missing)
+                              missing = BA$missing,
+                              flag_mae_n_pai = BA$flag_mae_n_pai)
 CE_idadePaiMae2 = data.frame( Idade_da_mãe = CE$IDADEMAE,
                               Idade_do_pai = CE$IDADEPAI, 
                               Ano = CE$Ano,
-                              missing = CE$missing)
+                              missing = CE$missing,
+                              flag_mae_n_pai = CE$flag_mae_n_pai)
 DF_idadePaiMae2 = data.frame( Idade_da_mãe = DF$IDADEMAE,
                               Idade_do_pai = DF$IDADEPAI, 
                               Ano = DF$Ano,
-                              missing = DF$missing)
+                              missing = DF$missing,
+                              flag_mae_n_pai = DF$flag_mae_n_pai)
 ES_idadePaiMae2 = data.frame( Idade_da_mãe = ES$IDADEMAE,
                               Idade_do_pai = ES$IDADEPAI, 
                               Ano = ES$Ano,
-                              missing = ES$missing)
+                              missing = ES$missing,
+                              flag_mae_n_pai = ES$flag_mae_n_pai)
 GO_idadePaiMae2 = data.frame( Idade_da_mãe = GO$IDADEMAE,
                               Idade_do_pai = GO$IDADEPAI, 
                               Ano = GO$Ano,
-                              missing = GO$missing)
+                              missing = GO$missing,
+                              flag_mae_n_pai = GO$flag_mae_n_pai)
 MA_idadePaiMae2 = data.frame( Idade_da_mãe = MA$IDADEMAE,
                               Idade_do_pai = MA$IDADEPAI, 
                               Ano = MA$Ano,
-                              missing = MA$missing)
+                              missing = MA$missing,
+                              flag_mae_n_pai = MA$flag_mae_n_pai)
 MT_idadePaiMae2 = data.frame( Idade_da_mãe = MT$IDADEMAE,
                               Idade_do_pai = MT$IDADEPAI, 
                               Ano = MT$Ano,
-                              missing = MT$missing)
+                              missing = MT$missing,
+                              flag_mae_n_pai = MT$flag_mae_n_pai)
 MS_idadePaiMae2 = data.frame( Idade_da_mãe = MS$IDADEMAE,
                               Idade_do_pai = MS$IDADEPAI, 
                               Ano = MS$Ano,
-                              missing = MS$missing)
+                              missing = MS$missing,
+                              flag_mae_n_pai = MS$flag_mae_n_pai)
 MG_idadePaiMae2 = data.frame( Idade_da_mãe = MG$IDADEMAE,
                               Idade_do_pai = MG$IDADEPAI, 
                               Ano = MG$Ano,
-                              missing = MG$missing)
+                              missing = MG$missing,
+                              flag_mae_n_pai = MG$flag_mae_n_pai)
 PA_idadePaiMae2 = data.frame( Idade_da_mãe = PA$IDADEMAE,
                               Idade_do_pai = PA$IDADEPAI, 
                               Ano = PA$Ano,
-                              missing = PA$missing)
+                              missing = PA$missing,
+                              flag_mae_n_pai = PA$flag_mae_n_pai)
 PB_idadePaiMae2 = data.frame( Idade_da_mãe = PB$IDADEMAE,
                               Idade_do_pai = PB$IDADEPAI, 
                               Ano = PB$Ano,
-                              missing = PB$missing)
+                              missing = PB$missing,
+                              flag_mae_n_pai = PB$flag_mae_n_pai)
 PR_idadePaiMae2 = data.frame( Idade_da_mãe = PR$IDADEMAE,
                               Idade_do_pai = PR$IDADEPAI, 
                               Ano = PR$Ano,
-                              missing = PR$missing)
+                              missing = PR$missing,
+                              flag_mae_n_pai = PR$flag_mae_n_pai)
 PE_idadePaiMae2 = data.frame( Idade_da_mãe = PE$IDADEMAE,
                               Idade_do_pai = PE$IDADEPAI, 
                               Ano = PE$Ano,
-                              missing = PE$missing)
+                              missing = PE$missing,
+                              flag_mae_n_pai = PE$flag_mae_n_pai)
 PI_idadePaiMae2 = data.frame( Idade_da_mãe = PI$IDADEMAE,
                               Idade_do_pai = PI$IDADEPAI, 
                               Ano = PI$Ano,
-                              missing = PI$missing)
+                              missing = PI$missing,
+                              flag_mae_n_pai = PI$flag_mae_n_pai)
 RJ_idadePaiMae2 = data.frame( Idade_da_mãe = RJ$IDADEMAE,
                               Idade_do_pai = RJ$IDADEPAI, 
                               Ano = RJ$Ano,
-                              missing = RJ$missing)
+                              missing = RJ$missing,
+                              flag_mae_n_pai = RJ$flag_mae_n_pai)
 RN_idadePaiMae2 = data.frame( Idade_da_mãe = RN$IDADEMAE,
                               Idade_do_pai = RN$IDADEPAI, 
                               Ano = RN$Ano,
-                              missing = RN$missing)
+                              missing = RN$missing,
+                              flag_mae_n_pai = RN$flag_mae_n_pai)
 RS_idadePaiMae2 = data.frame( Idade_da_mãe = RS$IDADEMAE,
                               Idade_do_pai = RS$IDADEPAI, 
                               Ano = RS$Ano,
-                              missing = RS$missing)
+                              missing = RS$missing,
+                              flag_mae_n_pai = RS$flag_mae_n_pai)
 RO_idadePaiMae2 = data.frame( Idade_da_mãe = RO$IDADEMAE,
                               Idade_do_pai = RO$IDADEPAI, 
                               Ano = RO$Ano,
-                              missing = RO$missing)
+                              missing = RO$missing,
+                              flag_mae_n_pai = RO$flag_mae_n_pai)
 RR_idadePaiMae2 = data.frame( Idade_da_mãe = RR$IDADEMAE,
                               Idade_do_pai = RR$IDADEPAI, 
                               Ano = RR$Ano,
-                              missing = RR$missing)
+                              missing = RR$missing,
+                              flag_mae_n_pai = RR$flag_mae_n_pai)
 SC_idadePaiMae2 = data.frame( Idade_da_mãe = SC$IDADEMAE,
                               Idade_do_pai = SC$IDADEPAI, 
                               Ano = SC$Ano,
-                              missing = SC$missing)
+                              missing = SC$missing,
+                              flag_mae_n_pai = SC$flag_mae_n_pai)
 SP_idadePaiMae2 = data.frame( Idade_da_mãe = SP$IDADEMAE,
                               Idade_do_pai = SP$IDADEPAI, 
                               Ano = SP$Ano,
-                              missing = SP$missing)
+                              missing = SP$missing,
+                              flag_mae_n_pai = SP$flag_mae_n_pai)
 SE_idadePaiMae2 = data.frame( Idade_da_mãe = SE$IDADEMAE,
                               Idade_do_pai = SE$IDADEPAI, 
                               Ano = SE$Ano,
-                              missing = SE$missing)
+                              missing = SE$missing,
+                              flag_mae_n_pai = SE$flag_mae_n_pai)
 TO_idadePaiMae2 = data.frame( Idade_da_mãe = TO$IDADEMAE,
                               Idade_do_pai = TO$IDADEPAI, 
                               Ano = TO$Ano,
-                              missing = TO$missing)
+                              missing = TO$missing,
+                              flag_mae_n_pai = TO$flag_mae_n_pai)
+
+
 #-----------------------
 
 
@@ -733,22 +763,219 @@ my_colors=colorRampPalette(rev(brewer.pal(11,'Spectral')))
 plot(bin, main="" , colramp=my_colors , legend=F ) 
 
 
-AL_idadePaiMae2 = AL_idadePaiMae2 %>% ungroup(Ano)
 
 # Specify the colors for low and high ends of gradient
 
-ALplot = ggplot(AL_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y =as.numeric(Idade_da_mãe))) +
-  geom_point(aes(color =Idade_do_pai)) +
+#plots para pai e mae ufs
+#-------
+ggplot(AC_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
   facet_wrap(~Ano)
-ALplot + scale_color_gradient(low = "white", high = "black")
 
+ggplot(AL_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(AP_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(AM_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(BA_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(CE_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(DF_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(ES_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(GO_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(MA_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(MT_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(MS_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(MG_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(PA_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(PB_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(PR_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(PE_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(PI_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(RJ_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(RN_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(RS_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(RO_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(RR_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(SC_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(SP_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(SE_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+
+ggplot(TO_idadePaiMae2, aes(x = as.numeric(Idade_do_pai), y = as.numeric(Idade_da_mãe))) +
+  stat_binhex(binwidth = c(2.5, 2.5)) +
+  scale_fill_continuous(low = "blue", high = "red") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +# Add tendency line based on linear model
+  theme_minimal()+
+  facet_wrap(~Ano)
+#----------
+
+# tentando criar tabelas frequencias para idade da mae, idade do pai, idade da mae sem idade do pai por ano
+
+AC_idadePaiMae2  %>%  group_by(as.factor(AC_idadePaiMae2$Ano)) %>% 
+  summarise(sum(flag_mae_n_pai))
+# 
+# missing_pai_AC = tas.factor()missing_pai_AC = table(AC_idadePaiMae2$missing)
+# idade_mae_AC = table(AC_idadePaiMae2$Idade_da_mãe)
+# idade_pai_AC = table(AC_idadePaiMae2$Idade_do_pai)
+# s_Mae_n_Pai_AC =  table(AC_idadePaiMae2$flag_mae_n_pai)
+# total_AC =  table(AC_idadePaiMae2$Ano)
+# write.xlsx(cbind(total_AC, idade_mae_AC,idade_pai_AC, s_Mae_n_Pai_AC, missing_pai_AC), file = "AC_Tabela_mae_pai.csv")
 
 #CRIA SUBSET SÓ COM DADOS FALTANTES PARA IDADE DO PAI
 #-------
 missingAC = subset(AC, subset = AC$missing == 1)
 missingAC =  table(missingAC$Ano)
 totalAC =  table(AC$Ano)
-write.csv(cbind(totalAC, missingAC), file = "faltantes_ac.csv")
+write.csv(cbind(totalAC, missingAC, idade_pai_AC), file = "faltantes_ac.csv")
 
 missingAL = subset(AL, subset = AL$missing == 1)
 missingAL =  table(missingAL$Ano)
