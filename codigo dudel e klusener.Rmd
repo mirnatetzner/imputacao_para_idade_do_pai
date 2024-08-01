@@ -1,0 +1,1390 @@
+---
+title: "imputation sweden dudel"
+author: "Mirna"
+date: "2024-06-10"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: true
+    theme: lumen
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Description:
+prepara ambiente, carrega arquivos e cria variáveis  
+
+pacoteS para fontes e edições gráficas
+
+```{r, eval=FALSE}
+library(extrafont)
+library(grid)
+#font_import()
+loadfonts()
+loadfonts(device="win")
+loadfonts(device="postscript")
+loadfonts(device="pdf")
+
+```
+
+
+
+# Settings
+
+porque idade feminina e masculina 15-50?
+```{r, eval=FALSE}
+
+  rm(list=ls())
+
+  years <- 1968:2014
+  age.m <- 15:50
+  age.f <- 15:50
+  
+```
+
+
+# Read data
+
+## Read birth data
+carrega
+```{r, eval=FALSE}
+
+  # Read birth data
+  births <- read.table("N:/SGB/Male_Female_Fertility/Sweden/Tabel.csv",sep=",",header=T)
+```
+
+agrega (soma) -sobrescreve- "no_of_children" pela idade da mãe e do pai, por ano 
+
+```r
+births <- aggregate(No_of_children ~ Age_of_Mother + Age_of_Father + Year, data = births, sum)
+```
+
+### Explicação da função aggregate
+
+1. **Função `aggregate()`**:
+   - A função `aggregate()` é utilizada para dividir um data frame por um ou mais fatores. Neste caso, ela é usada para somar o número de crianças em diferentes combinações de idade da mãe, idade do pai e ano.
+
+2. **Fórmula**:
+   - `No_of_children ~ Age_of_Mother + Age_of_Father + Year`:
+     - A fórmula especifica que `No_of_children` é a variável a ser agregada.
+     - `Age_of_Mother`, `Age_of_Father` e `Year` são as variáveis de agrupamento.
+
+3. **Parâmetro `data`**:
+   - `data = births`: Especifica que o data frame `births` será usado na agregação.
+
+4. **Função `sum`**:
+   - `sum`: A função a ser aplicada a cada subconjunto de `No_of_children`. Ela soma o número de crianças dentro de cada grupo definido pelas combinações únicas de `Age_of_Mother`, `Age_of_Father` e `Year`.
+
+### Resultado
+
+O resultado dessa operação é um novo data frame onde cada linha representa uma combinação única de `Age_of_Mother`, `Age_of_Father` e `Year`, junto com o número total de crianças (`No_of_children`) para essa combinação.
+
+### Exemplo
+
+Suponha que temos os seguintes dados no data frame `births`:
+
+| Age_of_Mother | Age_of_Father | Year | No_of_children |
+|---------------|---------------|------|----------------|
+| 30            | 35            | 2014 | 2              |
+| 30            | 35            | 2014 | 3              |
+| 31            | 36            | 2014 | 1              |
+| 30            | 36            | 2015 | 4              |
+| 30            | 35            | 2014 | 1              |
+
+
+
+## Population counts
+carrega dataframe para contagem da população
+
+```{r, eval=FALSE}
+  # Population counts
+  pop <- read.table("U:/Data/HMD/sweden_population.txt",header=T)
+  pop$Age <- as.numeric(as.character(pop$Age))
+```
+
+faz subset [seleciona linhas pela condição, todas as colunas] para tirar crianças e outliers, os limites 11 e 99 estão contidos.
+
+```{r, eval=FALSE}
+ pop <- pop[pop$Age%in%11:99,]
+```
+
+# Edit age
+Edita idade no dataframe de nascimentos:
+  - transforma em caracter antes de fazer as transformações
+  - transforma as unidades com idade menor que 15 anos em 15 e maior de 50 para 50.Ou seja, pessoas a baixo de 15 e acima de 50 serão todas 'empurradas' para essa idade.
+  - transforma para numérico
+  
+```{r, eval=FALSE}
+
+  births$Age_of_Mother <- as.character(births$Age_of_Mother)
+  births$Age_of_Mother[births$Age_of_Mother=="-15"] <- "15"
+  births$Age_of_Mother[births$Age_of_Mother=="50+"] <- "50"
+  births$Age_of_Mother <- as.numeric(births$Age_of_Mother)
+  
+  births$Age_of_Father <- as.character(births$Age_of_Father)
+  births$Age_of_Father[births$Age_of_Father=="-15"] <- "15"
+  births$Age_of_Father[births$Age_of_Father=="50+"] <- "50"
+  births$Age_of_Father <- as.numeric(births$Age_of_Father)
+  
+```
+
+# Proportion missing over time
+### Objects for results
+
+   - produz uma matrix  preenchida de NA com tamanho: idade feminina(linhas) X número de anos (coluna)
+   
+   - Logo, prop.miss.age é uma matrix de NA onde cada ponto representa a idade feminina num ano específico (ainda não preenchida com valores). 
+   - prop.miss é um objeto tipo 'double'(semelhante a float, porém com maior precisão) de cumprimento == nº de anos, preenchido por 0.  
+   
+```{r, eval=FALSE}
+  prop.miss <- numeric(length(years))
+  prop.missing.age <- matrix(data=NA,nrow=length(age.f),ncol=length(years))
+  head.matrix(prop.missing.age)
+  dim(prop.missing.age)
+```
+### Calculate
+calcula a proporção de dados faltantes para idade do pai para cada idade específica da mãe
+
+Passos:
+
+1. Itera sobre cada ano no vetor `years`.
+
+2. Para cada ano, calcula a proporção de registros com `Age_of_Father` faltante e armazena em `prop.miss`.
+
+3. Itera sobre cada idade da mãe no vetor `age.f` e calcula a proporção de registros com `Age_of_Father` faltante para cada idade específica da mãe.
+
+4. Armazena os resultados em `prop.missing.age`, verificando se o valor calculado é válido antes de armazenar.
+
+Ao final do loop mais externo, a matriz `prop.missing.age` estará preenchida pelos valores da proporção de dados faltantes para a idade do pai para cada idade específica da mãe, para cada ano.
+
+```{r, eval=FALSE}
+for(i in years) {
+    cat(".")
+    prop.miss[i - (min(years) - 1)] <- sum(births$No_of_children[births$Year == i & is.na(births$Age_of_Father)]) / sum(births$No_of_children[births$Year == i])
+    
+    for(j in age.f) {
+        tmp <- births$No_of_children[births$Year == i & is.na(births$Age_of_Father) & births$Age_of_Mother == j] / sum(births$No_of_children[births$Year == i & births$Age_of_Mother == j])
+        if(length(tmp) == 1 & is.numeric(tmp) == TRUE) 
+            prop.missing.age[j - min(age.f) + 1, i - (min(years) - 1)] <- tmp 
+        else 
+            prop.missing.age[j - min(age.f) + 1, i - (min(years) - 1)] <- 0
+    }
+}
+```
+
+#### detalhamento
+Inicialização do Loop:
+
+```{r, eval=FALSE}
+for(i in years) {
+```
+Indicador de Progresso:
+- `cat(".")` imprime um ponto (.) no console. É uma maneira de fornecer uma indicação visual do progresso do loop.
+
+```{r, eval=FALSE}
+cat(".")
+```
+
+#### Calcular a proporção de Valores Faltantes:
+
+Esta linha calcula a proporção de valores faltantes para a coluna `Age_of_Father` no ano (atual do loop) e armazena no vetor `prop.miss`.
+
+```{r, eval=FALSE}
+prop.miss[i - (min(years) - 1)] <- sum(births$No_of_children[births$Year == i & is.na(births$Age_of_Father)])/sum(births$No_of_children[births$Year == i])
+```
+
+Passo a passo do cálculo:
+
+1. **Numerador**:
+   - `sum(births$No_of_children[births$Year == i & is.na(births$Age_of_Father)])`: Calcula o número total de nascimentos com idade do pai faltante no ano `i`.
+
+2. **Denominador**:
+   - `sum(births$No_of_children[births$Year == i])`: Calcula o número total de nascimentos no ano `i`.
+
+3. **Cálculo da Proporção**:
+   - A divisão dá a proporção de nascimentos com dados faltantes para `Age_of_Father` para o ano `i`.
+
+4. **Armazenamento do Resultado**:
+   - `prop.miss[i - (min(years) - 1)]`: Armazena a proporção calculada em `prop.miss`. O índice é ajustado por `i - (min(years) - 1)` para garantir que comece em 1 para o ano mínimo. (reutilização de código)
+
+resumidamente: 
+O loop itera sobre um vetor de anos e calcula a proporção de dados faltantes para `Age_of_Father` para cada ano. Ele armazena essas proporções no vetor `prop.miss` e imprime um ponto no console para cada iteração, fornecendo um indicador de progresso.
+
+###  Loop Interno para Idade da Mãe
+
+```{r, eval=FALSE}
+for(j in age.f) {
+```
+- Este segundo loop `for` itera sobre cada valor no vetor `age.f`, idade da mãe.
+
+#### objeto Temporário
+
+tmp = a proporção de nascimentos onde o `Age_of_Father` é missing para cada idade específica da mãe `j`.
+
+```{r, eval=FALSE}
+tmp <- births$No_of_children[births$Year == i & is.na(births$Age_of_Father) & births$Age_of_Mother == j] / sum(births$No_of_children[births$Year == i & births$Age_of_Mother == j])
+```
+- `births$Year == i & is.na(births$Age_of_Father) & births$Age_of_Mother == j`: Filtra as linhas no data frame `births` onde o ano é `i`, `Age_of_Father` é `NA` e a `Age_of_Mother` é `j`. Ou seja, onde a idade do pai é missing e idade da mãe é `j`.
+
+- `sum(births$No_of_children[births$Year == i & births$Age_of_Mother == j])`: Calcula o total de nascimentos do ano`i` para a idade da mãe `j`.
+- tmp = a divisão do número de nascimentos sem idade do pai (e com idade da mãe) para ano `i`, dividido pelo total de nascimentos para idade da mãe `j` no ano `i` 
+
+#### Atribuição Condicional
+
+```{r, eval=FALSE}
+if(length(tmp) == 1 & is.numeric(tmp) == T) 
+    prop.missing.age[j - min(age.f) + 1, i - (min(years) - 1)] <- tmp 
+else 
+    prop.missing.age[j - min(age.f) + 1, i - (min(years) - 1)] <- 0
+```
+- Verifica se `tmp` é um número único (`length(tmp) == 1`) e se é numérico (`is.numeric(tmp) == TRUE`). (só deve haver um valor para tmp a cada loop).
+- Se ambas as condições forem verdadeiras, armazena `tmp` em `prop.missing.age` na posição correspondente.[linha = idade da mãe - idade mínima da mãe + 1, coluna = ano - menor ano - 1]
+
+- Caso contrário, armazena `0` na posição correspondente de `prop.missing.age`.
+
+**prop.miss** == Proporção de registros com idade do pai faltante sobre o total de nascimentos para cada ano.
+
+**prop.missing.age**== matriz com os valores da proporção de dados faltantes para a idade do pai para cada idade específica da mãe, para cada ano.
+
+
+## Correlation of proportion missing and age of mother
+calcula a correlação entre a proporção de dados faltantes e a idade da mãe usando o método de Spearman.
+
+```{r, eval=FALSE}
+  tmpdat <- as.data.frame(cbind(rep(age.f,dim(prop.missing.age)[2]),c(prop.missing.age)))
+  tmpdat$V1[is.nan(tmpdat$V1)] <- 0
+  tmpdat$V2[is.nan(tmpdat$V2)] <- 0
+  tmpdat <- na.omit(tmpdat)
+  cor(tmpdat,method="spearman")
+
+```
+
+### Criação de um Data Frame Temporário
+
+```{r, eval=FALSE}
+tmpdat <- as.data.frame(cbind(rep(age.f, dim(prop.missing.age)[2]), c(prop.missing.age)))
+```
+
+- `cbind(rep(age.f, dim(prop.missing.age)[2]), c(prop.missing.age))`: Cria uma matriz combinando duas colunas:
+  - `rep(age.f, dim(prop.missing.age)[2])`: Repete os valores de `age.f` pelo número de colunas em `prop.missing.age`.
+    - `dim(prop.missing.age)[2]`: Esta expressão retorna o número de colunas na matriz `prop.missing.age`
+    - A função `rep()` é usada para replicar os valores de um vetor de várias maneiras. No contexto do código, `rep(age.f, dim(prop.missing.age)[2])` cria um vetor onde os valores de `age.f` são repetidos tantas vezes quanto o número de colunas na matriz `prop.missing.age`. Isso é útil para preparar os dados para combinações e análises subsequentes.
+  - `c(prop.missing.age)`: Converte a matriz prop.missing.age em um vetor. Isso é feito concatenando todos os elementos da matriz em um único vetor unidimensional.
+
+- `as.data.frame(...)`: Converte a matriz resultante em um data frame e o armazena em `tmpdat`.
+
+**tmpdat** =  data frame que combina as idades das mães (para todos os anos) com as proporções de dados faltantes para essas idades. O data frame resultante terá duas colunas:
+
+- Coluna 1 (V1): Repetições do vetor age.f.(repetição da idade da mãe -pelos anos)
+- Coluna 2 (V2): Valores da matriz prop.missing.age convertidos em vetor.
+
+
+### Tratamento de Valores NaN
+
+```{r, eval=FALSE}
+tmpdat$V1[is.nan(tmpdat$V1)] <- 0
+tmpdat$V2[is.nan(tmpdat$V2)] <- 0
+```
+- `tmpdat$V1[is.nan(tmpdat$V1)] <- 0`: Substitui valores `NaN` na coluna `V1` por `0`.
+- `tmpdat$V2[is.nan(tmpdat$V2)] <- 0`: Substitui valores `NaN` na coluna `V2` por `0`.
+
+### Remoção de Valores NA
+
+```{r, eval=FALSE}
+tmpdat <- na.omit(tmpdat)
+```
+- `na.omit(tmpdat)`: Remove quaisquer linhas que contenham valores `NA` no data frame `tmpdat`.
+
+### Cálculo da Correlação
+
+```{r, eval=FALSE}
+cor(tmpdat, method = "spearman")
+```
+- `cor(tmpdat, method = "spearman")`: Calcula a matriz de correlação usando o *método de Spearman* para as colunas do data frame `tmpdat`.
+
+
+### Passo a Passo
+
+1. **Combinação e Criação do Data Frame**:
+   - Combina a idade da mãe repetida e a matriz de proporções faltantes em um data frame.
+
+2. **Substituição de Valores NaN e Remoção de Valores NA**:
+   - Substitui quaisquer valores `NaN` nas colunas `V1` e `V2` por `0`.
+   - Remove linhas com valores `NA` do data frame.
+
+3. **Cálculo da Correlação de Spearman**:
+   - Calcula a correlação entre a proporção de dados faltantes e a idade da mãe, usando o método de Spearman, que é uma medida não paramétrica de correlação.
+
+
+# Look at one year 
+*Implements all imputation methods for one year
+
+*Also brief assessment of age distributions
+  
+- Define um ano específico para a análise.
+```{r, eval=FALSE}
+  whichyear <- 2014
+```
+  
+
+## Subset data 
+- Cria um subconjunto de dados de nascimentos (`birthsub`) para o ano especificado (`whichyear`), incluindo apenas as idades de pai (`Age_of_Father`) presentes no intervalo `age.m` (1:50) ou com valores faltantes (`NA`)  e idades da mãe (`Age_of_Mother`) presentes no intervalo `age.f`(1:50).
+
+```{r, eval=FALSE}
+  birthsub <- subset(births,Year==whichyear&(Age_of_Father%in%age.m|is.na(Age_of_Father))&Age_of_Mother%in%age.f)
+  popsub1 <- subset(pop,Year==whichyear)
+  popsub2 <- subset(pop,Year==whichyear+1)
+```
+**birthsub** = subdf dos nascimentos do ano de análise com idade do pai, idade da mãe e idade do pai faltante
+
+**popsub1** = subdf de pop para ano
+
+**popsub2** = subdf de pop para ano seguinte
+
+
+# Distribution of births for males and females (observed)
+
+ Distribuição de Nascimentos (Observados)
+
+```{r, eval=FALSE}
+ 
+  tmp_f <- aggregate(No_of_children~Age_of_Mother,data=birthsub,sum)$No_of_children
+  tmp_f2 <- aggregate(No_of_children~Age_of_Mother,data=birthsub[is.na(birthsub$Age_of_Father),],sum)$No_of_children
+  
+  tmp_f_age <- aggregate(No_of_children~Age_of_Mother,data=birthsub,sum)$Age_of_Mother
+  tmp_f_age2 <- aggregate(No_of_children~Age_of_Mother,data=birthsub[is.na(birthsub$Age_of_Father),],sum)$Age_of_Mother
+  
+  tmp_m <- aggregate(No_of_children~Age_of_Father,data=birthsub,function(x) sum(x,na.rm=T))$No_of_children
+  tmp_m_age <- aggregate(No_of_children~Age_of_Father,data=birthsub,function(x) sum(x,na.rm=T))$Age_of_Father
+  
+  tmp_m2 <- aggregate(No_of_children~Age_of_Father,data=birthsub[birthsub$Age_of_Mother==30,],function(x) sum(x,na.rm=T))$No_of_children
+  tmp_m_age2 <- aggregate(No_of_children~Age_of_Father,data=birthsub[birthsub$Age_of_Mother==30,],function(x) sum(x,na.rm=T))$Age_of_Father
+```
+**tmp_f** =  Agrupa os dados por `Age_of_Mother` e calcula a soma de ``No_of_children`` para cada grupo. armazena número de nascimentos para cada idade da mãe (entre 15 e 50).
+
+**tmp_f2** = armazena a soma do número de nascimentos para cada idade da mãe, onde a idade do pai está ausente.
+
+**tmp_f_age** = armazena as idades das mães para as quais foram calculadas as somas em ``tmp_f``.
+
+**tmp_f_age2** = armazena as idades das mães para as quais foram calculadas as somas em ``tmp_f2``(idade-pai-ausente).
+
+**tmp_m** = armazena a soma do número de nascimentos para cada idade do pai (ignora NAs).
+
+**tmp_m_age** = armazena as idades dos pais para as quais foram calculadas as somas em ``tmp_m``.
+
+para exemplificar: 
+
+**tmp_m2** = armazena a soma do número de nascimentos para cada idade do pai, onde a idade da mãe é 30.
+
+**tmp_m_age2** = armazena as idades dos pais para as quais foram calculadas as somas em ``tmp_m2``. Idade dos pais para idade da mãe igual a 30.
+
+
+# Mean age of fathers and mothers (obersved, dropping missings)
+- Calcula a média de idade das mães e pais, descartando valores faltantes.
+```{r, eval=FALSE}
+  sum(tmp_f/sum(tmp_f)*tmp_f_age)
+  sum(tmp_m/sum(tmp_m)*tmp_m_age)
+
+```
+
+$$\sum\frac{\text{nascimentos por idade da mãe}}{\sum (\text{nascimentos por idade da mãe})}*\text{idades das mães}$$
+
+calcula a média ponderada das idades da mãe (tmp_f_age), onde os pesos são as somas do número de nascimentos (tmp_f) para cada idade da mãe.Ou seja, o resultado é a média ponderada das idades da mãe.
+
+o mesmo é feito para a idade do pai sem contabilizar nascimentos com dados faltantes
+
+# Calculate TFR males (dropping missing values)
+Taxa de fecundidade Total (TFT) dos Homens
+- Calcula a TFT  masculina, considerando apenas os nascimentos com idade do pai conhecida.
+- `numerator.m` armazena o número de nascimentos por idade do pai (não NA).
+- `denominator.m` armazena a média populacional de homens por idade entre dois anos consecutivos (popsub1 e popsub2).
+
+**fertrate.m** = TFT 
+
+$${TFT_{\text{masculina obs}}} = \sum\frac{B^O(x,t)}{N(x,t)} $$
+
+```{r, eval=FALSE}
+  numerator.m <- numeric(length(age.m))
+  denominator.m <- numeric(length(age.m))
+  for(i in age.m) {
+    numerator.m[i-(min(age.m)-1)] <- sum(birthsub$No_of_children[birthsub$Age_of_Father==i & !is.na(birthsub$Age_of_Father)])
+    denominator.m[i-(min(age.m)-1)] <- (popsub2$Male[popsub2$Age==i]+popsub1$Male[popsub1$Age==i])/2
+  }
+  fertrate.m <- numerator.m/denominator.m
+
+```
+
+# TFR of females
+ Taxa de fecundidade Total (TFT) das Mulheres
+- Calcula a TFR feminina, usando a mesma lógica aplicada para os homens.
+
+```{r, eval=FALSE}
+  numerator.f <- numeric(length(age.f))
+  denominator.f <- numeric(length(age.f))
+  for(i in age.f) {
+    numerator.f[i-(min(age.f)-1)] <- sum(birthsub$No_of_children[birthsub$Age_of_Mother==i])
+    denominator.f[i-(min(age.f)-1)] <- (popsub2$Female[popsub2$Age==i]+popsub1$Female[popsub1$Age==i])/2
+  }
+  fertrate.f <- numerator.f/denominator.f
+```
+
+
+# TFR males: According to unconditional distribution
+
+- Imputa nascimentos com `Age_of_Father` faltante distribuindo-os de forma incondicional com base na distribuição observada.
+```{r, eval=FALSE}
+  add.imp1 <- sum(birthsub$No_of_children[is.na(birthsub$Age_of_Father)])*(numerator.m/sum(numerator.m))
+  fertrate.m.imp1 <- (numerator.m+add.imp1)/denominator.m
+
+```
+
+# TFR males: According to fertility rates
+```{r, eval=FALSE}
+  add.imp2 <- sum(birthsub$No_of_children[is.na(birthsub$Age_of_Father)])*(fertrate.m/sum(fertrate.m))
+  fertrate.m.imp2 <- (numerator.m+add.imp2)/denominator.m
+
+```
+
+# TFR males: According to conditional distribution
+```{r, eval=FALSE}
+
+  add.imp3 <- numeric(length(age.m))
+  
+  for(i in age.f) {
+    btd <- sum(birthsub$No_of_children[birthsub$Age_of_Mother==i&is.na(birthsub$Age_of_Father)])
+    if(btd==0) next # if no births to distribute
+    if(btd==sum(birthsub$No_of_children[birthsub$Age_of_Mother==i])) next # if all births have NA
+    agedistr <- numeric(length(age.m))
+    tmp <- aggregate(No_of_children~Age_of_Father,data=birthsub[birthsub$Age_of_Mother==i,],sum)
+    agedistr[match(tmp$Age_of_Father,age.m)] <- tmp$No_of_children
+    agedistr <- agedistr/sum(agedistr)
+    add.imp3 <- add.imp3+agedistr*btd
+  }
+  
+  fertrate.m.imp3 <- (numerator.m+add.imp3)/denominator.m
+```
+
+# Compare TFRs
+```{r, eval=FALSE}
+ sum(fertrate.m)
+  sum(fertrate.m.imp1)
+  sum(fertrate.m.imp2)
+  sum(fertrate.m.imp3)
+  
+```
+
+# Compare mean age
+```{r, eval=FALSE}
+  sum(fertrate.m/sum(fertrate.m)*age.m)
+  sum(fertrate.m.imp1/sum(fertrate.m.imp1)*age.m)
+  sum(fertrate.m.imp2/sum(fertrate.m.imp2)*age.m)
+  sum(fertrate.m.imp3/sum(fertrate.m.imp3)*age.m)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+#### Taxas de Fertilidade
+
+```{r, eval=FALSE}
+add.imp2 <- sum(birthsub$No_of_children[is.na(birthsub$Age_of_Father)]) * (fertrate.m / sum(fertrate.m))
+fertrate.m.imp2 <- (numerator.m + add.imp2) / denominator.m
+```
+- Imputa nascimentos com `Age_of_Father` faltante baseado nas taxas de fertilidade.
+
+#### Distribuição Condicional
+
+```{r, eval=FALSE}
+add.imp3 <- numeric(length(age.m))
+
+for(i in age.f) {
+  btd <- sum(birthsub$No_of_children[birthsub$Age_of_Mother == i & is.na(birthsub$Age_of_Father)])
+  if(btd == 0) next
+  if(btd == sum(birthsub$No_of_children[birthsub$Age_of_Mother == i])) next
+  agedistr <- numeric(length(age.m))
+  tmp <- aggregate(No_of_children ~ Age_of_Father, data = birthsub[birthsub$Age_of_Mother == i, ], sum)
+  agedistr[match(tmp$Age_of_Father, age.m)] <- tmp$No_of_children
+  agedistr <- agedistr / sum(agedistr)
+  add.imp3 <- add.imp3 + agedistr * btd
+}
+
+fertrate.m.imp3 <- (numerator.m + add.imp3) / denominator.m
+```
+- Imputa nascimentos com `Age_of_Father` faltante utilizando uma distribuição condicional com base na idade da mãe.
+
+### Comparação de TFRs e Média de Idade
+
+```{r, eval=FALSE}
+# Comparar TFRs
+sum(fertrate.m)
+sum(fertrate.m.imp1)
+sum(fertrate.m.imp2)
+sum(fertrate.m.imp3)
+
+# Comparar média de idade
+sum(fertrate.m / sum(fertrate.m) * age.m)
+sum(fertrate.m.imp1 / sum(fertrate.m.imp1) * age.m)
+sum(fertrate.m.imp2 / sum(fertrate.m.imp2) * age.m)
+sum(fertrate.m.imp3 / sum(fertrate.m.imp3) * age.m)
+```
+- Compara as TFRs (taxas de fertilidade total) e médias de idade dos pais entre as diferentes imputações.
+
+Esse código implementa métodos de imputação de dados faltantes para um ano específico e avalia a distribuição de idades das mães e dos pais, bem como calcula e compara as TFRs e médias de idade resultantes das diferentes imputações.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# código completo
+
+```{r, eval=FALSE}
+### Imputation of the age of the father ###########################################################
+
+  ### Date: 8 June 2017
+
+  ### Country: Sweden
+
+  ### Description:
+  ###
+
+library(extrafont)
+library(grid)
+#font_import()
+loadfonts()
+loadfonts(device="win")
+loadfonts(device="postscript")
+loadfonts(device="pdf")
+
+### Settings ######################################################################################
+
+  rm(list=ls())
+
+  years <- 1968:2014
+  age.m <- 15:50
+  age.f <- 15:50
+  
+  
+  
+### Read data #####################################################################################  
+
+  # Read birth data
+  births <- read.table("N:/SGB/Male_Female_Fertility/Sweden/Tabel.csv",sep=",",header=T)
+  # Simplify
+  births <- aggregate(No_of_children~Age_of_Mother+Age_of_Father+Year,data=births,sum) #agrega (soma) "no_of_children" pela idade da mãe e do pai, por ano
+  
+  # Population counts
+  pop <- read.table("U:/Data/HMD/sweden_population.txt",header=T)
+  pop$Age <- as.numeric(as.character(pop$Age))
+  pop <- pop[pop$Age%in%11:99,]
+  
+  
+  
+### Edit age ######################################################################################
+
+  births$Age_of_Mother <- as.character(births$Age_of_Mother)
+  births$Age_of_Mother[births$Age_of_Mother=="-15"] <- "15"
+  births$Age_of_Mother[births$Age_of_Mother=="50+"] <- "50"
+  births$Age_of_Mother <- as.numeric(births$Age_of_Mother)
+  
+  births$Age_of_Father <- as.character(births$Age_of_Father)
+  births$Age_of_Father[births$Age_of_Father=="-15"] <- "15"
+  births$Age_of_Father[births$Age_of_Father=="50+"] <- "50"
+  births$Age_of_Father <- as.numeric(births$Age_of_Father)
+  
+  
+  
+### Proportion missing over time ##################################################################
+
+  # Objects for results
+  prop.miss <- numeric(length(years))
+  prop.missing.age <- matrix(data=NA,nrow=length(age.f),ncol=length(years))
+
+  # Calculate
+  for(i in years) {
+    cat(".")
+    prop.miss[i-(min(years)-1)] <- sum(births$No_of_children[births$Year==i&is.na(births$Age_of_Father)])/sum(births$No_of_children[births$Year==i])
+    
+    for(j in age.f) {
+      tmp <- births$No_of_children[births$Year==i&is.na(births$Age_of_Father)&births$Age_of_Mother==j]/sum(births$No_of_children[births$Year==i&births$Age_of_Mother==j])
+      if(length(tmp)==1&is.numeric(tmp)==T) prop.missing.age[j-min(age.f)+1,i-(min(years)-1)] <- tmp else prop.missing.age[j-min(age.f)+1,i-(min(years)-1)] <- 0
+    }
+  }
+
+  # Correlation of proportion missing and age of mother
+  tmpdat <- as.data.frame(cbind(rep(age.f,dim(prop.missing.age)[2]),c(prop.missing.age)))
+  tmpdat$V1[is.nan(tmpdat$V1)] <- 0
+  tmpdat$V2[is.nan(tmpdat$V2)] <- 0
+  tmpdat <- na.omit(tmpdat)
+  cor(tmpdat,method="spearman")
+
+  
+### Look at one year ##############################################################################
+  
+  ### Implements all imputation methods for one year
+  ### Also brief assessment of age distributions
+  
+  # Set year to use
+  whichyear <- 2014
+  
+  # Subset data 
+  birthsub <- subset(births,Year==whichyear&(Age_of_Father%in%age.m|is.na(Age_of_Father))&Age_of_Mother%in%age.f)
+  popsub1 <- subset(pop,Year==whichyear)
+  popsub2 <- subset(pop,Year==whichyear+1)
+  
+  # Distribution of births for males and females (observed)
+  tmp_f <- aggregate(No_of_children~Age_of_Mother,data=birthsub,sum)$No_of_children
+  tmp_f2 <- aggregate(No_of_children~Age_of_Mother,data=birthsub[is.na(birthsub$Age_of_Father),],sum)$No_of_children
+  
+  tmp_f_age <- aggregate(No_of_children~Age_of_Mother,data=birthsub,sum)$Age_of_Mother
+  tmp_f_age2 <- aggregate(No_of_children~Age_of_Mother,data=birthsub[is.na(birthsub$Age_of_Father),],sum)$Age_of_Mother
+  
+  tmp_m <- aggregate(No_of_children~Age_of_Father,data=birthsub,function(x) sum(x,na.rm=T))$No_of_children
+  tmp_m_age <- aggregate(No_of_children~Age_of_Father,data=birthsub,function(x) sum(x,na.rm=T))$Age_of_Father
+  
+  tmp_m2 <- aggregate(No_of_children~Age_of_Father,data=birthsub[birthsub$Age_of_Mother==30,],function(x) sum(x,na.rm=T))$No_of_children
+  tmp_m_age2 <- aggregate(No_of_children~Age_of_Father,data=birthsub[birthsub$Age_of_Mother==30,],function(x) sum(x,na.rm=T))$Age_of_Father
+  
+
+  # Mean age of fathers and mothers (obersved, dropping missings)
+  sum(tmp_f/sum(tmp_f)*tmp_f_age)
+  sum(tmp_m/sum(tmp_m)*tmp_m_age)
+  
+  # Calculate TFR males (dropping missing values)
+  numerator.m <- numeric(length(age.m))
+  denominator.m <- numeric(length(age.m))
+  for(i in age.m) {
+    numerator.m[i-(min(age.m)-1)] <- sum(birthsub$No_of_children[birthsub$Age_of_Father==i & !is.na(birthsub$Age_of_Father)])
+    denominator.m[i-(min(age.m)-1)] <- (popsub2$Male[popsub2$Age==i]+popsub1$Male[popsub1$Age==i])/2
+  }
+  fertrate.m <- numerator.m/denominator.m
+  
+  # TFR of females
+  numerator.f <- numeric(length(age.f))
+  denominator.f <- numeric(length(age.f))
+  for(i in age.f) {
+    numerator.f[i-(min(age.f)-1)] <- sum(birthsub$No_of_children[birthsub$Age_of_Mother==i])
+    denominator.f[i-(min(age.f)-1)] <- (popsub2$Female[popsub2$Age==i]+popsub1$Female[popsub1$Age==i])/2
+  }
+  fertrate.f <- numerator.f/denominator.f
+  
+  # TFR males: According to unconditional distribution
+  add.imp1 <- sum(birthsub$No_of_children[is.na(birthsub$Age_of_Father)])*(numerator.m/sum(numerator.m))
+  fertrate.m.imp1 <- (numerator.m+add.imp1)/denominator.m
+  
+  # TFR males: According to fertility rates
+  add.imp2 <- sum(birthsub$No_of_children[is.na(birthsub$Age_of_Father)])*(fertrate.m/sum(fertrate.m))
+  fertrate.m.imp2 <- (numerator.m+add.imp2)/denominator.m
+  
+  # TFR males: According to conditional distribution
+  add.imp3 <- numeric(length(age.m))
+  
+  for(i in age.f) {
+    btd <- sum(birthsub$No_of_children[birthsub$Age_of_Mother==i&is.na(birthsub$Age_of_Father)])
+    if(btd==0) next # if no births to distribute
+    if(btd==sum(birthsub$No_of_children[birthsub$Age_of_Mother==i])) next # if all births have NA
+    agedistr <- numeric(length(age.m))
+    tmp <- aggregate(No_of_children~Age_of_Father,data=birthsub[birthsub$Age_of_Mother==i,],sum)
+    agedistr[match(tmp$Age_of_Father,age.m)] <- tmp$No_of_children
+    agedistr <- agedistr/sum(agedistr)
+    add.imp3 <- add.imp3+agedistr*btd
+  }
+  
+  fertrate.m.imp3 <- (numerator.m+add.imp3)/denominator.m
+  
+  # Compare TFRs
+  sum(fertrate.m)
+  sum(fertrate.m.imp1)
+  sum(fertrate.m.imp2)
+  sum(fertrate.m.imp3)
+  
+  # Compare mean age
+  sum(fertrate.m/sum(fertrate.m)*age.m)
+  sum(fertrate.m.imp1/sum(fertrate.m.imp1)*age.m)
+  sum(fertrate.m.imp2/sum(fertrate.m.imp2)*age.m)
+  sum(fertrate.m.imp3/sum(fertrate.m.imp3)*age.m)
+  
+### Missingness pattern of data ###################################################################
+  
+  # Vector of proportion missing split by age of mother
+  # I.e., sum(propsm) is the total proportion of missing values
+  # This missingness pattern is used for the simulations
+  match.ages <- match(birthsub$Age_of_Mother[is.na(birthsub$Age_of_Father)],age.f)
+  propsm <- numeric(length(age.f))
+  propsm[match.ages] <- birthsub$No_of_children[is.na(birthsub$Age_of_Father)]/sum(birthsub$No_of_children)
+  
+  # Distribution of births by age of mother
+  propsb <- numeric(length(age.f))
+  tmp <- aggregate(No_of_children~Age_of_Mother,data=birthsub,sum)
+  match.ages2 <- match(tmp$Age_of_Mother,age.f)
+  propsb[match.ages2] <- tmp$No_of_children/sum(birthsub$No_of_children)
+
+
+  
+### Generate estimates of methods with varying proporiton missing #################################
+  
+  # Proportion missings as goals
+  ziele <- seq(0.01,0.5,by=0.005)
+  missing.pattern <- matrix(data=NA,nrow=length(age.f),ncol=length(ziele))
+  colnames(missing.pattern) <- paste(ziele)
+  rownames(missing.pattern) <- paste(age.f)
+  
+  # Objects for results: TFRs
+  itfr0 <- numeric(length(ziele))
+  itfr1 <- numeric(length(ziele))
+  itfr2 <- numeric(length(ziele))
+  itfr3 <- numeric(length(ziele))
+  
+  # Mean age
+  iage0 <- numeric(length(ziele))
+  iage1 <- numeric(length(ziele))
+  iage2 <- numeric(length(ziele))
+  iage3 <- numeric(length(ziele))
+
+  # Age specific fertility rates  
+  iasfr0 <- matrix(data=NA,ncol=length(ziele),nrow=length(age.m))
+  iasfr1 <- matrix(data=NA,ncol=length(ziele),nrow=length(age.m))
+  iasfr2 <- matrix(data=NA,ncol=length(ziele),nrow=length(age.m))
+  iasfr3 <- matrix(data=NA,ncol=length(ziele),nrow=length(age.m))
+  
+  # Cycle over goals
+  for(j in ziele) {
+    
+    # Find missing vector    
+    tgoal <- j
+    stopit <- F
+    res1 <- propsm
+    res2 <- propsm/propsb
+    while(stopit==F) {
+      
+      tscale <- tgoal/sum(res1)
+      usescale <- 0.9/res2
+      usescale[usescale>tscale] <- tscale
+      res1 <- usescale*res1
+      res2 <- res1/propsb
+      if(abs(sum(res1)-tgoal)<0.0001) stopit=T
+    }
+    
+    missing.pattern[,which(ziele==j)] <- res2
+    
+    # Generate fake data
+    birthfake <- subset(births,Year==whichyear&(Age_of_Father%in%age.m|is.na(Age_of_Father))&Age_of_Mother%in%age.f)   
+    
+    for(i in age.f) {
+      total <- sum(birthfake$No_of_children[birthfake$Age_of_Mother==i])
+      miss <- birthfake$No_of_children[birthfake$Age_of_Mother==i&is.na(birthfake$Age_of_Father)]
+      valid <- birthfake$No_of_children[birthfake$Age_of_Mother==i&!is.na(birthfake$Age_of_Father)]
+      pmiss <- sum(miss/total)
+      pmgoal <- res2[i-(min(age.f)-1)]
+      
+      pvalid <- sum(valid/total)
+      pvgoal <- 1-pmgoal
+      
+      pmscale <- pmgoal/pmiss
+      pvscale <- pvgoal/pvalid
+      
+      birthfake$No_of_children[birthfake$Age_of_Mother==i&is.na(birthfake$Age_of_Father)] <- birthfake$No_of_children[birthfake$Age_of_Mother==i&is.na(birthfake$Age_of_Father)]*pmscale
+      birthfake$No_of_children[birthfake$Age_of_Mother==i&!is.na(birthfake$Age_of_Father)] <- birthfake$No_of_children[birthfake$Age_of_Mother==i&!is.na(birthfake$Age_of_Father)]*pvscale
+    }
+    
+    # Males (dropping missing values)
+    fnumerator.m <- numeric(length(age.m))
+    fdenominator.m <- numeric(length(age.m))
+    for(i in age.m) {
+      fnumerator.m[i-(min(age.m)-1)] <- sum(birthfake$No_of_children[birthfake$Age_of_Father==i & !is.na(birthfake$Age_of_Father)])
+      fdenominator.m[i-(min(age.m)-1)] <- (popsub2$Male[popsub2$Age==i]+popsub1$Male[popsub1$Age==i])/2
+    }
+    ifertrate.m.fake0 <- fnumerator.m/fdenominator.m
+    
+    # According to unconditional distribution
+    fadd.imp1 <- sum(birthfake$No_of_children[is.na(birthfake$Age_of_Father)])*(fnumerator.m/sum(fnumerator.m))
+    ifertrate.m.fake1 <- (fnumerator.m+fadd.imp1)/fdenominator.m
+    
+    # According to fertility rates
+    fadd.imp2 <- sum(birthfake$No_of_children[is.na(birthfake$Age_of_Father)])*(ifertrate.m.fake0/sum(ifertrate.m.fake0))
+    ifertrate.m.fake2 <- (fnumerator.m+fadd.imp2)/fdenominator.m
+    
+    # According to conditional distribution
+    fadd.imp3 <- numeric(length(age.m))
+    
+    for(i in age.f) {
+      btd <- sum(birthfake$No_of_children[birthfake$Age_of_Mother==i&is.na(birthfake$Age_of_Father)])
+      if(btd==0) next # if no births to distribute
+      if(btd==sum(birthsub$No_of_children[birthsub$Age_of_Mother==i])) next # if all births have NA
+      agedistr <- numeric(length(age.m))
+      tmp <- aggregate(No_of_children~Age_of_Father,data=birthfake[birthfake$Age_of_Mother==i,],sum)
+      agedistr[match(tmp$Age_of_Father,age.m)] <- tmp$No_of_children
+      agedistr <- agedistr/sum(agedistr)
+      fadd.imp3 <- fadd.imp3+agedistr*btd
+      if(any(is.nan(fadd.imp3))) stop("Was")
+    }
+    
+    ifertrate.m.fake3 <- (fnumerator.m+fadd.imp3)/fdenominator.m
+    
+    # Generate results
+    iasfr0[,which(ziele==j)] <- ifertrate.m.fake0
+    iasfr1[,which(ziele==j)] <- ifertrate.m.fake1
+    iasfr2[,which(ziele==j)] <- ifertrate.m.fake2
+    iasfr3[,which(ziele==j)] <- ifertrate.m.fake3
+    
+    itfr0[which(ziele==j)] <- sum(ifertrate.m.fake0)
+    itfr1[which(ziele==j)] <- sum(ifertrate.m.fake1)
+    itfr2[which(ziele==j)] <- sum(ifertrate.m.fake2)
+    itfr3[which(ziele==j)] <- sum(ifertrate.m.fake3)
+    
+    iage0[which(ziele==j)] <- sum(ifertrate.m.fake0/sum(ifertrate.m.fake0)*age.m)
+    iage1[which(ziele==j)] <- sum(ifertrate.m.fake1/sum(ifertrate.m.fake1)*age.m)
+    iage2[which(ziele==j)] <- sum(ifertrate.m.fake2/sum(ifertrate.m.fake2)*age.m)
+    iage3[which(ziele==j)] <- sum(ifertrate.m.fake3/sum(ifertrate.m.fake3)*age.m)
+
+  }    
+  
+  
+  
+### Shifting distribution #########################################################################  
+
+  ### This code generates "true" values for fertiltiy and compares it with the results from above
+  
+  # Goals for age shift
+  amount_shift_list <- seq(-4,4,by=1) 
+  
+  # Objects for results: 'True data'
+  itfr_true_shift <- matrix(data=NA,ncol=length(ziele),nrow=length(amount_shift_list)) # True TFR
+  iage_true_shift <- matrix(data=NA,ncol=length(ziele),nrow=length(amount_shift_list)) # True mean age
+  
+  # Objects for results:  Mean absolute percentage error by method 
+  imape0 <- matrix(data=NA,ncol=length(ziele),nrow=length(amount_shift_list))
+  imape1 <- matrix(data=NA,ncol=length(ziele),nrow=length(amount_shift_list))
+  imape2 <- matrix(data=NA,ncol=length(ziele),nrow=length(amount_shift_list))
+  imape3 <- matrix(data=NA,ncol=length(ziele),nrow=length(amount_shift_list))
+  
+  # Object for shifted age distributions (for mothers aged 30)
+  shifted_distr <- matrix(data=0,ncol=length(amount_shift_list),nrow=length(age.m))
+  rownames(shifted_distr) <- paste(age.m)
+  colnames(shifted_distr) <- amount_shift_list
+  
+  for(amount_shift in amount_shift_list) {
+
+    for(j in ziele) {
+      
+      # Find missing vector    
+      tgoal <- j
+      stopit <- F
+      res1 <- propsm
+      res2 <- propsm/propsb
+      while(stopit==F) {
+        
+        tscale <- tgoal/sum(res1)
+        usescale <- 0.9/res2
+        usescale[usescale>tscale] <- tscale
+        res1 <- usescale*res1
+        res2 <- res1/propsb
+        if(abs(sum(res1)-tgoal)<0.0001) stopit=T
+      }
+      
+      missing.pattern[,which(ziele==j)] <- res2
+      
+      # Generate fake data
+      birthfake <- subset(births,Year==whichyear&(Age_of_Father%in%age.m|is.na(Age_of_Father))&Age_of_Mother%in%age.f)   
+      
+      for(i in age.f) {
+        total <- sum(birthfake$No_of_children[birthfake$Age_of_Mother==i])
+        miss <- birthfake$No_of_children[birthfake$Age_of_Mother==i&is.na(birthfake$Age_of_Father)]
+        valid <- birthfake$No_of_children[birthfake$Age_of_Mother==i&!is.na(birthfake$Age_of_Father)]
+        pmiss <- sum(miss/total)
+        pmgoal <- res2[i-(min(age.f)-1)]
+        
+        pvalid <- sum(valid/total)
+        pvgoal <- 1-pmgoal
+        
+        pmscale <- pmgoal/pmiss
+        pvscale <- pvgoal/pvalid
+        
+        birthfake$No_of_children[birthfake$Age_of_Mother==i&is.na(birthfake$Age_of_Father)] <- birthfake$No_of_children[birthfake$Age_of_Mother==i&is.na(birthfake$Age_of_Father)]*pmscale
+        birthfake$No_of_children[birthfake$Age_of_Mother==i&!is.na(birthfake$Age_of_Father)] <- birthfake$No_of_children[birthfake$Age_of_Mother==i&!is.na(birthfake$Age_of_Father)]*pvscale
+      }
+      
+      # True data sets Same age
+      
+        # Generate 'true' data, same age
+        birthtrue_shift <- birthfake
+        
+        for(i in age.f) {
+          tmp <- birthtrue_shift$No_of_children[birthtrue_shift$Age_of_Mother==i&is.na(birthtrue_shift$Age_of_Father)]
+          if(length(tmp)==0) next
+          distr <- numeric(length(age.m))
+          obs.age <- birthtrue_shift$Age_of_Father[birthtrue_shift$Age_of_Mother==i&!is.na(birthtrue_shift$Age_of_Father)]
+          if(length(obs.age)==0) next
+          obs.counts <- birthtrue_shift$No_of_children[birthtrue_shift$Age_of_Mother==i&!is.na(birthtrue_shift$Age_of_Father)]
+          distr[match(obs.age,age.m)] <- obs.counts
+          distr <- distr/sum(distr)
+          shiftdistr <- numeric(length(age.m))
+          for(z in age.m) {
+            shiftdistr[max(min((z-14)+amount_shift,length(shiftdistr)),1)] <- shiftdistr[max(min((z-14)+amount_shift,length(shiftdistr)),1)]+distr[z-14]
+          }
+          
+          if(i==30) shifted_distr[,paste(amount_shift)] <- shiftdistr
+          
+          matching_ages <- match(obs.age,age.m)
+          all_ages <- which(shiftdistr>0)
+          notmatching_ages <- all_ages[!all_ages%in%matching_ages]
+          
+          birthtrue_shift$No_of_children[birthtrue_shift$Age_of_Mother==i&is.na(birthtrue_shift$Age_of_Father)] <- 0
+          birthtrue_shift$No_of_children[birthtrue_shift$Age_of_Mother==i&!is.na(birthtrue_shift$Age_of_Father)] <- birthtrue_shift$No_of_children[birthtrue_shift$Age_of_Mother==i&!is.na(birthtrue_shift$Age_of_Father)]+tmp*shiftdistr[matching_ages]
+          
+          if(length(notmatching_ages)>0) {
+            nn <- length(notmatching_ages)
+            tmp <- cbind(rep(i,nn),age.m[notmatching_ages],rep(whichyear,nn),tmp*shiftdistr[notmatching_ages])
+            colnames(tmp) <- names(birthtrue_shift)
+            birthtrue_shift <- rbind(birthtrue_shift,tmp)
+          }
+          
+        }
+        
+        # Calculate rate
+        fnumerator.m <- numeric(length(age.m))
+        fdenominator.m <- numeric(length(age.m))
+        for(i in age.m) {
+          fnumerator.m[i-(min(age.m)-1)] <- sum(birthtrue_shift$No_of_children[birthtrue_shift$Age_of_Father==i & !is.na(birthtrue_shift$Age_of_Father)])
+          fdenominator.m[i-(min(age.m)-1)] <- (popsub2$Male[popsub2$Age==i]+popsub1$Male[popsub1$Age==i])/2
+        }
+        ifertrate.m.true_shift <- fnumerator.m/fdenominator.m
+        itfr_true_shift[which(amount_shift_list==amount_shift),which(ziele==j)] <- sum(ifertrate.m.true_shift)
+        iage_true_shift[which(amount_shift_list==amount_shift),which(ziele==j)] <- sum(ifertrate.m.true_shift/sum(ifertrate.m.true_shift)*age.m)
+        imape0[which(amount_shift_list==amount_shift),which(ziele==j)] <- mean(abs((iasfr0[,which(ziele==j)]-ifertrate.m.true_shift)/ifertrate.m.true_shift),na.rm=T)
+        imape1[which(amount_shift_list==amount_shift),which(ziele==j)] <- mean(abs((iasfr1[,which(ziele==j)]-ifertrate.m.true_shift)/ifertrate.m.true_shift),na.rm=T)
+        imape2[which(amount_shift_list==amount_shift),which(ziele==j)] <- mean(abs((iasfr2[,which(ziele==j)]-ifertrate.m.true_shift)/ifertrate.m.true_shift),na.rm=T)
+        imape3[which(amount_shift_list==amount_shift),which(ziele==j)] <- mean(abs((iasfr3[,which(ziele==j)]-ifertrate.m.true_shift)/ifertrate.m.true_shift),na.rm=T)
+    }
+  }
+    
+  
+  
+### Plot ##########################################################################################
+  
+  # Missingness pattern
+  patt <- propsm/propsb
+  
+  png(file="U:/Documents/__PAPERS__/Male fertility Imputation/Figures/missing_pattern_swe_2014_b.png",bg="white",width=1000,height=1000,res=200)  
+  plot(age.f,patt,type="l",xlab="Age of mother",yaxt="n",ylim=c(0,1),panel.first=grid(),ylab="Proportion missing",
+       main="Missing age of father (Sweden 2014)",lwd=2)
+  lines(age.f,missing.pattern[,"0.1"],lwd=2,lty=2)
+  lines(age.f,missing.pattern[,"0.2"],lwd=2,lty=3)
+  axis(2, at=c(0.25,0.5,0.75,1), lab=c("0.25","0.50","0.75","1.00"), las=TRUE)
+  legend(x=21,y=1,lty=c(1,2,3),lwd=2,legend=c("2%","10%","20%"),bg="white")
+  dev.off()
+  
+  tiff(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_A1.tiff",
+       bg="white",width=1000,height=1000,res=200,compression="none",family="Times New Roman")  
+  plot(age.f,patt,type="l",xlab="Age of mother",yaxt="n",ylim=c(0,1),panel.first=grid(),ylab="Proportion missing",
+       main="Missing age of father (Sweden 2014)",lwd=2)
+  lines(age.f,missing.pattern[,"0.1"],lwd=2,lty=2)
+  lines(age.f,missing.pattern[,"0.2"],lwd=2,lty=3)
+  axis(2, at=c(0.25,0.5,0.75,1), lab=c("0.25","0.50","0.75","1.00"), las=TRUE)
+  legend(x=21,y=1,lty=c(1,2,3),lwd=2,legend=c("2%","10%","20%"),bg="white")
+  dev.off()
+  
+  pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_A1.pdf",
+             bg="white",family="Times New Roman")
+  plot(age.f,patt,type="l",xlab="Age of mother",yaxt="n",ylim=c(0,1),panel.first=grid(),ylab="Proportion missing",
+       main="Missing age of father (Sweden 2014)",lwd=2)
+  lines(age.f,missing.pattern[,"0.1"],lwd=2,lty=2)
+  lines(age.f,missing.pattern[,"0.2"],lwd=2,lty=3)
+  axis(2, at=c(0.25,0.5,0.75,1), lab=c("0.25","0.50","0.75","1.00"), las=TRUE)
+  legend(x=21,y=1,lty=c(1,2,3),lwd=2,legend=c("2%","10%","20%"),bg="white")
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V14 - Our edits/Figure_A1.pdf",
+      bg="white",family="Times New Roman")
+  plot(age.f,patt,type="l",xlab="Age of mother",yaxt="n",ylim=c(0,1),
+       panel.first=grid(),ylab="Proportion of births with missing paternal age",lwd=2)
+  lines(age.f,missing.pattern[,"0.1"],lwd=2,lty=2)
+  lines(age.f,missing.pattern[,"0.2"],lwd=2,lty=3)
+  axis(2, at=c(0.25,0.5,0.75,1), lab=c("0.25","0.50","0.75","1.00"), las=TRUE)
+  legend(x=21,y=1,lty=c(1,2,3),lwd=2,
+         legend=c("2 per cent","10 per cent","20 per cent"),bg="white",
+         title="Overall proportion of missing values")
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V15 - Proofs/Figure_A1.pdf",
+            bg="white",family="Times New Roman")
+  plot(age.f,patt,type="l",xlab="Age of mother",yaxt="n",ylim=c(0,1),
+       panel.first=grid(),ylab="Proportion of births with missing paternal age",lwd=2,cex.axis=1.2,cex.lab=1.2)
+  lines(age.f,missing.pattern[,"0.1"],lwd=2,lty=2)
+  lines(age.f,missing.pattern[,"0.2"],lwd=2,lty=3)
+  axis(2, at=c(0.25,0.5,0.75,1), lab=c("0.25","0.50","0.75","1.00"), las=TRUE,cex.axis=1.2)
+  legend(x=21,y=1,lty=c(1,2,3),lwd=2,
+         legend=c("2 per cent","10 per cent","20 per cent"),bg="white",
+         title="Overall proportion of missing values",cex=1.2)
+  dev.off()
+
+  # Shifted age distribution for mathers aged 30
+  tmp_a <- na.omit(birthsub$Age_of_Father[birthsub$Age_of_Mother==30])
+  tmp_c <- birthsub$No_of_children[birthsub$Age_of_Mother==30&!is.na(birthsub$Age_of_Father)]
+
+  png(file="U:/Documents/__PAPERS__/Male fertility Imputation/Figures/shifted_distr_swe_2014c.png",bg="white",width=1000,height=1000,res=200)  
+  plot(tmp_a,tmp_c/sum(tmp_c),type="l",panel.first=grid(),
+       xlab="Age of father",ylab="Proportion of births",lwd=2,ylim=c(0,0.15),xlim=c(15,50),yaxt="n",main="Age distribution fathers (Sweden 2014)",
+       sub="(Mother aged 30)")
+  axis(2, at=pretty(tmp_m2/sum(tmp_m2)), lab=paste0(pretty(tmp_m2/sum(tmp_m2))), las=TRUE)
+  lines(age.m,shifted_distr[,"-4"],lty=2,lwd=2)
+  lines(age.m,shifted_distr[,"4"],lty=3,lwd=2)
+  text(x=27,y=0.14,"-4")
+  text(x=36,y=0.14,"+4")
+  dev.off()
+
+  tiff(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_A2.tiff",
+       bg="white",width=1000,height=1000,res=200,compression="none",family="Times New Roman")  
+  plot(tmp_a,tmp_c/sum(tmp_c),type="l",panel.first=grid(),
+       xlab="Age of father",ylab="Proportion of births",lwd=2,ylim=c(0,0.15),xlim=c(15,50),yaxt="n",main="Age distribution fathers (Sweden 2014)",
+       sub="(Mother aged 30)")
+  axis(2, at=pretty(tmp_m2/sum(tmp_m2)), lab=paste0(pretty(tmp_m2/sum(tmp_m2))), las=TRUE)
+  lines(age.m,shifted_distr[,"-4"],lty=2,lwd=2)
+  lines(age.m,shifted_distr[,"4"],lty=3,lwd=2)
+  text(x=27,y=0.14,"-4")
+  text(x=36,y=0.14,"+4")
+  dev.off()
+  
+  pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_A2.pdf",
+             bg="white",family="Times New Roman")
+  plot(tmp_a,tmp_c/sum(tmp_c),type="l",panel.first=grid(),
+       xlab="Age of father",ylab="Proportion of births",lwd=2,ylim=c(0,0.15),xlim=c(15,50),yaxt="n",main="Age distribution fathers (Sweden 2014)",
+       sub="(Mother aged 30)")
+  axis(2, at=pretty(tmp_m2/sum(tmp_m2)), lab=paste0(pretty(tmp_m2/sum(tmp_m2))), las=TRUE)
+  lines(age.m,shifted_distr[,"-4"],lty=2,lwd=2)
+  lines(age.m,shifted_distr[,"4"],lty=3,lwd=2)
+  text(x=27,y=0.14,"-4")
+  text(x=36,y=0.14,"+4")
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V14 - Our edits/Figure_A2.pdf",
+      bg="white",family="Times New Roman")
+  plot(tmp_a,tmp_c/sum(tmp_c),type="l",panel.first=grid(),
+       xlab="Age of father",ylab="Proportion of births",lwd=2,ylim=c(0,0.15),xlim=c(15,50),yaxt="n")
+  #axis(2, at=pretty(tmp_m2/sum(tmp_m2)), lab=paste0(pretty(tmp_m2/sum(tmp_m2))), las=TRUE)
+  axis(2, at=pretty(tmp_m2/sum(tmp_m2)), lab=paste0(format(pretty(tmp_m2/sum(tmp_m2)),nsmall=2)), las=TRUE)
+  lines(age.m,shifted_distr[,"-4"],lty=2,lwd=2)
+  lines(age.m,shifted_distr[,"4"],lty=3,lwd=2)
+  text(x=27,y=0.14,"-4 years")
+  text(x=36,y=0.14,"+4 years")
+  dev.off()
+
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V15 - Proofs/Figure_A2.pdf",
+            bg="white",family="Times New Roman")
+  plot(tmp_a,tmp_c/sum(tmp_c),type="l",panel.first=grid(),
+       xlab="Age of father",ylab="Proportion of births",lwd=2,ylim=c(0,0.15),xlim=c(15,50),yaxt="n",cex.axis=1.2,cex.lab=1.2)
+  #axis(2, at=pretty(tmp_m2/sum(tmp_m2)), lab=paste0(pretty(tmp_m2/sum(tmp_m2))), las=TRUE)
+  axis(2, at=pretty(tmp_m2/sum(tmp_m2)), lab=paste0(format(pretty(tmp_m2/sum(tmp_m2)),nsmall=2)), las=TRUE)
+  lines(age.m,shifted_distr[,"-4"],lty=2,lwd=2)
+  lines(age.m,shifted_distr[,"4"],lty=3,lwd=2)
+  text(x=27,y=0.14,"-4 years",cex=1.2)
+  text(x=36,y=0.14,"+4 years",cex=1.2)
+  dev.off()
+  
+    
+  # Mean age of father  
+  sum(age.m*shifted_distr[,"-4"])
+  sum(age.m*shifted_distr[,"0"])
+  sum(age.m*shifted_distr[,"4"])
+  
+  # Absolute bias in TFR
+  colnames(itfr_true_shift) <- paste(ziele)
+  rownames(itfr_true_shift) <- paste(amount_shift_list)
+  
+  tmp1 <- apply(itfr_true_shift,1,function(x) abs(x-itfr1))
+  tmp2 <- apply(itfr_true_shift,1,function(x) abs(x-itfr3))
+  
+  library(lattice)
+  
+  png(file="U:/Documents/__PAPERS__/Male fertility Imputation/Figures/result1.png",bg="white",width=1000,height=1000,res=200)  
+  levelplot(t(tmp1),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+            y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in male total fertility rate: \n Unconditional imputation",cex=1.1))
+  dev.off()
+  
+  tiff(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_2.tiff",
+       bg="white",width=1000,height=1000,res=200,compression="none",family="Times New Roman")  
+  levelplot(t(tmp1),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                              y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            #col.regions=c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in male total fertility rate: \n Unconditional imputation",cex=1.1))
+  dev.off()
+  
+  pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_2.pdf",
+             bg="white",family="Times New Roman")
+  levelplot(t(tmp1),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                              y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            #col.regions=c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in male total fertility rate: \n Unconditional imputation",cex=1.1))
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V14 - Our edits/Figure_2.pdf",
+      bg="white",family="Times New Roman")
+  levelplot(t(tmp1),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion of births with missing paternal age",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                              y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            #col.regions=c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",min="")
+  trellis.focus("legend",side="right",clipp="off",highlight=F)
+  grid.text("Absolute bias",0.5,y=1.05,hjust=0.6,vjust=1)
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V15 - Proofs/Figure_2.pdf",
+            bg="white",family="Times New Roman")
+  levelplot(t(tmp1),xlab=list(label="Age shift (in years)",cex=1.2),ylab=list(label="Proportion of births with missing paternal age",cex=1.2),scales=list(x=list(at=c(1,3,5,7,9),cex=1.2),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                                                          y=list(at=c(19,39,59,79,99),cex=1.2)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            #col.regions=c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",min="")
+  trellis.focus("legend",side="right",clipp="off",highlight=F)
+  grid.text("Absolute bias",0.5,y=1.05,hjust=0.6,vjust=1)
+  dev.off()
+  
+ 
+  png(file="U:/Documents/__PAPERS__/Male fertility Imputation/Figures/result2.png",bg="white",width=1000,height=1000,res=200)  
+  levelplot(t(tmp2),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+             y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in male total fertility rate: \n Conditional imputation",cex=1.1))
+  dev.off()
+  
+  tiff(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_3.tiff",
+       bg="white",width=1000,height=1000,res=200,compression="none",family="Times New Roman")  
+  levelplot(t(tmp2),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                              y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in male total fertility rate: \n Conditional imputation",cex=1.1))
+  dev.off()
+  
+  pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_3.pdf",
+             bg="white",family="Times New Roman")  
+  levelplot(t(tmp2),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                              y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in male total fertility rate: \n Conditional imputation",cex=1.1))
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V14 - Our edits/Figure_3.pdf",
+      bg="white",family="Times New Roman")  
+  levelplot(t(tmp2),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion of births with missing paternal age",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                              y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill")
+  trellis.focus("legend",side="right",clipp="off",highlight=F)
+  grid.text("Absolute bias",0.5,y=1.05,hjust=0.6,vjust=1)
+  dev.off()
+
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V15 - Proofs/Figure_3.pdf",
+            bg="white",family="Times New Roman")  
+  levelplot(t(tmp2),xlab=list(label="Age shift (in years)",cex=1.2),ylab=list(label="Proportion of births with missing paternal age",cex=1.2),scales=list(x=list(at=c(1,3,5,7,9),cex=1.2),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                                                          y=list(at=c(19,39,59,79,99),cex=1.2)),
+            at=seq(0,0.012,length.out=7),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill")
+  trellis.focus("legend",side="right",clipp="off",highlight=F)
+  grid.text("Absolute bias",0.5,y=1.05,hjust=0.6,vjust=1)
+  dev.off()
+  
+  # Absolute bias in mean age
+  colnames(iage_true_shift) <- paste(ziele)
+  rownames(iage_true_shift) <- paste(amount_shift_list)
+  
+  tmp3 <- apply(iage_true_shift,1,function(x) abs(x-iage1))
+  tmp4 <- apply(iage_true_shift,1,function(x) abs(x-iage3))
+  
+  png(file="U:/Documents/__PAPERS__/Male fertility Imputation/Figures/result3.png",bg="white",width=1000,height=1000,res=200)  
+  levelplot(t(tmp3),xlab=list(label="Age shift (in years)",cex=1.5),
+            ylab=list(label="Proportion missing",cex=1.5),
+            scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                     y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,2.5,length.out=6),
+            col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in paternal mean age at childbirth: \n Unconditional imputation",cex=1.1))
+  dev.off()
+
+  tiff(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_4.tiff",
+       bg="white",width=1000,height=1000,res=200,compression="none",family="Times New Roman")  
+  levelplot(t(tmp3),xlab=list(label="Age shift (in years)",cex=1.5),
+            ylab=list(label="Proportion missing",cex=1.5),
+            scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                        y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,2.5,length.out=6),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in paternal mean age at childbirth: \n Unconditional imputation",cex=1.1))
+  dev.off()
+  
+  pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_4.pdf",
+             bg="white",family="Times New Roman")  
+  levelplot(t(tmp3),xlab=list(label="Age shift (in years)",cex=1.5),
+            ylab=list(label="Proportion missing",cex=1.5),
+            scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                        y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,2.5,length.out=6),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in paternal mean age at childbirth: \n Unconditional imputation",cex=1.1))
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V14 - Our edits/Figure_4.pdf",
+      bg="white",family="Times New Roman")  
+  levelplot(t(tmp3),xlab=list(label="Age shift (in years)",cex=1.5),
+            ylab=list(label="Proportion of births with missing paternal age",cex=1.5),
+            scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                        y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,2.5,length.out=6),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill")
+  trellis.focus("legend",side="right",clipp="off",highlight=F)
+  grid.text("Absolute bias",0.5,y=1.05,hjust=0.7,vjust=1)
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V15 - Proofs/Figure_4.pdf",
+            bg="white",family="Times New Roman")  
+  levelplot(t(tmp3),xlab=list(label="Age shift (in years)",cex=1.2),
+            ylab=list(label="Proportion of births with missing paternal age",cex=1.2),
+            scales=list(x=list(at=c(1,3,5,7,9),cex=1.2),#list(x=list(rot=90,at=1:9,cex=1.5),
+                        y=list(at=c(19,39,59,79,99),cex=1.2)),
+            at=seq(0,2.5,length.out=11),
+            col.regions=c("#ffffff","#f0f0f0","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525","#000000","#000000"),
+            #col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill")
+  trellis.focus("legend",side="right",clipp="off",highlight=F)
+  grid.text("Absolute bias",0.5,y=1.05,hjust=0.7,vjust=1)
+  dev.off()
+  
+  png(file="U:/Documents/__PAPERS__/Male fertility Imputation/Figures/result4.png",bg="white",width=1000,height=1000,res=200)  
+  levelplot(t(tmp4),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                   y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,2.5,length.out=6),
+            col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in paternal mean age at childbirth: \n Conditional imputation",cex=1.1))
+  dev.off()
+  
+  tiff(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_5.tiff",bg="white",
+       width=1000,height=1000,res=200,compression="none",family="Times New Roman")  
+  levelplot(t(tmp4),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                              y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,2.5,length.out=6),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in paternal mean age at childbirth: \n Conditional imputation",cex=1.1))
+  dev.off()
+  
+  pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V12 - Pop Studies - Revision/Figure_5.pdf",
+             bg="white",family="Times New Roman")  
+  levelplot(t(tmp4),xlab=list(label="Age shift (in years)",cex=1.5),ylab=list(label="Proportion missing",cex=1.5),scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+                                                                                                                              y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,2.5,length.out=6),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill",main=list(label="Bias in paternal mean age at childbirth: \n Conditional imputation",cex=1.1))
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V14 - Our edits/Figure_5.pdf",
+      bg="white",family="Times New Roman")  
+  levelplot(t(tmp4),xlab=list(label="Age shift (in years)",cex=1.5),
+            ylab=list(label="Proportion of births with missing paternal age",cex=1.5),
+            scales=list(x=list(at=c(1,3,5,7,9),cex=1.5),#list(x=list(rot=90,at=1:9,cex=1.5),
+            y=list(at=c(19,39,59,79,99),cex=1.5)),
+            at=seq(0,2.5,length.out=6),
+            col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill")
+  trellis.focus("legend",side="right",clipp="off",highlight=F)
+  grid.text("Absolute bias",0.5,y=1.05,hjust=0.7,vjust=1)
+  dev.off()
+  
+  cairo_pdf(file="U:/Documents/__PAPERS__/Male fertility Imputation/V15 - Proofs/Figure_5.pdf",
+            bg="white",family="Times New Roman")  
+  levelplot(t(tmp4),xlab=list(label="Age shift (in years)",cex=1.2),
+            ylab=list(label="Proportion of births with missing paternal age",cex=1.2),
+            scales=list(x=list(at=c(1,3,5,7,9),cex=1.2),#list(x=list(rot=90,at=1:9,cex=1.5),
+                        y=list(at=c(19,39,59,79,99),cex=1.2)),
+            at=seq(0,2.5,length.out=11),
+            col.regions=c("#ffffff","#f0f0f0","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525","#000000","#000000"),
+            #col.regions=c("#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"),
+            #col.regions=c("#FFFFFF","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),#c("#FFFFFF","#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4","#4eb3d3","#2b8cbe","#0868ac","#084081"),
+            aspect="fill")
+  trellis.focus("legend",side="right",clipp="off",highlight=F)
+  grid.text("Absolute bias",0.5,y=1.05,hjust=0.7,vjust=1)
+  dev.off()
+  
+  
+  
+### Rough summary measures ########################################################################
+  
+  outperform_tfr <- sum(tmp1>tmp2)/prod(dim(tmp1))
+  outperfrom_age <- sum(tmp3>tmp4)/prod(dim(tmp3))
+  
+  outperform_tfr2 <- sum(tmp1[,paste(-2:2)]>tmp2[,paste(-2:2)])/prod(dim(tmp1[,paste(-2:2)]))
+  outperfrom_age2 <- sum(tmp3[,paste(-2:2)]>tmp4[,paste(-2:2)])/prod(dim(tmp3[,paste(-2:2)]))
+  
+  
+  sum(tmp1>tmp2)/prod(dim(tmp1))
+  sum(tmp3>tmp4)/prod(dim(tmp3))
+  
+  sum(tmp1[,paste(-2:2)]>tmp2[,paste(-2:2)])/prod(dim(tmp1[,paste(-2:2)]))
+  sum(tmp3[,paste(-2:2)]>tmp4[,paste(-2:2)])/prod(dim(tmp3[,paste(-2:2)]))
+  
+  sum(tmp1[,paste(-1:1)]>tmp2[,paste(-1:1)])/prod(dim(tmp1[,paste(-1:1)]))
+  sum(tmp3[,paste(-1:1)]>tmp4[,paste(-1:1)])/prod(dim(tmp3[,paste(-1:1)]))
+  
+  sum(tmp1[,paste(-2:0)]>tmp2[,paste(-2:0)])/prod(dim(tmp1[,paste(-2:0)]))
+  sum(tmp3[,paste(-2:0)]>tmp4[,paste(-2:0)])/prod(dim(tmp3[,paste(-2:0)]))
+  
+  sum(tmp1[paste(seq(0.15,0.5,by=0.005)),]>tmp2[paste(seq(0.15,0.5,by=0.005)),])/prod(dim(tmp1[paste(seq(0.15,0.5,by=0.005)),]))
+  sum(tmp3[paste(seq(0.15,0.5,by=0.005)),]>tmp4[paste(seq(0.15,0.5,by=0.005)),])/prod(dim(tmp3[paste(seq(0.15,0.5,by=0.005)),]))
+  
+```
+

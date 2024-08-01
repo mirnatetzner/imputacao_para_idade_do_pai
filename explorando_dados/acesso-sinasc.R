@@ -33,8 +33,28 @@ UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", 
 #   rm(name)
 #   }
 
-# as bases foram salvas sem processamento
+# ----
+dfBR = fetch_datasus(year_start = 2010, year_end = 2020, information_system = "SINASC", vars = c("IDADEPAI","DTNASC") )
+dfBR = process_sinasc(dfBR)
 
+
+
+dfBR = dfBR %>% 
+  mutate(um = 1,         
+         IDADEPAI = as.fdfBRtor(IDADEPAI))
+dfBR = dfBR %>% 
+  mutate(missing = ifelse(is.na(dfBR$IDADEPAI), 1,0))
+
+dfBR = dfBR %>% 
+  mutate(Ano = str_sub(dfBR$DTNASC , end = 4), 
+         flag_mae_n_pai = ifelse(missing == 1 & !is.na(IDADEMAE),1,0))
+
+
+prop_completos_idade_pai_dfBR = prop_complete(dfBR$IDADEPAI)
+# ----
+
+
+# as bases foram salvas sem processamento
 
 #processa os dados pelo pacote microdatasus a partir da estrutura do SINASC
 
@@ -62,6 +82,11 @@ DF_RS = DF_RS %>%
 
 
 save(DF_RS,file="DF_RS.Rdata")
+
+
+
+
+
 
 #-------------------------------------------------------------------
 
