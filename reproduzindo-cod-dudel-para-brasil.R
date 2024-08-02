@@ -18,6 +18,9 @@ library(dplyr, warn.conflicts = FALSE)
 #library(data.table)
 #library(RColorBrewer)
 
+# para mapear lista de dfs
+library(purrr)
+
 # pacotes carregados no arquivo original:
 
 library(extrafont)
@@ -47,19 +50,32 @@ age.m <- 15:50
 age.f <- 15:50
 
 
+# cria lista de dataframes dos UFs PARA ITERAÇÃO 
+
+UFs = list(AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO)
 
 
-### Read data #####################################################################################  
+# Itera sobre as UFs para criar variáveis auxiliares
 
-# Simplify
-births <- aggregate(No_of_children~Age_of_Mother+Age_of_Father+Year,data=births,sum) #agrega (soma) "no_of_children" pela idade da mãe e do pai, por ano
-
-# Population counts
-pop <- read.table("U:/Data/HMD/sweden_population.txt",header=T)
-pop$Age <- as.numeric(as.character(pop$Age))
-pop <- pop[pop$Age%in%11:99,]
-
+for (i in seq_along(UFs)) {
+  UFs[[i]] <- UFs[[i]] %>% 
+    mutate(um = 1,
+           Ano = str_sub(DTNASC, end = 4),
+           missing = ifelse(is.na(IDADEPAI), 1, 0))
+}
 
 
+### tentativa de mapear as ufes agregando os nascimentos (pela coluna "um") para cada combinação de idade do pai, idade da mãe e ano 
+#------------
+UFs <- map(UFs, ~aggregate(.x, um = 1, Ano = str_sub(DTNASC, start = 5), missing = ifelse(is.na(IDADEPAI), 1, 0)))
 
-# verificar se tem a variavel $missing
+# # Supondo que 'dados_ufs' é sua lista de data frames
+# resultados <- map(dados_ufs, ~{
+#   modelo <- lm(No_of_children ~ Age_of_Mother + Age_of_Father + Year, data = .x)
+#   summary(modelo)
+# })
+
+#  aggregate(um~IDADEMAE+IDADEPAI+Ano,data=names(UFs)[UF],sum)
+#------------
+
+

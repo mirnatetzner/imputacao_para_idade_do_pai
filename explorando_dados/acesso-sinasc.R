@@ -78,7 +78,7 @@ DF_RS = DF_RS %>%
   mutate(missing = ifelse(is.na(DF_RS$IDADEPAI), 1,0))
 
 DF_RS = DF_RS %>% 
-  mutate(Ano = str_sub(DF_RS$DTNASC , start = 5))
+  mutate(Ano = str_sub(AC$DTNASC , end = 4))
 
 
 save(DF_RS,file="DF_RS.Rdata")
