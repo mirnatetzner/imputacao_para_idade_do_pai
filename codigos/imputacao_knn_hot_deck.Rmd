@@ -1,0 +1,77 @@
+---
+title: "Seleção de Variáveis para KNN VIM"
+author: "Mirna"
+date: "Sys.Date()
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introdução
+
+Neste documento, exploraremos como selecionar colunas (features) do espaço multidimensional para comparação no **KNN VIM (K-Nearest Neighbors Variable Importance Measure)**. A escolha adequada de variáveis é essencial para melhorar o desempenho do modelo e evitar problemas como **multicolinearidade** e **alta dimensionalidade**.
+
+---
+
+## Etapas para Escolha das Variáveis
+
+### 1. Análise Exploratória de Dados (EDA)
+
+- **Correlação:** Identifique variáveis altamente correlacionadas para evitar redundância.
+    - Use a correlação de Pearson para variáveis contínuas.
+    - Use a correlação de Spearman para variáveis categóricas e ordinais.
+
+- **Distribuição:** Verifique se há **outliers** e avalie a necessidade de tratamento para evitar vieses.
+
+### 2. Normalização das Variáveis
+
+KNN usa medidas de distância, como a distância Euclidiana. Portanto, é essencial que todas as variáveis estejam na mesma escala. **Normalizamos os dados** usando `scale()`.
+
+### 3. Análise de Importância de Variáveis
+
+O **KNN VIM** calcula a importância das variáveis dentro do modelo. Alternativamente, você pode usar **PCA** ou técnicas de seleção como **SelectKBest** para identificar as melhores features.
+
+---
+
+## Exemplo em R
+
+```{r, message=FALSE, warning=FALSE}
+# Carregar pacotes necessários
+library(class)  # KNN
+library(caret)  # Validação e pré-processamento
+library(dplyr)  # Manipulação de dados
+
+# Exemplo de dataset: Iris
+data(iris)
+head(iris)
+
+# Separar as features e o alvo
+X <- iris[, -5]  # Variáveis independentes
+y <- iris$Species  # Variável dependente
+
+# Normalização das features
+X_normalized <- scale(X)
+
+# Seleção das melhores variáveis usando correlação
+# Encontrar variáveis com alta correlação (exemplo: cutoff > 0.75)
+cor_matrix <- cor(X_normalized)
+highly_correlated <- findCorrelation(cor_matrix, cutoff = 0.75)
+X_selected <- X_normalized[, -highly_correlated]
+
+# Separar dados de treino e teste (80/20)
+set.seed(42)
+trainIndex <- createDataPartition(y, p = 0.8, list = FALSE)
+X_train <- X_selected[trainIndex, ]
+X_test <- X_selected[-trainIndex, ]
+y_train <- y[trainIndex]
+y_test <- y[-trainIndex]
+
+# Treinar o modelo KNN com 3 vizinhos
+knn_model <- knn(train = X_train, test = X_test, cl = y_train, k = 3)
+
+# Avaliar a acurácia do modelo
+accuracy <- mean(knn_model == y_test)
+cat(sprintf("Acurácia: %.2f%%\n", accuracy * 100))
