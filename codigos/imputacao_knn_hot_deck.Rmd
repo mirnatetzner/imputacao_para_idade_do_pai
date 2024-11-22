@@ -10,6 +10,86 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
+## carregando pacotes e configurações de ambiente
+
+```{r, warning=FALSE}
+library(naniar)
+library(mice)
+library(dplyr)
+require(RCurl)
+require(tidyverse)
+library(ggplot2)
+library(read.dbc)
+library(microdatasus)
+library(stringr)
+library(hexbin)
+library(RColorBrewer)
+library(dplyr, warn.conflicts = FALSE)
+library(ggmice)
+library(lubridate)
+library(readxl)
+
+options(scipen = 999)
+options(OutDec=",")
+
+
+```
+
+
+
+## carregando dados e modificando variáveis para numerador
+
+```{r}
+
+Parana = load("D:/Mirna/ENCE/DISSERTACÃO/DATASUS/2-nao_subi_git20241101/dados_2012-2022/ufs/PR.Rdata")
+Parana = name
+rm(name)
+Parana = process_sinasc(Parana, municipality_data = TRUE)
+
+
+#adiciona variaveis para manipulacao: missing, ano e faixas de idade quinquenais
+
+Parana = Parana %>% mutate(um = 1,
+                           Ano = year(as.Date(DTNASC)),
+                           missing = ifelse(is.na(IDADEPAI), 1, 0),
+                           faixa_etaria_mae = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, by = 5)),
+                           faixa_etaria_pai = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, by = 5)))
+
+
+
+mae_e_pai <- Parana %>%
+  select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai)
+
+
+
+mae_e_pai <- mae_e_pai %>%
+  # Filtrar idades da mãe e do pai entre os limites desejados
+  filter(IDADEMAE >= 15 & IDADEMAE < 50, IDADEPAI >= 15 & IDADEPAI < 60) %>% 
+  mutate(IDADEMAE = as.numeric(IDADEMAE), IDADEPAI = as.numeric(IDADEPAI))
+
+```
+
+## carregando dados e modificando variáveis para denominador
+
+```{r}
+
+library(readxl)
+projecoes_2024_tab1_idade_simples <- read_excel("D:/Mirna/ENCE/DISSERTACÃO/DATASUS/1-Fecundidade_masculina20241101/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+View(projecoes_2024_tab1_idade_simples)
+
+pop_parana<- projecoes_2024_tab1_idade_simples %>%
+  filter(LOCAL == "Paraná") %>% 
+  select(`SEXO`,`IDADE`,`2012`:`2022`)
+
+pop_parana2022 <- projecoes_2024_tab1_idade_simples %>%
+  filter(LOCAL == "Paraná") %>%
+  select(`SEXO`,`IDADE`,`2022`)
+
+View(pop_parana)
+
+```
+
+
 ## Introdução
 
 Neste documento, exploraremos como selecionar colunas (features) do espaço multidimensional para comparação no **KNN VIM (K-Nearest Neighbors Variable Importance Measure)**. A escolha adequada de variáveis é essencial para melhorar o desempenho do modelo e evitar problemas como **multicolinearidade** e **alta dimensionalidade**.
@@ -20,19 +100,57 @@ Neste documento, exploraremos como selecionar colunas (features) do espaço mult
 
 ### 1. Análise Exploratória de Dados (EDA)
 
-- **Correlação:** Identifique variáveis altamente correlacionadas para evitar redundância.
+- **Correlação:** Identificando variáveis altamente correlacionadas para evitar redundância.
     - Use a correlação de Pearson para variáveis contínuas.
     - Use a correlação de Spearman para variáveis categóricas e ordinais.
+    
+```{r}
+# Calcular a correlação de Spearman entre idade do pai e idade da mãe
+correlacao_spearman <- cor(mae_e_pai$IDADEMAE, mae_e_pai$IDADEPAI, method = "spearman")
 
-- **Distribuição:** Verifique se há **outliers** e avalie a necessidade de tratamento para evitar vieses.
+# Exibir o resultado
+print(correlacao_spearman)
+
+```
+
+#### Interpretação
+O valor da correlação de Spearman varia de -1 a 1:
+
+1 indica uma correlação positiva perfeita.
+-1 indica uma correlação negativa perfeita.
+0 indica ausência de correlação.
+Esse valor indica o grau de associação monotônica entre as idades do pai e da mãe, ou seja, quanto mais próximo de 1 ou -1, mais forte é a relação ordinal entre as duas idades.
 
 ### 2. Normalização das Variáveis
 
 KNN usa medidas de distância, como a distância Euclidiana. Portanto, é essencial que todas as variáveis estejam na mesma escala. **Normalizamos os dados** usando `scale()`.
 
+```{r}
+dados_normalizados <- mae_e_pai
+dados_normalizados[c("IDADEMAE", "IDADEPAI")] <- scale(dados_normalizados[c("IDADEMAE", "IDADEPAI")])
+
+```
+# Normalização com `scale()` no R
+
+A função `scale()` no R realiza a **normalização (ou padronização)** de variáveis, transformando os dados para que tenham média 0 e desvio padrão 1. Essa técnica é essencial para algoritmos de aprendizado de máquina que dependem de medidas de distância (como KNN e SVM), pois coloca todas as variáveis em uma mesma escala, evitando que uma variável com maior magnitude domine as outras.
+
+## Como Funciona a Normalização com `scale()`
+
+A função `scale()` no R calcula a seguinte transformação para cada valor \( x \) em uma variável:
+\[
+\text{valor normalizado} = \frac{x - \text{média}}{\text{desvio padrão}}
+\]
+
+Cada coluna (idade do pai e idade da mãe)terá média 0 e desvio padrão 1.
+
+
+
+A normalização é fundamental no KNN, pois este algoritmo calcula a similaridade entre pontos de dados com base na distância (geralmente a distância Euclidiana). Variáveis em diferentes escalas podem distorcer os resultados se não forem normalizadas.
+
 ### 3. Análise de Importância de Variáveis
 
 O **KNN VIM** calcula a importância das variáveis dentro do modelo. Alternativamente, você pode usar **PCA** ou técnicas de seleção como **SelectKBest** para identificar as melhores features.
+
 
 ---
 
@@ -42,15 +160,14 @@ O **KNN VIM** calcula a importância das variáveis dentro do modelo. Alternativ
 # Carregar pacotes necessários
 library(class)  # KNN
 library(caret)  # Validação e pré-processamento
-library(dplyr)  # Manipulação de dados
-
+ 
 # Exemplo de dataset: Iris
-data(iris)
-head(iris)
+data(dados_normalizados)
+head(dados_normalizados)
 
 # Separar as features e o alvo
-X <- iris[, -5]  # Variáveis independentes
-y <- iris$Species  # Variável dependente
+X <- dados_normalizados$IDADEMAE  # Variáveis independentes
+y <- dados_normalizados$IDADEPAI  # Variável dependente
 
 # Normalização das features
 X_normalized <- scale(X)

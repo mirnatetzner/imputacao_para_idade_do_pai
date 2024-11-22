@@ -44,48 +44,10 @@ options(OutDec=",")
 #   geom_hex( bins=30 ) + scale_fill_grey()
 
 
-#conseguindo os dados e salvando o df:
-
-#UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO")
-
-
-#requisicao ao ftp datasus das variaveis selecionadas - extracao
-
-# for (UF in UFs) {
-#   nome <- paste0("Dados_",UF)
-#   name=assign(nome, fetch_datasus(year_start = 2012, year_end = 2022, uf = UF, information_system = "SINASC"))
-#   save(name,file=paste0(UF, ".Rdata"))
-#   rm(name)
-# }
-
-
-# Lista de siglas dos estados
-#ufs_siglas <- c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", 
-#                "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", 
-#                "RS", "RO", "RR", "SC", "SP", "SE", "TO")
-
-# Inicializa uma lista para armazenar os data frames processados
-#Brasil_processed <- list()
-
-# Itera sobre cada sigla de estado para processar e salvar dfs
-#-----------------
-# for (uf in ufs_siglas) {
-#   
-#   # Aplica a função process_sinasc ao data frame carregado
-#   uf_processed <- process_sinasc(get(paste0("Dados_",uf)), municipality_data = TRUE)
-#   
-#   # Armazena o data frame processado na lista Brasil_processed
-#   Brasil_processed[[uf]] <- uf_processed
-#   
-#   # Remove o data frame temporário para liberar memória
-#   rm(list = uf)
-# }
-#-----------------
 
 # DENOMINADOR 
 
-projecoes_2024_tab1_idade_simples <- read_excel("projecoes_2024_tab1_idade_simples.xlsx", 
-                                                +     skip = 5)
+projecoes_2024_tab1_idade_simples <- read_excel("D:/Mirna/ENCE/DISSERTACÃO/DATASUS/1-Fecundidade_masculina20241101/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 View(projecoes_2024_tab1_idade_simples)
 
 pop_parana<- projecoes_2024_tab1_idade_simples %>%
@@ -101,7 +63,7 @@ View(pop_parana)
 
 # Carrrega paraná 
 
-Parana = load("D:/Mirna/ENCE/DISSERTACÃO/DATASUS/ATUAL_codigos_recentes/codigos/ufs/PR.Rdata")
+Parana = load("D:/Mirna/ENCE/DISSERTACÃO/DATASUS/2-nao_subi_git20241101/dados_2012-2022/ufs/PR.Rdata")
 Parana = name
 rm(name)
 Parana = process_sinasc(Parana, municipality_data = TRUE)
@@ -123,11 +85,16 @@ mae_e_pai <- Parana %>%
   select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai)
 
 
+mae_e_pai <- mae_e_pai %>%
+  # Filtrar idades da mãe e do pai entre os limites desejados
+  filter(IDADEMAE >= 15 & IDADEMAE < 50, IDADEPAI >= 15 & IDADEPAI < 60)
+
+
 # ver o missing no paraná 
 #-------
 parana_nenhum_aplicado = ggmice(mae_e_pai, aes(IDADEPAI, IDADEMAE)) + 
   geom_hex() +
-  guides(fill = guide_colourbar(title = "Countagem"))+
+  guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
   scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
   facet_wrap(~Ano)+
   theme_minimal() +
@@ -139,7 +106,7 @@ parana_nenhum_aplicado = ggmice(mae_e_pai, aes(IDADEPAI, IDADEMAE)) +
     axis.text.x = element_text(size = 7),
     axis.text.y = element_text(size = 7)
   )
-
+parana_nenhum_aplicado
 ggsave(filename = "missing paraná nenhum método aplicado.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
 
 # visualizando pontos 2022 (com idades da mae com missing)
@@ -149,7 +116,7 @@ mae_e_pai2022 <- Parana %>%
 
 parana_nenhum_aplicado2022 = ggmice(mae_e_pai2022, aes(IDADEPAI, IDADEMAE)) + 
   geom_hex() +
-  guides(fill = guide_colourbar(title = "Countagem"))+
+  guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
   scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
   theme_minimal() +
   labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná de 2022", 
@@ -176,7 +143,7 @@ mae_e_pai_del <- na.omit(mae_e_pai)
 # Criando o gráfico sem valores NA
 mae_e_pai_del_parana = ggplot(mae_e_pai_del, aes(x = IDADEPAI, y = IDADEMAE)) +
   geom_hex() +
-  guides(fill = guide_colourbar(title = "Countagem"))+
+  guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
   scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
   facet_wrap(~Ano)+
 theme_minimal() +
@@ -200,7 +167,7 @@ mae_e_pai_del2022 <- mae_e_pai_del %>%
 
 na_remove_paran2022 = ggplot(mae_e_pai_del2022, aes(x = IDADEPAI, y = IDADEMAE)) +
   geom_hex() +
-  guides(fill = guide_colourbar(title = "Countagem"))+
+  guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
   scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
   theme_minimal() +
   labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná 2022 (NA removido)", 
@@ -225,7 +192,7 @@ ggsave(filename = "na_remove_parana2022.png", width = 35, height = 25, units = "
 #-----
 
 
-# Imputa valores missing em IDADEPAI com a mediana (menos influenciada por outliers, contem valores reais)
+# Imputa valores missing em IDADEPAI com a mediana (menos influenciada por outliers, contem valores reais) - MCAR
  #------------
    
    # Garante que a coluna IDADEPAI seja numérica
@@ -248,23 +215,18 @@ ggsave(filename = "na_remove_parana2022.png", width = 35, height = 25, units = "
    summary(mediana_por_ano)
    
    
-   
-   
-   
 
-   
-   
 # criando grafico imputacao pela mediana
   #------ 
    # versão não simplicada mas com a legenda do eixo y ilegivel
    
    mae_e_pai_mediana_plot =   ggplot(mae_e_pai_mediana, aes(x = IDADEPAI, y = IDADEMAE)) +
      geom_hex() +
-     guides(fill = guide_colourbar(title = "Countagem"))+
+     guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
      scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
      facet_wrap(~Ano)+
      theme_minimal() +
-     labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná todos os anos (NA imputado pela mediana)", 
+     labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná todos os anos (NA imputado pela mediana por ano )", 
           x = "Idade do pai", 
           y = "Idade da mãe") +
      theme(
@@ -272,8 +234,59 @@ ggsave(filename = "na_remove_parana2022.png", width = 35, height = 25, units = "
        axis.text.x = element_text(size = 7),
        axis.text.y = element_text(size = 7)
      )
-   ggsave(filename = "mae_e_pai_mediana_parana.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+   ggsave(filename = "mae_e_pai_mediana_parana_MCAR.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
    #------
+   
+   
+   
+   
+   # Imputa valores missing em IDADEPAI com a mediana condicionada a idade da mãe - MAR
+   #------------
+   
+   # Garante que a coluna IDADEPAI seja numérica
+   mae_e_pai$IDADEPAI <- as.numeric(mae_e_pai$IDADEPAI)
+   
+   # Calcula a mediana de IDADEPAI por variável categórica 'ANO' e idade da mãe ignorando valores NA
+   mediana_por_ano_mae <- mae_e_pai %>%
+     group_by(Ano,IDADEMAE) %>%
+     summarise(mediana_idade_pai = median(IDADEPAI, na.rm = TRUE))
+   
+   # Junta a mediana por ano de volta à base original
+   mae_e_pai_mediana <- mae_e_pai %>%
+     left_join(mediana_por_ano_mae, by = "Ano", "IDADEMAE") %>%
+     mutate(
+       IDADEPAI = ifelse(is.na(IDADEPAI), mediana_idade_pai, IDADEPAI)
+     ) %>%
+     select(-mediana_idade_pai)  # Remove a coluna auxiliar
+   
+   # Verificando o resultado
+   summary(mediana_por_ano)
+   
+   
+   
+   # criando grafico imputacao pela mediana
+   #------ 
+   # versão não simplicada mas com a legenda do eixo y ilegivel
+   
+   mae_e_pai_mediana_plot =   ggplot(mae_e_pai_mediana, aes(x = IDADEPAI, y = IDADEMAE)) +
+     geom_hex() +
+     guides(fill = guide_colourbar(title = "Contagem"))+
+     scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
+     facet_wrap(~Ano)+
+     theme_minimal() +
+     labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná todos os anos (NA imputado pela mediana por ano e idade da mãe- supõe MAR)", 
+          x = "Idade do pai", 
+          y = "Idade da mãe") +
+     theme(
+       plot.title = element_text(hjust = 0.5), # Centraliza o título
+       axis.text.x = element_text(size = 7),
+       axis.text.y = element_text(size = 7)
+     )
+   ggsave(filename = "mae_e_pai_mediana_parana_MAR.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+   #------
+   
+   
+   
    
    
    
@@ -285,7 +298,7 @@ ggsave(filename = "na_remove_parana2022.png", width = 35, height = 25, units = "
  
    mae_e_pai_mediana_parana2022 = ggplot(mae_e_pai_mediana2022, aes(x = IDADEPAI, y = IDADEMAE)) +
      geom_hex() +
-     guides(fill = guide_colourbar(title = "Countagem"))+
+     guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
      scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
      theme_minimal() +
      labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná 2022 (NA imputado pela mediana)", 
