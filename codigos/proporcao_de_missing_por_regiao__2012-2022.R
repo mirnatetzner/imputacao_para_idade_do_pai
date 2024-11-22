@@ -99,17 +99,6 @@ list2env(regioes, envir = .GlobalEnv)
 
 #adiciona variaveis para manipulacao: missing, ano e faixas de idade quinquenais
 
-
-# Acessar o objeto global com nome "1"
-Norte <- get("1", envir = .GlobalEnv)
-Nordeste <- get("2", envir = .GlobalEnv)
-Sudeste <- get("3", envir = .GlobalEnv)
-Sul <- get("4", envir = .GlobalEnv)
-Centro_Oeste <- get("5", envir = .GlobalEnv)
-
-# Excluir os objetos globais com os nomes "1", "2", "3", "4", "5"
-rm(list = c("1", "2", "3", "4", "5"), envir = .GlobalEnv)
-
 # codigos dos municipios e UFS
 
 RELATORIO_DTB_BRASIL_MUNICIPIO <- read_excel("D:/Mirna/ENCE/DISSERTACAO/DATASUS/DOCS SINASC/RELATORIO_DTB_BRASIL_MUNICIPIO.xls")
