@@ -120,6 +120,47 @@ resultados <- lapply(regioes, function(regiao) {
     )
 })
 
-str(resultados)
+table(Sul$IDADEPAI)
 
-regioes = load("D:/Mirna/ENCE/DISSERTACAO/DATASUS/2-nao_subi_git20241101/dados_2012-2022/BR_regioes_variaveis_adicionadas.RData")
+
+plot_missing = Sul %>% select(missing, Ano, munResUf, um) %>% group_by(munResUf,Ano) 
+
+
+head(plot_missing)    
+plot_missing = plot_missing %>%
+summarise(
+  total = sum(um),
+  total_missing = sum(missing),
+  proporcao_missing = total_missing / total, 
+  .groups = "drop"
+)
+head(plot_missing)
+
+
+
+# Gráfico de linha do tempo
+grap_plot_missing <- ggplot(plot_missing, aes(x = as.factor(Ano), y = proporcao_missing, 
+                                              color = munResUf, group = munResUf, linetype = munResUf)) +
+  geom_line(size = 1) +  # Linhas conectando os pontos
+  geom_point(size = 2) + # Pontos sobre as linhas
+  scale_y_continuous(limits = c(0, 1)) +  # Define os limites do eixo y
+  labs(
+    title = "",
+    x = "Ano",
+    y = "Proporção de Valores Ausentes para a idade do pai",
+    color = "Estado:",
+    linetype = "Estado:"
+  ) +
+  theme_minimal() +
+  theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+      legend.position = "bottom",
+      legend.text = element_text(size = 14),
+      panel.grid=element_line(color="grey75"),
+      title=element_text(color="black",size=14),
+      axis.text = element_text(color="black",size=14),
+      axis.title = element_text(color="black",size=14)
+  )
+grap_plot_missing 
+
+ggsave("faltantes-sul.png",plot = grap_plot_missing, width = 10, height = 6, path = "/home/mramos/Documentos/Dissetacao/MirnA_Dissertação - ENCE/imagens", dpi = 300)
