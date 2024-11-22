@@ -120,10 +120,9 @@ resultados <- lapply(regioes, function(regiao) {
     )
 })
 
-table(Sul$IDADEPAI)
 
-
-plot_missing = Sul %>% select(missing, Ano, munResUf, um) %>% group_by(munResUf,Ano) 
+load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Centro_Oeste.RData")
+plot_missing = Centro_Oeste %>% select(missing, Ano, munResUf, um) %>% group_by(munResUf,Ano) 
 
 
 head(plot_missing)    
@@ -163,4 +162,5 @@ grap_plot_missing <- ggplot(plot_missing, aes(x = as.factor(Ano), y = proporcao_
   )
 grap_plot_missing 
 
-ggsave("faltantes-sul.png",plot = grap_plot_missing, width = 10, height = 6, path = "/home/mramos/Documentos/Dissetacao/MirnA_Dissertação - ENCE/imagens", dpi = 300)
+ggsave("faltantes-centro-oeste.png",plot = grap_plot_missing, width = 10, height = 6, path = "/home/mramos/Documentos/Dissetacao/MirnA_Dissertação - ENCE/imagens", dpi = 300)
+rm(Centro_Oeste,plot_missing,grap_plot_missing)
