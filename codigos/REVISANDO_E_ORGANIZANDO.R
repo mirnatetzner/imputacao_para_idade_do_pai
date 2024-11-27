@@ -28,26 +28,26 @@ library(lubridate)
 library(readxl)
 
 # CONFIGURANDO AMBIENTE
-
 ## Notação científica
 options(scipen = 999)
 #decimais com virgula
 options(OutDec=",")
 
-# cores
 
-# escala de cinza:
-#   For continuos variables:
-#   scale_fill_continuous(low = "grey80", high = "black")
-# 
-#   For discrete variables:
-#   geom_hex( bins=30 ) + scale_fill_grey()
+
+
+#adiciona variaveis para manipulacao: missing, ano e faixas de idade quinquenais
+Parana = Parana %>% mutate(um = 1,
+                           Ano = year(as.Date(DTNASC)),
+                           missing = ifelse(is.na(IDADEPAI), 1, 0),
+                           faixa_etaria_mae = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, by = 5)),
+                           faixa_etaria_pai = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, by = 5)))
 
 
 
 # DENOMINADOR 
 
-projecoes_2024_tab1_idade_simples <- read_excel("D:/Mirna/ENCE/DISSERTACÃO/DATASUS/1-Fecundidade_masculina20241101/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/datasus_fecundidade_masculina/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 View(projecoes_2024_tab1_idade_simples)
 
 pop_parana<- projecoes_2024_tab1_idade_simples %>%
@@ -63,31 +63,27 @@ View(pop_parana)
 
 # Carrrega paraná 
 
-Parana = load("D:/Mirna/ENCE/DISSERTACÃO/DATASUS/2-nao_subi_git20241101/dados_2012-2022/ufs/PR.Rdata")
-Parana = name
-rm(name)
-Parana = process_sinasc(Parana, municipality_data = TRUE)
+Parana = Sul %>% 
+filter(Sul$munResUf == "Paraná")
+dim(Parana)
 
 
 
+Parana_select <- Parana %>%
+  select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, 
+  faixa_etaria_pai, RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, 
+  ESCMAE,DTNASCMAE, STCESPARTO, munResTipo, munResLat, munResLon, munResNome)
 
-#adiciona variaveis para manipulacao: missing, ano e faixas de idade quinquenais
+names(Parana_select)
 
-Parana = Parana %>% mutate(um = 1,
-                           Ano = year(as.Date(DTNASC)),
-                           missing = ifelse(is.na(IDADEPAI), 1, 0),
-                           faixa_etaria_mae = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, by = 5)),
-                           faixa_etaria_pai = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, by = 5)))
+Parana_select2022 = Parana_select %>% filter(Ano== 2022)
 
-
-
-mae_e_pai <- Parana %>%
-  select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai)
-
+View(md.pattern(Parana_select2022))
 
 mae_e_pai <- mae_e_pai %>%
   # Filtrar idades da mãe e do pai entre os limites desejados
   filter(IDADEMAE >= 15 & IDADEMAE < 50, IDADEPAI >= 15 & IDADEPAI < 60)
+
 
 
 # ver o missing no paraná 
