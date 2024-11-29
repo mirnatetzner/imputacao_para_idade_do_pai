@@ -78,7 +78,54 @@ names(Parana_select)
 
 Parana_select2022 = Parana_select %>% filter(Ano== 2022)
 
-View(md.pattern(Parana_select2022))
+#write.csv(md.pattern(Parana_select2022), "padrao_missing_parana2022_select.csv")
+
+# Form a regression model where age is predicted from bmi.
+
+fit <- with(Parana_select2022, lm(IDADEPAI ~ IDADEMAE))
+summary(fit)
+
+#----
+
+# Verificar estrutura do conjunto de dados
+str(Parana_select2022)
+
+# Definir métodos de imputação
+methods <- make.method(Parana_select2022)  # Determina métodos automaticamente
+class(methods)
+
+#no mice: Multilevel categorical variables: Use "polyreg" (polytomous regression) or "rf" (random forest, for flexibility).
+
+Parana_select2022 = Parana_select2022 %>% 
+mutate(IDADEMAE = as.numeric(IDADEMAE), 
+IDADEPAI = as.numeric(IDADEPAI), 
+faixa_etaria_mae = as.factor(faixa_etaria_mae),
+faixa_etaria_mae = as.factor(faixa_etaria_mae))
+
+# Alterar métodos para variáveis categóricas
+methods["faixa_etaria_mae"] <- "polyreg" # categorical
+methods["faixa_etaria_pai"] <- "polyreg" # categorical
+
+methods["IDADEMAE"] <- "norm.predict"   # Numeric
+methods ["IDADEPAI"] <- "norm.predict"   # Numeric
+
+# Imputar dados
+imp <- mice(Parana_select2022, method = methods, m = 1, maxit = 1)
+summar
+# Visualizar resultado da imputação
+summary(imp)
+head(imp)
+
+ggplot(Parana_select2022, aes(x = IDADEMAE, y = IDADEPAI)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  labs(title = "Idade do Pai vs. Idade da Mãe",
+       x = "Idade da Mãe",
+       y = "Idade do Pai") +
+  theme_minimal()
+
+
+
 
 mae_e_pai <- mae_e_pai %>%
   # Filtrar idades da mãe e do pai entre os limites desejados
