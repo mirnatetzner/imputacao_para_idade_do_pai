@@ -34,18 +34,20 @@ options(scipen = 999)
 options(OutDec=",")
 
 
-
+#------------------ 
+# Ja salvei o RData por regiões  com essas variaveis, deixei para visualizacao 
 
 #adiciona variaveis para manipulacao: missing, ano e faixas de idade quinquenais
-Parana = Parana %>% mutate(um = 1,
-                           Ano = year(as.Date(DTNASC)),
-                           missing = ifelse(is.na(IDADEPAI), 1, 0),
-                           faixa_etaria_mae = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, by = 5)),
-                           faixa_etaria_pai = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, by = 5)))
+
+#Parana = Parana %>% mutate(um = 1,
+#                           Ano = year(as.Date(DTNASC)),
+#                           missing = ifelse(is.na(IDADEPAI), 1, 0),
+#                           faixa_etaria_mae = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, by = 5)),
+#                           faixa_etaria_pai = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, by = 5)))
 
 
-
-# DENOMINADOR 
+#------------------
+# DENOMINADOR - projecao de populacao de 2024
 
 projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/datasus_fecundidade_masculina/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 View(projecoes_2024_tab1_idade_simples)
@@ -61,24 +63,93 @@ pop_parana2022 <- projecoes_2024_tab1_idade_simples %>%
 View(pop_parana)
 
 
-# Carrrega paraná 
+# Carrrega sul, filtra Paraná 
+
+load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
 
 Parana = Sul %>% 
 filter(Sul$munResUf == "Paraná")
 dim(Parana)
 
 
-
+#------------------
 Parana_select <- Parana %>%
   select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, 
   faixa_etaria_pai, RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, 
-  ESCMAE,DTNASCMAE, STCESPARTO, munResTipo, munResLat, munResLon, munResNome)
+  ESCMAE,ESCMAEAGR1,CODOCUPMAE,DTNASC,HORANASC,DIFDATA,ESTCIVMAE, DTNASCMAE, munResTipo, munResLat, munResLon, munResNome, TPFUNCRESP, DTDECLARAC,
+PARTO)
 
 names(Parana_select)
 
 Parana_select2022 = Parana_select %>% filter(Ano== 2022)
+rm(Sul)
 
-#write.csv(md.pattern(Parana_select2022), "padrao_missing_parana2022_select.csv")
+
+# padrao_missing_parana_selected_anos = md.pattern(Parana_select)
+# write.csv(padrao_missing_parana_selected_anos,file = "/home/mramos/Documentos/Dissetacao/padrao_missing_parana_select.csv", append = FALSE, quote = TRUE, sep = " ")
+
+# padrao_missing_parana2022 = md.pattern(Parana_select2022)
+# write.csv(padrao_missing_parana2022,file = "/home/mramos/Documentos/Dissetacao/padrao_missing_parana_select2022.csv", append = FALSE, quote = TRUE, sep = " ")
+
+
+#------------------
+# FIltra menos colunas para paraná 2022
+
+# Parana_select_grafico_padrao <- Parana %>% filter(Ano== 2022) %>%
+#  select(IDADEMAE, IDADEPAI, RACACORMAE, HORANASC, PARTO, CODESTAB, LOCNASC, 
+#  ESCMAE,STCESPARTO, munResTipo)
+
+#------------------
+
+# Opcao de grafico para salvar grafico com quadrados azuis e rosas
+# com visualizacao padrao do livro do enders -- e do pacote mice  
+
+# padrao_missing = md.pattern(Parana_select_grafico_padrao)
+# padrao_missing
+
+# Capturar o gráfico do padrao de missing
+# plot_md <- recordPlot()
+
+# Restaurar e salvar o gráfico
+# png("/home/mramos/Documentos/Dissetacao/padrao_missing_parana2022_selecionadas.png", width = 10000, height = 10000, res = 300)
+# replayPlot(plot_md)
+# dev.off()
+
+#------------------
+# Grafico da quantidade de missing  (nao o padrao) com linhas laterais 
+# tentativa de criar uma visualizacao mais legivel do padrao de missing atraves do ggplot
+
+# Converter padrao para data frame e ajustar
+padrao_df <- as.data.frame(padrao_missing)
+
+# Criar um gráfico de padrão de missing data
+grafico_missing <- gg_miss_var(Parana_select2022)
+grafico_missing
+# Salvar o gráfico
+ggsave("padrao_missing_parana2022_selecionadas_naniar.png", 
+       plot = grafico_missing, 
+       path = "/home/mramos/Documentos/Dissetacao", 
+       width = 10, height = 10, units = "in")
+
+# gaficos para explorar as diferencas entre as outras variaveis
+
+# Criar intervalos de 1 hora para a coluna HORANASC
+
+Parana_select2022 <- Parana_select2022 %>%
+  mutate(
+    # Adiciona os dois pontos para transformar em "HH:MM"
+    HORANASC = sprintf("%04d", as.numeric(HORANASC)),  # Garante 4 dígitos (ex: 0800, 1730)
+    HORANASC = paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4)),
+    HORANASC = as.POSIXct(HORANASC, format = "%H:%M"), # Converte para POSIXct
+    nascimentos_hora = format(HORANASC, "%H")         # Extrai apenas a hora
+  )
+
+
+ggmice(Parana_select2022, aes(IDADEMAE, IDADEPAI)) +
+  geom_point() +
+  facet_wrap(~ HORANASC, labeller = label_both)
+
+
 
 # Form a regression model where age is predicted from bmi.
 
