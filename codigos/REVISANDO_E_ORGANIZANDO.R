@@ -131,6 +131,9 @@ ggsave("padrao_missing_parana2022_selecionadas_naniar.png",
        path = "/home/mramos/Documentos/Dissetacao", 
        width = 10, height = 10, units = "in")
 
+# ESSAS ESTATÍSTICAS DESCRITIVAS POSSO SINTETIZAR PARA O BRASIL DA MESMA FORMA QUE O JOAO FEZ 
+# FAZENDO A MÉDIA DAS PROPORÇÕES DE REGISTROS AUSENTES DAS UFS ou por municipio...  
+
 # gaficos para explorar as diferencas entre as outras variaveis
 
 # Criar intervalos de 1 hora para a coluna HORANASC
@@ -144,10 +147,112 @@ Parana_select2022 <- Parana_select2022 %>%
     nascimentos_hora = format(HORANASC, "%H")         # Extrai apenas a hora
   )
 
+Parana_missing_proportion_mice <- Parana_select2022 %>%
+  filter(!is.na(nascimentos_hora)) %>%  # Remove registros com hora ausente
+  group_by(nascimentos_hora,IDADEMAE) %>%
+  summarise(
+    total_nascimentos_hora = n(),
+      missing_hora = sum(is.na(IDADEPAI)),  # Total de valores ausentes para IDADEPAI
+    prop_missing_hora = missing_hora / total_nascimentos_hora,  # Proporção de missings
+    IDADEPAI = IDADEPAI,
+    .groups = "drop"
+  ) %>%   
+  mutate(IDADEMAE = as.numeric(IDADEMAE))
 
-ggmice(Parana_select2022, aes(IDADEMAE, IDADEPAI)) +
-  geom_point() +
-  facet_wrap(~ HORANASC, labeller = label_both)
+
+ggmice(Parana_missing_proportion_mice, aes(IDADEMAE, IDADEPAI,fill = prop_missing_hora)) +
+  geom_hex() +
+  scale_fill_viridis_c(option = "turbo") + 
+  facet_wrap(~ nascimentos_hora, labeller = label_both)
+
+# Salva o gráfico
+ggsave("ultimo_grafico_missing_idadepaimae.png",  dpi = 300)
+
+#----------------
+
+# visualização por hora e idade da mãe
+
+Parana_missing_proportion <- Parana_select2022 %>%
+  filter(!is.na(nascimentos_hora)) %>%  # Remove registros com hora ausente
+  group_by(nascimentos_hora,IDADEMAE) %>%
+  summarise(
+    total_nascimentos_hora = n(),
+      missing_hora = sum(is.na(IDADEPAI)),  # Total de valores ausentes para IDADEPAI
+    prop_missing_hora = missing_hora / total_nascimentos_hora,  # Proporção de missings
+    .groups = "drop"
+  )%>%
+  mutate(IDADEMAE = as.numeric(IDADEMAE))
+
+
+ggplot(Parana_missing_proportion, aes(x = IDADEMAE, y = total_nascimentos_hora, fill = prop_missing_hora)) +
+  geom_col() +  # Barras para a proporção de missings
+  scale_fill_viridis_c(
+       option = "turbo",  # Paleta de cores viridis (pode tentar magma ou inferno também)
+    direction = 1,  # Intensidade crescente de cor (quanto maior a proporção, mais intensa a cor)
+    breaks = c(0, 0.25, 0.5, 0.75, 1),  # Pontos de corte para a legenda
+    labels = c("0%", "0-25%", "25-50%", "50-75%", "75-100%")  # Rótulos simplificados
+  ) +
+   scale_x_continuous(
+    breaks = seq(15, 50, by = 5),  # Define intervalos
+    labels = function(x) paste0(x, " anos")  # Adiciona "anos" após os valores
+  )+
+  labs(
+    title = "Proporção de Missings em IDADEPAI por Idade da mãe e Hora",
+    x = "Idade da Mãe",
+    y = "Frequência de nascimentos por idade da mãe",
+    fill = "Proporção de missing \n da idade do pai \n para cada idade \n da mãe e hora"
+  ) +
+  facet_wrap(~ nascimentos_hora, labeller = label_both) +  # Facetas por hora
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Inclina os rótulos
+
+  ggsave("Dissetacaoultimo_grafico_frequencia_total_nasc_hora_fill_prop_missing_por_hora.png", path= "/home/mramos/Documentos/", dpi = 300)
+
+
+#------------ 
+
+# proporção por estado civil e idade da mãe
+
+Parana_select2022$
+
+Parana_missing_proportion <- Parana_select2022 %>%
+  filter(!is.na(nascimentos_hora)) %>%  # Remove registros com hora ausente
+  group_by(nascimentos_hora,IDADEMAE) %>%
+  summarise(
+    total_nascimentos_hora = n(),
+      missing_hora = sum(is.na(IDADEPAI)),  # Total de valores ausentes para IDADEPAI
+    prop_missing_hora = missing_hora / total_nascimentos_hora,  # Proporção de missings
+    .groups = "drop"
+  )%>%
+  mutate(IDADEMAE = as.numeric(IDADEMAE))
+
+
+ggplot(Parana_missing_proportion, aes(x = IDADEMAE, y = total_nascimentos_hora, fill = prop_missing_hora)) +
+  geom_col() +  # Barras para a proporção de missings
+  scale_fill_viridis_c(
+       option = "turbo",  # Paleta de cores viridis (pode tentar magma ou inferno também)
+    direction = 1,  # Intensidade crescente de cor (quanto maior a proporção, mais intensa a cor)
+    breaks = c(0, 0.25, 0.5, 0.75, 1),  # Pontos de corte para a legenda
+    labels = c("0%", "0-25%", "25-50%", "50-75%", "75-100%")  # Rótulos simplificados
+  ) +
+   scale_x_continuous(
+    breaks = seq(15, 50, by = 5),  # Define intervalos
+    labels = function(x) paste0(x, " anos")  # Adiciona "anos" após os valores
+  )+
+  labs(
+    title = "Proporção de Missings em IDADEPAI por Idade da mãe e Hora",
+    x = "Idade da Mãe",
+    y = "Frequência de nascimentos por idade da mãe",
+    fill = "Proporção de missing \n da idade do pai \n para cada idade \n da mãe e hora"
+  ) +
+  facet_wrap(~ nascimentos_hora, labeller = label_both) +  # Facetas por hora
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Inclina os rótulos
+
+  ggsave("Dissetacaoultimo_grafico_frequencia_total_nasc_hora_fill_prop_missing_por_hora.png", path= "/home/mramos/Documentos/", dpi = 300)
+
+
+
 
 
 
