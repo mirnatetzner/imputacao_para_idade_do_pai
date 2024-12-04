@@ -8,8 +8,8 @@
 #devtools::install_github("danicat/read.dbc")
 #remotes::install_github("rfsaldanha/microdatasus")
 
-
 # CARREGANDO PACOTES
+
 
 library(naniar)
 library(mice)
@@ -39,7 +39,7 @@ options(OutDec=",")
 
 #adiciona variaveis para manipulacao: missing, ano e faixas de idade quinquenais
 
-#Mato_Grosso_do_Sul = Mato_Grosso_do_Sul %>% mutate(um = 1,
+#df = df %>% mutate(um = 1,
 #                           Ano = year(as.Date(DTNASC)),
 #                           missing = ifelse(is.na(IDADEPAI), 1, 0),
 #                           faixa_etaria_mae = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, by = 5)),
@@ -52,56 +52,54 @@ options(OutDec=",")
 projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/datasus_fecundidade_masculina/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 View(projecoes_2024_tab1_idade_simples)
 
-pop_Mato_Grosso_do_Sul<- projecoes_2024_tab1_idade_simples %>%
-  filter(LOCAL == "Mato Grosso do Sul") %>% 
+pop_Brasil<- projecoes_2024_tab1_idade_simples %>%
   select(`SEXO`,`IDADE`,`2012`:`2022`)
 
-pop_Mato_Grosso_do_Sul2022 <- projecoes_2024_tab1_idade_simples %>%
-  filter(LOCAL == "Mato Grosso do Sul") %>%
+pop_Brasil2022 <- projecoes_2024_tab1_idade_simples %>%
   select(`SEXO`,`IDADE`,`2022`)
 
-View(pop_Mato_Grosso_do_Sul)
+View(pop_Brasil)
 
 
-# Carrrega sul, filtra Mato_Grosso_do_Sul 
+# Carrrega sul, filtra Brasil 
 
-load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Centro_Oeste.RData", envir = parent.frame(), verbose = FALSE)
+load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
 
-Mato_Grosso_do_Sul = Centro_Oeste %>% 
-filter(Centro_Oeste$munResUf == "Mato Grosso do Sul")
-dim(Mato_Grosso_do_Sul)
+dim(Sul)
 
 
 #------------------
-Mato_Grosso_do_Sul_select <- Mato_Grosso_do_Sul %>%
+Sul_select <- Sul %>%
   select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, 
   faixa_etaria_pai, RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, 
   ESCMAE,ESCMAEAGR1,CODOCUPMAE,DTNASC,HORANASC,DIFDATA,ESTCIVMAE, DTNASCMAE, munResTipo, munResLat, munResLon, munResNome, TPFUNCRESP, DTDECLARAC,
 PARTO)
 
-names(Mato_Grosso_do_Sul_select)
+names(Sul_select)
 
-Mato_Grosso_do_Sul_select2022 = Mato_Grosso_do_Sul_select %>% filter(Ano== 2022)
-rm(Centro_Oeste)
+Sul_select2022 = Sul_select %>% filter(Ano== 2022)
+rm(Sul, Sul_select)
 
+dim(Sul_select2022)
 
+Brasil_select2022 = brow(Centro_Oeste_select2022, Sudeste_select2022)
 
 # Opcao de grafico para salvar grafico com quadrados azuis e rosas
 # com visualizacao padrao do livro do enders -- e do pacote mice  
 
-# padrao_missing_Mato_Grosso_do_Sul_select = md.pattern(Mato_Grosso_do_Sul_select)
-padrao_missing_Mato_Grosso_do_Sul_select
-# write.csv(padrao_missing_Mato_Grosso_do_Sul_select,file = "/home/mramos/Documentos/Dissetacao/padrao_missing_Mato_Grosso_do_Sul_select.csv", append = FALSE, quote = TRUE, sep = " ")
+# padrao_missing_Brasil_select = md.pattern(Brasil_select)
+padrao_missing_Brasil_select
+# write.csv(padrao_missing_Brasil_select,file = "/home/mramos/Documentos/Dissetacao/padrao_missing_Brasil_select.csv", append = FALSE, quote = TRUE, sep = " ")
 
-# padrao_missing_Mato_Grosso_do_Sul_select2022 = md.pattern(Mato_Grosso_do_Sul_select2022)
-# write.csv(padrao_missing_Mato_Grosso_do_Sul_select2022,file = "/home/mramos/Documentos/Dissetacao/padrao_missing_Mato_Grosso_do_Sul_select2022.csv", append = FALSE, quote = TRUE, sep = " ")
+# padrao_missing_Brasil_select2022 = md.pattern(Brasil_select2022)
+# write.csv(padrao_missing_Brasil_select2022,file = "/home/mramos/Documentos/Dissetacao/padrao_missing_Brasil_select2022.csv", append = FALSE, quote = TRUE, sep = " ")
 
 
 # Capturar o gráfico do padrao de missing -- O ULTIMO PLOTADO
  #plot_md <- recordPlot()
 
 # Restaurar e salvar o gráfico
-# png("/home/mramos/Documentos/Dissetacao/padrao_missing_MATO_g_SUL2022_selecionadas.png", width = 10000, height = 10000, res = 300)
+# png("/home/mramos/Documentos/Dissetacao/padrao_missing_Brasil2022_selecionadas.png", width = 10000, height = 10000, res = 300)
 # replayPlot(plot_md)
 # dev.off()
 
@@ -113,10 +111,10 @@ padrao_missing_Mato_Grosso_do_Sul_select
 padrao_df <- as.data.frame(padrao_missing)
 
 # Criar um gráfico de padrão de missing data
-grafico_missing <- gg_miss_var(Mato_Grosso_do_Sul_select2022)
+grafico_missing <- gg_miss_var(Brasil_select2022)
 grafico_missing
 # Salvar o gráfico
-ggsave("padrao_missing_Mato_Grosso_do_Sul2022_selecionadas_naniar.png", 
+ggsave("padrao_missing_Brasil2022_selecionadas_naniar.png", 
        plot = grafico_missing, 
        path = "/home/mramos/Documentos/Dissetacao", 
        width = 10, height = 10, units = "in")
@@ -128,7 +126,7 @@ ggsave("padrao_missing_Mato_Grosso_do_Sul2022_selecionadas_naniar.png",
 
 # Criar intervalos de 1 hora para a coluna HORANASC
 
-Mato_Grosso_do_Sul_select2022_test <- Mato_Grosso_do_Sul_select2022 %>%
+Brasil_select2022_test <- Brasil_select2022 %>%
   mutate(
     # Adiciona os dois pontos para transformar em "HH:MM"
     HORANASC = sprintf("%04d", as.numeric(HORANASC)),  # Garante 4 dígitos (ex: 0800, 1730)
@@ -137,8 +135,8 @@ Mato_Grosso_do_Sul_select2022_test <- Mato_Grosso_do_Sul_select2022 %>%
     nascimentos_hora = format(HORANASC, "%H")         # Extrai apenas a hora
   )
 
-table(Mato_Grosso_do_Sul_missing_proportion_mice$nascimentos_hora)
-Mato_Grosso_do_Sul_missing_proportion_mice <- Mato_Grosso_do_Sul_select2022_test %>%
+table(Brasil_missing_proportion_mice$nascimentos_hora)
+Brasil_missing_proportion_mice <- Brasil_select2022_test %>%
   filter(!is.na(nascimentos_hora)) %>%  # Remove registros com hora ausente
   group_by(nascimentos_hora,IDADEMAE) %>%
   summarise(
@@ -151,7 +149,7 @@ Mato_Grosso_do_Sul_missing_proportion_mice <- Mato_Grosso_do_Sul_select2022_test
   mutate(IDADEMAE = as.numeric(IDADEMAE))
 
 
-ggmice(Mato_Grosso_do_Sul_missing_proportion_mice, aes(IDADEMAE, IDADEPAI,fill = prop_missing_hora)) +
+ggmice(Brasil_missing_proportion_mice, aes(IDADEMAE, IDADEPAI,fill = prop_missing_hora)) +
   geom_hex() +
   scale_fill_viridis_c(option = "turbo") + 
   facet_wrap(~ nascimentos_hora, labeller = label_both)
@@ -163,7 +161,7 @@ ggsave("ultimo_grafico_missing_idadepaimae_MS.png",  dpi = 300)
 
 # visualização por hora e idade da mãe
 
-Mato_Grosso_do_Sul_missing_proportion <- Mato_Grosso_do_Sul_select2022 %>%
+Brasil_missing_proportion <- Brasil_select2022 %>%
   filter(!is.na(nascimentos_hora)) %>%  # Remove registros com hora ausente
   group_by(nascimentos_hora,IDADEMAE) %>%
   summarise(
@@ -175,7 +173,7 @@ Mato_Grosso_do_Sul_missing_proportion <- Mato_Grosso_do_Sul_select2022 %>%
   mutate(IDADEMAE = as.numeric(IDADEMAE))
 
 
-ggplot(Mato_Grosso_do_Sul_missing_proportion_mice , aes(x = IDADEMAE, y = total_nascimentos_hora, fill = prop_missing_hora)) +
+ggplot(Brasil_missing_proportion_mice , aes(x = IDADEMAE, y = total_nascimentos_hora, fill = prop_missing_hora)) +
   geom_col() +  # Barras para a proporção de missings
   scale_fill_viridis_c(
        option = "turbo",  # Paleta de cores viridis (pode tentar magma ou inferno também)
@@ -188,7 +186,7 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_mice , aes(x = IDADEMAE, y = total_
     labels = function(x) paste0(x, " anos")  # Adiciona "anos" após os valores
   )+
   labs(
-    title = "Proporção de dados faltantes na variável 'idade do pai' \n  por Idade da mãe e hora no Mato Grosso do Sul em 2022",
+    title = "Proporção de dados faltantes na variável 'idade do pai' \n  por Idade da mãe e hora no Brasil em 2022",
     x = "Idade da Mãe",
     y = "Frequência de nascimentos por idade da mãe",
     fill = "Proporção de missing \n da idade do pai \n para cada idade \n da mãe e hora"
@@ -197,7 +195,7 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_mice , aes(x = IDADEMAE, y = total_
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Inclina os rótulos
 
-  ggsave("Dissetacaoultimo_grafico_frequencia_total_nasc_hora_fill_prop_missing_por_hora_Mato_Grosso_do_Sul.png", path= "/home/mramos/Documentos/", dpi = 300)
+  ggsave("Dissetacaoultimo_grafico_frequencia_total_nasc_hora_fill_prop_missing_por_hora_Brasil.png", path= "/home/mramos/Documentos/", dpi = 300)
 
 
 #------------ 
@@ -205,8 +203,8 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_mice , aes(x = IDADEMAE, y = total_
 # proporção por estado civil e idade da mãe
 
 
-names(Mato_Grosso_do_Sul_missing_proportion_estado_civil)
-Mato_Grosso_do_Sul_missing_proportion_estado_civil <- Mato_Grosso_do_Sul_select2022 %>%
+names(Brasil_missing_proportion_estado_civil)
+Brasil_missing_proportion_estado_civil <- Brasil_select2022 %>%
   filter(!is.na(ESTCIVMAE)) %>%  # Remove registros com hora ausente
   group_by(ESTCIVMAE ,IDADEMAE) %>%
   summarise(
@@ -218,7 +216,7 @@ Mato_Grosso_do_Sul_missing_proportion_estado_civil <- Mato_Grosso_do_Sul_select2
   mutate(IDADEMAE = as.numeric(IDADEMAE))
 
 
-ggplot(Mato_Grosso_do_Sul_missing_proportion_estado_civil, aes(x = IDADEMAE, y = total_nascimentos_estado_civil, fill = prop_missing_estado_civil)) +
+ggplot(Brasil_missing_proportion_estado_civil, aes(x = IDADEMAE, y = total_nascimentos_estado_civil, fill = prop_missing_estado_civil)) +
   geom_col() +  # Barras para a proporção de missings
   scale_fill_viridis_c(
        option = "turbo",  # Paleta de cores viridis (pode tentar magma ou inferno também)
@@ -231,7 +229,7 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_estado_civil, aes(x = IDADEMAE, y =
     labels = function(x) paste0(x, " anos")  # Adiciona "anos" após os valores
   )+
   labs(
-    title = "Proporção de dados faltantes na variável 'idade do pai' \n por idade da mãe e estado civíl no Mato Grosso do Sul em 2022",
+    title = "Proporção de dados faltantes na variável 'idade do pai' \n por idade da mãe e estado civíl no Brasil em 2022",
     x = "Idade da Mãe",
     y = "Frequência de nascimentos por idade da mãe",
     fill = "Proporção de missing \n da idade do pai \n para cada idade \n da mãe e estado civíl"
@@ -240,7 +238,7 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_estado_civil, aes(x = IDADEMAE, y =
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Inclina os rótulos
 
-  ggsave("Dissetacaoultimo_grafico_frequencia_total_estado_civil_fill_prop_missing_por_hora_Mato_Grosso_do_Sul.png", path= "/home/mramos/Documentos/", dpi = 300)
+  ggsave("Dissetacaoultimo_grafico_frequencia_total_estado_civil_fill_prop_missing_por_hora_Brasil.png", path= "/home/mramos/Documentos/", dpi = 300)
 
 
 
@@ -250,9 +248,9 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_estado_civil, aes(x = IDADEMAE, y =
 # proporção por escolaridade e idade da mãe
 
 
-names(Mato_Grosso_do_Sul_select2022)
+names(Brasil_select2022)
 
-Mato_Grosso_do_Sul_missing_proportion_escola <- Mato_Grosso_do_Sul_select2022 %>%
+Brasil_missing_proportion_escola <- Brasil_select2022 %>%
   filter(!is.na(ESCMAE)) %>%  # Remove registros com hora ausente
   group_by(ESCMAE ,IDADEMAE) %>%
   summarise(
@@ -264,7 +262,7 @@ Mato_Grosso_do_Sul_missing_proportion_escola <- Mato_Grosso_do_Sul_select2022 %>
   mutate(IDADEMAE = as.numeric(IDADEMAE))
 
 
-ggplot(Mato_Grosso_do_Sul_missing_proportion_escola, aes(x = IDADEMAE, y = total_nascimentos_escolaridade, fill = prop_missing_escolaridade)) +
+ggplot(Brasil_missing_proportion_escola, aes(x = IDADEMAE, y = total_nascimentos_escolaridade, fill = prop_missing_escolaridade)) +
   geom_col() +  # Barras para a proporção de missings
   scale_fill_viridis_c(
        option = "turbo",  # Paleta de cores viridis (pode tentar magma ou inferno também)
@@ -277,7 +275,7 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_escola, aes(x = IDADEMAE, y = total
     labels = function(x) paste0(x, " anos")  # Adiciona "anos" após os valores
   )+
   labs(
-    title = "Proporção de dados faltantes na variável 'idade do pai' \n por idade da mãe e escolaridade no Mato Grosso do Sul em 2022",
+    title = "Proporção de dados faltantes na variável 'idade do pai' \n por idade da mãe e escolaridade no Brasil em 2022",
     x = "Idade da Mãe",
     y = "Frequência de nascimentos por idade da mãe",
     fill = "Proporção de missing \n da idade do pai \n para cada idade \n da mãe e escolaridade"
@@ -286,16 +284,16 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_escola, aes(x = IDADEMAE, y = total
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Inclina os rótulos
 
-  ggsave("Dissetacaoultimo_grafico_frequencia_total_escolaridade_fill_prop_missing_por_hora_Mato_Grosso_do_Sul.png", path= "/home/mramos/Documentos/", dpi = 300)
+  ggsave("Dissetacaoultimo_grafico_frequencia_total_escolaridade_fill_prop_missing_por_hora_Brasil.png", path= "/home/mramos/Documentos/", dpi = 300)
 
 
 
 
 # proporção por cor ou raca e idade da mãe
 
-names(Mato_Grosso_do_Sul_select2022)
+names(Brasil_select2022)
 
-Mato_Grosso_do_Sul_missing_proportion_cor_ou_raca <- Mato_Grosso_do_Sul_select2022 %>%
+Brasil_missing_proportion_cor_ou_raca <- Brasil_select2022 %>%
   filter(!is.na(RACACORMAE)) %>%  # Remove registros com hora ausente
   group_by(RACACORMAE ,IDADEMAE) %>%
   summarise(
@@ -308,7 +306,7 @@ Mato_Grosso_do_Sul_missing_proportion_cor_ou_raca <- Mato_Grosso_do_Sul_select20
 
 
 
-ggplot(Mato_Grosso_do_Sul_missing_proportion_cor_ou_raca, aes(x = IDADEMAE, y = total_nascimentos_cor_ou_raca, fill = prop_missing_cor_ou_raca)) +
+ggplot(Brasil_missing_proportion_cor_ou_raca, aes(x = IDADEMAE, y = total_nascimentos_cor_ou_raca, fill = prop_missing_cor_ou_raca)) +
   geom_col() +  # Barras para a proporção de missings
   scale_fill_viridis_c(
        option = "turbo",  # Paleta de cores viridis (pode tentar magma ou inferno também)
@@ -321,7 +319,7 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_cor_ou_raca, aes(x = IDADEMAE, y = 
     labels = function(x) paste0(x, " anos")  # Adiciona "anos" após os valores
   )+
   labs(
-    title = "Proporção de dados faltantes na variável 'idade do pai' \n por idade da mãe e cor ou raca no Mato Grosso do Sul em 2022",
+    title = "Proporção de dados faltantes na variável 'idade do pai' \n por idade da mãe e cor ou raca no Brasil em 2022",
     x = "Idade da Mãe",
     y = "Frequência de nascimentos por idade da mãe",
     fill = "Proporção de missing \n da idade do pai \n para cada idade \n da mãe e cor ou raca"
@@ -330,7 +328,7 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_cor_ou_raca, aes(x = IDADEMAE, y = 
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Inclina os rótulos
 
-  ggsave("Dissetacaoultimo_grafico_frequencia_total_cor_ou_raca_fill_prop_missing_por_hora_Mato_Grosso_do_Sul.png", path= "/home/mramos/Documentos/", dpi = 300)
+  ggsave("Dissetacaoultimo_grafico_frequencia_total_cor_ou_raca_fill_prop_missing_por_hora_Brasil.png", path= "/home/mramos/Documentos/", dpi = 300)
 
 
 
@@ -338,18 +336,18 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_cor_ou_raca, aes(x = IDADEMAE, y = 
 # proporção por diferença de DTDECLARAC (Data do preenchimento da declaração) e idade da mãe
 
 
-names(Mato_Grosso_do_Sul_select2022)
+names(Brasil_select2022)
 
-Mato_Grosso_do_Sul_select2022 <- Mato_Grosso_do_Sul_select2022 %>%
+Brasil_select2022 <- Brasil_select2022 %>%
   mutate(
     DTDECLARAC = as.Date(DTDECLARAC, format = "%Y-%m-%d"),
     DTNASC = as.Date(DTNASC, format = "%Y-%m-%d"),
     diferenca_dias = as.numeric(DTDECLARAC - DTNASC)  # Diferença em dias
   ) 
 
-table(Mato_Grosso_do_Sul_select2022$diferenca_dias)
+table(Brasil_select2022$diferenca_dias)
 
-Mato_Grosso_do_Sul_missing_proportion_diferenca_dias <- Mato_Grosso_do_Sul_select2022 %>%
+Brasil_missing_proportion_diferenca_dias <- Brasil_select2022 %>%
   filter(diferenca_dias < 3 & 0 <= diferenca_dias) %>%  # Remove registros com hora ausente
   group_by(diferenca_dias ,IDADEMAE) %>%
   summarise(
@@ -362,7 +360,7 @@ Mato_Grosso_do_Sul_missing_proportion_diferenca_dias <- Mato_Grosso_do_Sul_selec
 
 
 
-ggplot(Mato_Grosso_do_Sul_missing_proportion_diferenca_dias, aes(x = IDADEMAE, y = total_nascimentos_diferenca_dias, fill = prop_missing_diferenca_dias)) +
+ggplot(Brasil_missing_proportion_diferenca_dias, aes(x = IDADEMAE, y = total_nascimentos_diferenca_dias, fill = prop_missing_diferenca_dias)) +
   geom_col() +  # Barras para a proporção de missings
   scale_fill_viridis_c(
        option = "turbo",  # Paleta de cores viridis (pode tentar magma ou inferno também)
@@ -375,7 +373,7 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_diferenca_dias, aes(x = IDADEMAE, y
     labels = function(x) paste0(x, " anos")  # Adiciona "anos" após os valores
   )+
   labs(
-    title = "Proporção de dados faltantes na variável 'idade do pai' por idade \n da mãe e diferenca em dias da data do nascimento \n à data do registro no Mato Grosso do Sul em 2022",
+    title = "Proporção de dados faltantes na variável 'idade do pai' por idade \n da mãe e diferenca em dias da data do nascimento \n à data do registro no Brasil em 2022",
     x = "Idade da Mãe",
     y = "Frequência de nascimentos por idade da mãe",
     fill = "Proporção de missing \n da idade do pai para \n  cada idade da mãe \n e diferenca em dias"
@@ -384,28 +382,28 @@ ggplot(Mato_Grosso_do_Sul_missing_proportion_diferenca_dias, aes(x = IDADEMAE, y
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Inclina os rótulos
 
-  ggsave("frequencia_total_diferenca_dias_fill_prop_missing_Mato_Grosso_do_Sul.png", path= "/home/mramos/Documentos/", dpi = 300)
+  ggsave("frequencia_total_diferenca_dias_fill_prop_missing_Brasil.png", path= "/home/mramos/Documentos/", dpi = 300)
 
 
 
 
 # Form a regression model where age is predicted from bmi.
 
-fit <- with(Mato_Grosso_do_Sul_select2022, lm(IDADEPAI ~ IDADEMAE))
+fit <- with(Brasil_select2022, lm(IDADEPAI ~ IDADEMAE))
 summary(fit)
 
 #----
 
 # Verificar estrutura do conjunto de dados
-str(Mato_Grosso_do_Sul_select2022)
+str(Brasil_select2022)
 
 # Definir métodos de imputação
-methods <- make.method(Mato_Grosso_do_Sul_select2022)  # Determina métodos automaticamente
+methods <- make.method(Brasil_select2022)  # Determina métodos automaticamente
 class(methods)
 
 #no mice: Multilevel categorical variables: Use "polyreg" (polytomous regression) or "rf" (random forest, for flexibility).
 
-Mato_Grosso_do_Sul_select2022 = Mato_Grosso_do_Sul_select2022 %>% 
+Brasil_select2022 = Brasil_select2022 %>% 
 mutate(IDADEMAE = as.numeric(IDADEMAE), 
 IDADEPAI = as.numeric(IDADEPAI), 
 faixa_etaria_mae = as.factor(faixa_etaria_mae),
@@ -419,13 +417,13 @@ methods["IDADEMAE"] <- "norm.predict"   # Numeric
 methods ["IDADEPAI"] <- "norm.predict"   # Numeric
 
 # Imputar dados
-imp <- mice(Mato_Grosso_do_Sul_select2022, method = methods, m = 1, maxit = 1)
+imp <- mice(Brasil_select2022, method = methods, m = 1, maxit = 1)
 summar
 # Visualizar resultado da imputação
 summary(imp)
 head(imp)
 
-ggplot(Mato_Grosso_do_Sul_select2022, aes(x = IDADEMAE, y = IDADEPAI)) +
+ggplot(Brasil_select2022, aes(x = IDADEMAE, y = IDADEPAI)) +
   geom_point() +
   geom_smooth(method = "lm", se = TRUE, color = "blue") +
   labs(title = "Idade do Pai vs. Idade da Mãe",
@@ -442,15 +440,15 @@ mae_e_pai <- mae_e_pai %>%
 
 
 
-# ver o missing no Mato Grosso_do_Sul 
+# ver o missing no Brasil 
 #-------
-Mato_Grosso_do_Sul_nenhum_aplicado = ggmice(mae_e_pai, aes(IDADEPAI, IDADEMAE)) + 
+Brasil_nenhum_aplicado = ggmice(mae_e_pai, aes(IDADEPAI, IDADEMAE)) + 
   geom_hex() +
   guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
   scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
   facet_wrap(~Ano)+
   theme_minimal() +
-  labs(title = "Gráfico idade do pai pela idade da mãe\n Mato Grosso_do_Sul", 
+  labs(title = "Gráfico idade do pai pela idade da mãe\n Brasil", 
        x = "Idade do pai", 
        y = "Idade da mãe") +
   theme(
@@ -458,20 +456,20 @@ Mato_Grosso_do_Sul_nenhum_aplicado = ggmice(mae_e_pai, aes(IDADEPAI, IDADEMAE)) 
     axis.text.x = element_text(size = 7),
     axis.text.y = element_text(size = 7)
   )
-Mato_Grosso_do_Sul_nenhum_aplicado
-ggsave(filename = "missing Mato Grosso_do_Sul nenhum método aplicado.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+Brasil_nenhum_aplicado
+ggsave(filename = "missing Brasil nenhum método aplicado.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
 
 # visualizando pontos 2022 (com idades da mae com missing)
 
-mae_e_pai2022 <- Mato_Grosso_do_Sul %>%
+mae_e_pai2022 <- Brasil %>%
   filter(Ano == 2022)
 
-Mato_Grosso_do_Sul_nenhum_aplicado2022 = ggmice(mae_e_pai2022, aes(IDADEPAI, IDADEMAE)) + 
+Brasil_nenhum_aplicado2022 = ggmice(mae_e_pai2022, aes(IDADEPAI, IDADEMAE)) + 
   geom_hex() +
   guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
   scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
   theme_minimal() +
-  labs(title = "Gráfico idade do pai pela idade da mãe\n Mato Grosso_do_Sul de 2022", 
+  labs(title = "Gráfico idade do pai pela idade da mãe\n Brasil de 2022", 
        x = "Idade do pai", 
        y = "Idade da mãe") +
   theme(
@@ -480,7 +478,7 @@ Mato_Grosso_do_Sul_nenhum_aplicado2022 = ggmice(mae_e_pai2022, aes(IDADEPAI, IDA
     axis.text.y = element_text(size = 7)
   )
 
-ggsave(filename = "missing Mato Grosso_do_Sul nenhum método aplicado2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+ggsave(filename = "missing Brasil nenhum método aplicado2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
 
 #-----
 
@@ -493,13 +491,13 @@ ggsave(filename = "missing Mato Grosso_do_Sul nenhum método aplicado2022.png", 
 mae_e_pai_del <- na.omit(mae_e_pai)
 
 # Criando o gráfico sem valores NA
-mae_e_pai_del_Mato_Grosso_do_Sul = ggplot(mae_e_pai_del, aes(x = IDADEPAI, y = IDADEMAE)) +
+mae_e_pai_del_Brasil = ggplot(mae_e_pai_del, aes(x = IDADEPAI, y = IDADEMAE)) +
   geom_hex() +
   guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
   scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
   facet_wrap(~Ano)+
 theme_minimal() +
-  labs(title = "Gráfico idade do pai pela idade da mãe\n Mato Grosso_do_Sul todos os anos (NA removido)", 
+  labs(title = "Gráfico idade do pai pela idade da mãe\n Brasil todos os anos (NA removido)", 
        x = "Idade do pai", 
        y = "Idade da mãe") +
   theme(
@@ -507,7 +505,7 @@ theme_minimal() +
     axis.text.x = element_text(size = 7),
     axis.text.y = element_text(size = 7)
   )
-ggsave(filename = "na_remove_Mato_Grosso_do_Sul.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+ggsave(filename = "na_remove_Brasil.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
 #-------
 
 
@@ -522,7 +520,7 @@ na_remove_paran2022 = ggplot(mae_e_pai_del2022, aes(x = IDADEPAI, y = IDADEMAE))
   guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
   scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
   theme_minimal() +
-  labs(title = "Gráfico idade do pai pela idade da mãe\n Mato Grosso_do_Sul 2022 (NA removido)", 
+  labs(title = "Gráfico idade do pai pela idade da mãe\n Brasil 2022 (NA removido)", 
        x = "Idade do pai", 
        y = "Idade da mãe") +
   theme(
@@ -530,7 +528,7 @@ na_remove_paran2022 = ggplot(mae_e_pai_del2022, aes(x = IDADEPAI, y = IDADEMAE))
     axis.text.x = element_text(size = 7),
     axis.text.y = element_text(size = 7)
   )
-ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+ggsave(filename = "na_remove_Brasil2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
 
   #------
 
@@ -578,7 +576,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
      facet_wrap(~Ano)+
      theme_minimal() +
-     labs(title = "Gráfico idade do pai pela idade da mãe\n Mato Grosso_do_Sul todos os anos (NA imputado pela mediana por ano )", 
+     labs(title = "Gráfico idade do pai pela idade da mãe\n Brasil todos os anos (NA imputado pela mediana por ano )", 
           x = "Idade do pai", 
           y = "Idade da mãe") +
      theme(
@@ -586,7 +584,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
        axis.text.x = element_text(size = 7),
        axis.text.y = element_text(size = 7)
      )
-   ggsave(filename = "mae_e_pai_mediana_Mato_Grosso_do_Sul_MCAR.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+   ggsave(filename = "mae_e_pai_mediana_Brasil_MCAR.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
    #------
    
    
@@ -626,7 +624,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
      facet_wrap(~Ano)+
      theme_minimal() +
-     labs(title = "Gráfico idade do pai pela idade da mãe\n Mato Grosso_do_Sul todos os anos (NA imputado pela mediana por ano e idade da mãe- supõe MAR)", 
+     labs(title = "Gráfico idade do pai pela idade da mãe\n Brasil todos os anos (NA imputado pela mediana por ano e idade da mãe- supõe MAR)", 
           x = "Idade do pai", 
           y = "Idade da mãe") +
      theme(
@@ -634,7 +632,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
        axis.text.x = element_text(size = 7),
        axis.text.y = element_text(size = 7)
      )
-   ggsave(filename = "mae_e_pai_mediana_Mato_Grosso_do_Sul_MAR.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+   ggsave(filename = "mae_e_pai_mediana_Brasil_MAR.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
    #------
    
    
@@ -648,12 +646,12 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      filter(Ano == 2022)
    
  
-   mae_e_pai_mediana_Mato_Grosso_do_Sul2022 = ggplot(mae_e_pai_mediana2022, aes(x = IDADEPAI, y = IDADEMAE)) +
+   mae_e_pai_mediana_Brasil2022 = ggplot(mae_e_pai_mediana2022, aes(x = IDADEPAI, y = IDADEMAE)) +
      geom_hex() +
      guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
      scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
      theme_minimal() +
-     labs(title = "Gráfico idade do pai pela idade da mãe\n Mato Grosso_do_Sul 2022 (NA imputado pela mediana)", 
+     labs(title = "Gráfico idade do pai pela idade da mãe\n Brasil 2022 (NA imputado pela mediana)", 
           x = "Idade do pai", 
           y = "Idade da mãe") +
        theme(
@@ -661,7 +659,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
          axis.text.x = element_text(size = 7),
          axis.text.y = element_text(size = 7)
        )
-     ggsave(filename = "mae_e_pai_mediana_Mato_Grosso_do_Sul2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
+     ggsave(filename = "mae_e_pai_mediana_Brasil2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
  
          
 #-----
@@ -672,9 +670,9 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      library(dplyr)
      library(tidyr)
      
-     # Etapa 1: Filtra os dados populacionais para o Mato Grosso_do_Sul e agrupa por faixa etária e ano
-     pop_Mato_Grosso_do_Sul_mulher <- projecoes_2024_tab1_idade_simples %>%
-       filter(SEXO == "Mulheres", LOCAL == "Mato Grosso_do_Sul") %>%
+     # Etapa 1: Filtra os dados populacionais para o Brasil e agrupa por faixa etária e ano
+     pop_Brasil_mulher <- projecoes_2024_tab1_idade_simples %>%
+       #filter(SEXO == "Mulheres", LOCAL == "Brasil") %>%
        pivot_longer(
          cols = `2012`:`2022`, 
          names_to = "Ano", 
@@ -687,14 +685,14 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
        group_by(Ano, Grupo_idade) %>%
        summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
      
-     View(pop_Mato_Grosso_do_Sul_mulher)
+     View(pop_Brasil_mulher)
      
      # Filtra as linhas com grupos etários não definidos ou fora do intervalo (NA)
-     pop_Mato_Grosso_do_Sul_mulher_filtered <- pop_Mato_Grosso_do_Sul_mulher %>%
+     pop_Brasil_mulher_filtered <- pop_Brasil_mulher %>%
        filter(!is.na(Grupo_idade))
      
      # Prepara os dados de nascimento agrupados por ano e faixa etária
-     nascimentos_Mato_Grosso_do_Sul_mae <- Mato_Grosso_do_Sul %>%
+     nascimentos_Brasil_mae <- Brasil %>%
        mutate(
          Ano = Ano,
          Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)
@@ -703,14 +701,14 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
               summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
      
      # Junta os dados de nascimento com os de população e calcula as TEFs
-     tef_Mato_Grosso_do_Sul_todos_Anos_mulher <- nascimentos_Mato_Grosso_do_Sul_mae %>%
-       inner_join(pop_Mato_Grosso_do_Sul_mulher_filtered, by = c("Ano", "Grupo_idade")) %>%
+     tef_Brasil_todos_Anos_mulher <- nascimentos_Brasil_mae %>%
+       inner_join(pop_Brasil_mulher_filtered, by = c("Ano", "Grupo_idade")) %>%
        mutate(TEF = (nascimentos / Populacao) * 1000)
      
-     print(tef_Mato_Grosso_do_Sul_todos_Anos)
+     print(tef_Brasil_todos_Anos)
      
      # Preparando a estrutura necessária para calcular as TEFs
-     tef_Mato_Grosso_do_Sul_formatted_mulher <- tef_Mato_Grosso_do_Sul_todos_Anos_mulher %>%
+     tef_Brasil_formatted_mulher <- tef_Brasil_todos_Anos_mulher %>%
        mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caracter
        select(Ano, Grupo_idade, TEF)  # Seleciona as colunas de interesse
      
@@ -723,12 +721,12 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      colors <- brewer.pal(9, "PuBuGn")  # Paleta de cores
      
      # Cria o gráfico de linha das TEFs com esquema de cores em gradiente
-     ggplot(tef_Mato_Grosso_do_Sul_formatted_mulher, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
+     ggplot(tef_Brasil_formatted_mulher, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
        geom_line(size = 1.2) +    # Adiciona linhas para cada ano
        geom_point(size = 1.5) +   # Adiciona pontos
        scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
        labs(
-         title = "Taxa Específica de Fecundidade Femininas (TEFs) por Faixa Etária e Ano - Mato Grosso_do_Sul",
+         title = "Taxa Específica de Fecundidade Femininas (TEFs) por Faixa Etária e Ano - Brasil",
          x = "Faixa Etária (anos)",
          y = "TEFs (Nascimentos por 1.000 mulheres)",
          color = "Ano"
@@ -757,9 +755,9 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      
      # Gráfico das taxas específicas de fecundidade (TEF) HOMENS - NA
      
-     # Etapa 1: Filtra os dados populacionais para o Mato Grosso do Sul e agrupa por faixa etária e ano
-     pop_Mato_Grosso_do_Sul_homem <- projecoes_2024_tab1_idade_simples %>%
-       filter(SEXO == "Homens", LOCAL == "Mato Grosso do Sul") %>%
+     # Etapa 1: Filtra os dados populacionais para o Brasil e agrupa por faixa etária e ano
+     pop_Brasil_homem <- projecoes_2024_tab1_idade_simples %>%
+       #filter(SEXO == "Homens", LOCAL == "Brasil") %>%
        pivot_longer(
          cols = `2012`:`2022`, 
          names_to = "Ano", 
@@ -772,14 +770,14 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
        group_by(Ano, Grupo_idade) %>%
        summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
      
-     View(pop_Mato_Grosso_do_Sul_homem)
+     View(pop_Brasil_homem)
      
      # Filtra as linhas com grupos etários não definidos ou fora do intervalo (NA)
-     pop_Mato_Grosso_do_Sul_homem_filtered <- pop_Mato_Grosso_do_Sul_homem %>%
+     pop_Brasil_homem_filtered <- pop_Brasil_homem %>%
        filter(!is.na(Grupo_idade))
      
      # Prepara os dados de nascimento agrupados por ano e faixa etária
-     nascimentos_Mato_Grosso_do_Sul <- Mato_Grosso_do_Sul %>%
+     nascimentos_Brasil <- Brasil %>%
        mutate(
          Ano = Ano,
          Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)
@@ -788,14 +786,14 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
               summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
      
      # Junta os dados de nascimento com os de população e calcula as TEFs
-     tef_Mato_Grosso_do_Sul_todos_Anos <- nascimentos_Mato_Grosso_do_Sul %>%
-       inner_join(pop_Mato_Grosso_do_Sul_homem_filtered, by = c("Ano", "Grupo_idade")) %>%
+     tef_Brasil_todos_Anos <- nascimentos_Brasil %>%
+       inner_join(pop_Brasil_homem_filtered, by = c("Ano", "Grupo_idade")) %>%
        mutate(TEF = (nascimentos / Populacao) * 1000)
      
-     print(tef_Mato_Grosso_do_Sul_todos_Anos)
+     print(tef_Brasil_todos_Anos)
      
      # Preparando a estrutura necessária para calcular as TEFs
-     tef_Mato_Grosso_do_Sul_formatted <- tef_Mato_Grosso_do_Sul_todos_Anos %>%
+     tef_Brasil_formatted <- tef_Brasil_todos_Anos %>%
        mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caractere
        select(Ano, Grupo_idade, TEF)  # Seleciona as colunas de interesse
      
@@ -808,7 +806,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      colors <- brewer.pal(9, "PuBuGn")  # Paleta de cores
      
      # Cria o gráfico de linha das TEFs com esquema de cores em gradiente
-     ggplot(tef_Mato_Grosso_do_Sul_formatted, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
+     ggplot(tef_Brasil_formatted, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
        geom_line(size = 1.2) +    # Adiciona linhas para cada ano
        geom_point(size = 1.5) +   # Adiciona pontos
        scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
@@ -847,7 +845,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      # Imputa valores missing em  com a mediana (menos influenciada por outliers, contem valores reais)
      #------------
         # Seleciona as colunas relevantes e verifica o conteúdo de IDADEMAE
-     mae_e_pai <- Mato_Grosso_do_Sul %>%
+     mae_e_pai <- Brasil %>%
        select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai)
      
      # Garante que a coluna IDADEMAE seja numérica e substitui valores inválidos por NA
@@ -884,7 +882,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      # Gráfico das taxas específicas de fecundidade (TEF) mulheres - imputado pela mediana
      
      # Etapa 1: Filtra os dados populacionais para o Paraná e agrupa por faixa etária e ano
-     pop_Mato_Grosso_do_Sul_mulheres <- projecoes_2024_tab1_idade_simples %>%
+     pop_Brasil_mulheres <- projecoes_2024_tab1_idade_simples %>%
        filter(SEXO == "Mulheres", LOCAL == "Paraná") %>%
        pivot_longer(
          cols = `2012`:`2022`, 
@@ -898,16 +896,16 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
        group_by(Ano, Grupo_idade) %>%
        summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
      
-     View(pop_Mato_Grosso_do_Sul_mulheres)
+     View(pop_Brasil_mulheres)
      
      # Filtra as linhas com grupos etários não definidos ou fora do intervalo (NA)
-     pop_Mato_Grosso_do_Sul_mulheres_filtered <- pop_Mato_Grosso_do_Sul_mulheres %>%
+     pop_Brasil_mulheres_filtered <- pop_Brasil_mulheres %>%
        filter(!is.na(Grupo_idade))
      
      
      
      # Prepara os dados de nascimento agrupados por ano e faixa etária
-     nascimentos_Mato_Grosso_do_Sul <-mae_mediana %>%
+     nascimentos_Brasil <-mae_mediana %>%
        mutate(
          Ano = Ano,
          Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)
@@ -916,14 +914,14 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
        summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
      
      # Junta os dados de nascimento com os de população e calcula as TEFs
-     tef_Mato_Grosso_do_Sul_todos_Anos <- nascimentos_Mato_Grosso_do_Sul %>%
-       inner_join(pop_Mato_Grosso_do_Sul_mulheres_filtered, by = c("Ano", "Grupo_idade")) %>%
+     tef_Brasil_todos_Anos <- nascimentos_Brasil %>%
+       inner_join(pop_Brasil_mulheres_filtered, by = c("Ano", "Grupo_idade")) %>%
        mutate(TEF = (nascimentos / Populacao) * 1000)
      
-     print(tef_Mato_Grosso_do_Sul_todos_Anos)
+     print(tef_Brasil_todos_Anos)
      
      # Preparando a estrutura necessária para calcular as TEFs
-     tef_Mato_Grosso_do_Sul_formatted_median_mulheres <- tef_Mato_Grosso_do_Sul_todos_Anos %>%
+     tef_Brasil_formatted_median_mulheres <- tef_Brasil_todos_Anos %>%
        mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caractere
        select(Ano, Grupo_idade, TEF)  # Seleciona as colunas de interesse
      
@@ -936,7 +934,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      colors <- brewer.pal(9, "PuBuGn")  # Paleta de cores
      
      # Cria o gráfico de linha das TEFs com esquema de cores em gradiente
-     ggplot(tef_Mato_Grosso_do_Sul_formatted_median_mulheres, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
+     ggplot(tef_Brasil_formatted_median_mulheres, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
        geom_line(size = 1.2) +    # Adiciona linhas para cada ano
        geom_point(size = 1.5) +   # Adiciona pontos
        scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
@@ -990,7 +988,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      # Gráfico das taxas específicas de fecundidade (TEF) HOMENS - imputado pela mediana
      
      # Etapa 1: Filtra os dados populacionais para o Paraná e agrupa por faixa etária e ano
-     pop_Mato_Grosso_do_Sul_homem <- projecoes_2024_tab1_idade_simples %>%
+     pop_Brasil_homem <- projecoes_2024_tab1_idade_simples %>%
        filter(SEXO == "Homens", LOCAL == "Paraná") %>%
        pivot_longer(
          cols = `2012`:`2022`, 
@@ -1004,16 +1002,16 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
        group_by(Ano, Grupo_idade) %>%
        summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
      
-     View(pop_Mato_Grosso_do_Sul_homem)
+     View(pop_Brasil_homem)
      
      # Filtra as linhas com grupos etários não definidos ou fora do intervalo (NA)
-     pop_Mato_Grosso_do_Sul_homem_filtered <- pop_Mato_Grosso_do_Sul_homem %>%
+     pop_Brasil_homem_filtered <- pop_Brasil_homem %>%
        filter(!is.na(Grupo_idade))
      
      
      
      # Prepara os dados de nascimento agrupados por ano e faixa etária
-     nascimentos_Mato_Grosso_do_Sul <- mae_e_pai_mediana %>%
+     nascimentos_Brasil <- mae_e_pai_mediana %>%
        mutate(
          Ano = Ano,
          Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)
@@ -1022,14 +1020,14 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
        summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
      
      # Junta os dados de nascimento com os de população e calcula as TEFs
-     tef_Mato_Grosso_do_Sul_todos_Anos <- nascimentos_Mato_Grosso_do_Sul %>%
-       inner_join(pop_Mato_Grosso_do_Sul_homem_filtered, by = c("Ano", "Grupo_idade")) %>%
+     tef_Brasil_todos_Anos <- nascimentos_Brasil %>%
+       inner_join(pop_Brasil_homem_filtered, by = c("Ano", "Grupo_idade")) %>%
        mutate(TEF = (nascimentos / Populacao) * 1000)
      
-     print(tef_Mato_Grosso_do_Sul_todos_Anos)
+     print(tef_Brasil_todos_Anos)
      
      # Preparando a estrutura necessária para calcular as TEFs
-     tef_Mato_Grosso_do_Sul_formatted <- tef_Mato_Grosso_do_Sul_todos_Anos %>%
+     tef_Brasil_formatted <- tef_Brasil_todos_Anos %>%
        mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caractere
        select(Ano, Grupo_idade, TEF)  # Seleciona as colunas de interesse
      
@@ -1042,7 +1040,7 @@ ggsave(filename = "na_remove_Mato_Grosso_do_Sul2022.png", width = 35, height = 2
      colors <- brewer.pal(9, "PuBuGn")  # Paleta de cores
      
      # Cria o gráfico de linha das TEFs com esquema de cores em gradiente
-     ggplot(tef_Mato_Grosso_do_Sul_formatted, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
+     ggplot(tef_Brasil_formatted, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
        geom_line(size = 1.2) +    # Adiciona linhas para cada ano
        geom_point(size = 1.5) +   # Adiciona pontos
        scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
