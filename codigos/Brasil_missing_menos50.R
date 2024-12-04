@@ -62,27 +62,47 @@ View(pop_Brasil)
 
 
 # Carrrega sul, filtra Brasil 
+# Lista de arquivos das regiões
+regioes <- c("Sul.RData", "Sudeste.RData", "Centro_Oeste.RData", "Nordeste.RData", "Norte.RData")
 
-load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
+# Caminho onde os arquivos estão armazenados
+caminho_dados <- "/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/"
 
-dim(Sul)
+# Dataframe vazio para consolidar os dados
+Brasil_select2022 <- data.frame()
 
+# Loop para processar cada região
+for (regiao in regioes) {
+  # Carregar o arquivo
+  caminho_completo <- file.path(caminho_dados, regiao)
+  load(caminho_completo, envir = parent.frame(), verbose = FALSE)
+  
+  # Extrair o nome do objeto carregado dinamicamente
+  nome_objeto <- sub("\\.RData$", "", regiao)  # Remove ".RData"
+  dados_regiao <- get(nome_objeto)
+  
+  # Selecionar as colunas desejadas
+  dados_select <- dados_regiao %>%
+    select(
+      IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai, 
+      RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, ESCMAE, 
+      ESCMAEAGR1, CODOCUPMAE, DTNASC, HORANASC, DIFDATA, ESTCIVMAE, DTNASCMAE, 
+      munResTipo, munResLat, munResLon, munResNome, TPFUNCRESP, DTDECLARAC, PARTO
+    )
+  
+  # Filtrar apenas os dados do ano de 2022
+  dados_select2022 <- dados_select %>% filter(Ano == 2022)
+  
+  # Adicionar os dados ao dataframe consolidado
+  Brasil_select2022 <- bind_rows(Brasil_select2022, dados_select2022)
+  
+  # Remover os objetos temporários para liberar memória
+  rm(list = c(nome_objeto, "dados_select", "dados_select2022"))
+}
 
-#------------------
-Sul_select <- Sul %>%
-  select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, 
-  faixa_etaria_pai, RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, 
-  ESCMAE,ESCMAEAGR1,CODOCUPMAE,DTNASC,HORANASC,DIFDATA,ESTCIVMAE, DTNASCMAE, munResTipo, munResLat, munResLon, munResNome, TPFUNCRESP, DTDECLARAC,
-PARTO)
+# Verificar o resultado final
+dim(Brasil_select2022)
 
-names(Sul_select)
-
-Sul_select2022 = Sul_select %>% filter(Ano== 2022)
-rm(Sul, Sul_select)
-
-dim(Sul_select2022)
-
-Brasil_select2022 = brow(Centro_Oeste_select2022, Sudeste_select2022)
 
 # Opcao de grafico para salvar grafico com quadrados azuis e rosas
 # com visualizacao padrao do livro do enders -- e do pacote mice  
