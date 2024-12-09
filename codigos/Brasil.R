@@ -12,6 +12,7 @@
 
 
 library(naniar)
+
 library(mice)
 library(dplyr)
 require(RCurl)
@@ -27,11 +28,12 @@ library(ggmice)
 library(lubridate)
 library(readxl)
 
-# CONFIGURANDO AMBIENTE
-## Notação científica
-options(scipen = 999)
-#decimais com virgula
-options(OutDec=",")
+
+
+
+# Definir opções globais para separadores (apenas para exibição)
+options(scipen = 999, 
+        OutDec = ",") # Usar "," como separador decimal na exibição
 
 
 
@@ -51,67 +53,78 @@ options(OutDec=",")
 #------------------
 # DENOMINADOR - projecao de populacao de 2024
 
-projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/datasus_fecundidade_masculina/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
-View(projecoes_2024_tab1_idade_simples)
+projecoes_2024_tab1_idade_simples <- projecoes_2024_tab1_idade_simples <- read_excel("E:/1-Fecundidade_masculina20241101/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 
 pop_Brasil<- projecoes_2024_tab1_idade_simples %>%
   select(`SEXO`,`IDADE`,`2012`:`2022`)
 
-pop_Brasil2022 <- projecoes_2024_tab1_idade_simples %>%
-  select(`SEXO`,`IDADE`,`2022`)
-
 View(pop_Brasil)
+rm(projecoes_2024_tab1_idade_simples)
+#-------------- 
+
+# # Lista de arquivos das regiões
+# regioes <- c("Sul.RData", "Sudeste.RData", "Centro_Oeste.RData", "Nordeste.RData", "Norte.RData")
+# 
+# # Caminho onde os arquivos estão armazenados
+# 
+# #caminho_dados <- "/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/"
+# caminho_dados <- "e:/2-nao_subi_git20241101/dados_2012-2022/"
+# 
+# 
+# # Dataframe vazio para consolidar os dados
+# Brasil_select <- data.frame()
+# 
+# # Loop para processar cada região
+# for (regiao in regioes) {
+#   # Carregar o arquivo
+#   caminho_completo <- file.path(caminho_dados, regiao)
+#   load(caminho_completo, envir = parent.frame(), verbose = FALSE)
+#   
+#   # Extrair o nome do objeto carregado dinamicamente
+#   nome_objeto <- sub("\\.RData$", "", regiao)  # Remove ".RData"
+#   dados_regiao <- get(nome_objeto)
+#   
+#   # Selecionar as colunas desejadas
+#   dados_select <- dados_regiao %>%
+#     select(
+#       IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai, 
+#       RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, ESCMAE, 
+#       ESCMAEAGR1, CODOCUPMAE, DTNASC, HORANASC, DIFDATA, ESTCIVMAE, DTNASCMAE, 
+#       munResTipo, munResLat, munResLon, munResNome, munResStatus, munResUf, TPFUNCRESP, DTDECLARAC, PARTO
+#     )
+#   
+# 
+# 
+# # Filtrar apenas os dados do ano de 2022
+# #dados_select2022 <- dados_select %>% filter(Ano == 2022)
+# 
+# # Adicionar os dados ao dataframe consolidado
+# Brasil_select <- bind_rows(Brasil_select, dados_select)
+# 
+# # Remover os objetos temporários para liberar memória
+# rm(list = c(nome_objeto, "dados_select", "dados_select"))
+# print("|")
+# 
+# }
+
+#--------------
+
+# windows
+load("e:/2-nao_subi_git20241101/dados_2012-2022/Brasil_selecionadas_tdsanos.RData")
 
 
-# Carrrega sul, filtra Brasil 
-# Lista de arquivos das regiões
-regioes <- c("Sul.RData", "Sudeste.RData", "Centro_Oeste.RData", "Nordeste.RData", "Norte.RData")
 
-# Caminho onde os arquivos estão armazenados
-
-#caminho_dados <- "/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/"
-caminho_dados <- "e:/2-nao_subi_git20241101/dados_2012-2022/"
+#ubuntu
+#load("media//mramos//MIRNA TETZ//2-nao_subi_git20241101//dados_2012-2022//Brasil_selecionadas_tdsanos.RData")
 
 
-# Dataframe vazio para consolidar os dados
-Brasil_select <- data.frame()
-
-# Loop para processar cada região
-for (regiao in regioes) {
-  # Carregar o arquivo
-  caminho_completo <- file.path(caminho_dados, regiao)
-  load(caminho_completo, envir = parent.frame(), verbose = FALSE)
-  
-  # Extrair o nome do objeto carregado dinamicamente
-  nome_objeto <- sub("\\.RData$", "", regiao)  # Remove ".RData"
-  dados_regiao <- get(nome_objeto)
-  
-  # Selecionar as colunas desejadas
-  dados_select <- dados_regiao %>%
-    select(
-      IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai, 
-      RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, ESCMAE, 
-      ESCMAEAGR1, CODOCUPMAE, DTNASC, HORANASC, DIFDATA, ESTCIVMAE, DTNASCMAE, 
-      munResTipo, munResLat, munResLon, munResNome, munResStatus, munResUf, TPFUNCRESP, DTDECLARAC, PARTO
-    )
-  
-  # Filtrar apenas os dados do ano de 2022
-  #dados_select2022 <- dados_select %>% filter(Ano == 2022)
-  
-  # Adicionar os dados ao dataframe consolidado
-  Brasil_select <- bind_rows(Brasil_select, dados_select)
-  
-  # Remover os objetos temporários para liberar memória
-  rm(list = c(nome_objeto, "dados_select", "dados_select"))
-  print("|")
-}
 head(dados_regiao)
+
 # Verificar o resultado final
 dim(Brasil_select)
 
 names(Brasil_select)
 
-# load("media//mramos//MIRNA TETZ//2-nao_subi_git20241101//dados_2012-2022//Brasil_selecionadas_tdsanos.RData")
 
 
 grafico_brasil_prop_miss <- Brasil_select %>%
@@ -151,14 +164,109 @@ grap_plot_missing
 
 
 ggsave("faltantes_brasil.png",plot = grap_plot_missing, width = 10, height = 6, dpi = 300)
-getwd()
 
 
 
 
 
-Parana_select2022 = Parana_select %>% filter(Ano== 2022)
-rm(Sul)
+
+
+# Criar a tabela de nascimentos e dados de missing
+regioes_tabela <- Brasil_select %>%
+  select(região, Ano, missing, IDADEMAE, IDADEPAI, HORANASC) %>%
+  group_by(região, Ano) %>%
+  summarise(
+    Total_Nascimentos = n(),
+    Total_Missing_Idade_Mae = sum(is.na(IDADEMAE)),
+    Proporcao_Missing_Idade_Mae = sum(is.na(IDADEMAE)) / n() * 100,
+    Total_Missing_Idade_Pai = sum(is.na(IDADEPAI)),
+    Proporcao_Missing_Idade_Pai = sum(is.na(IDADEPAI)) / n() * 100,
+    .groups = "drop"
+  ) %>% arrange(Ano, região)
+
+# Exibir os primeiros registros da tabela para verificar
+View(regioes_tabela)
+
+# Caminho para salvar o arquivo
+caminho_arquivo <- "e:/2-nao_subi_git20241101/dados_2012-2022/regioes_tabela.csv"
+
+# Exportar a tabela para CSV
+write.csv(regioes_tabela, file = caminho_arquivo, row.names = FALSE)
+
+# Mensagem de sucesso
+cat("Tabela exportada com sucesso para:", caminho_arquivo)
+
+rm(regioes_tabela)
+
+
+
+
+
+
+
+# Criar a tabela de nascimentos e dados de missing
+uf_tabela <- Brasil_select %>%
+  select(região,munResUf, Ano, missing, IDADEMAE, IDADEPAI, HORANASC) %>%
+  group_by(munResUf, Ano) %>%
+  summarise(
+    Total_Nascimentos = n(),
+    Total_Missing_Idade_Mae = sum(is.na(IDADEMAE)),
+    Proporcao_Missing_Idade_Mae = sum(is.na(IDADEMAE)) / n() * 100,
+    Total_Missing_Idade_Pai = sum(is.na(IDADEPAI)),
+    Proporcao_Missing_Idade_Pai = sum(is.na(IDADEPAI)) / n() * 100,
+    .groups = "drop"
+  ) %>% arrange(Ano, região)
+
+
+
+
+
+
+
+library(dplyr)
+
+# Criar a tabela de nascimentos e dados de missing com a flag
+uf_tabela <- Brasil_select %>%
+  select(região, munResUf, Ano, missing, IDADEMAE, IDADEPAI, HORANASC) %>%
+  group_by(munResUf, Ano) %>%
+  summarise(
+    Total_Nascimentos = n(),
+    Total_Missing_Idade_Mae = sum(is.na(IDADEMAE)),
+    Proporcao_Missing_Idade_Mae = sum(is.na(IDADEMAE)) / n() * 100,
+    Total_Missing_Idade_Pai = sum(is.na(IDADEPAI)),
+    Proporcao_Missing_Idade_Pai = sum(is.na(IDADEPAI)) / n() * 100,
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Flag = ifelse(Proporcao_Missing_Idade_Pai > 50, "X", "") # Adicionar "X" se a proporção for > 50%
+  ) %>%
+  arrange(Ano, munResUf) # Ordenar por Ano e UF
+
+# Exibir os primeiros registros da tabela para verificar
+View(uf_tabela)
+
+# Exportar para CSV se necessário
+write.csv(uf_tabela, file = "e:/2-nao_subi_git20241101/dados_2012-2022/uf_tabela.csv", row.names = FALSE)
+cat("Tabela exportada com sucesso para: uf_tabela.csv")
+
+
+
+# Criar uma nova tabela com as linhas sem a flag
+uf_tabela_sem_flag <- uf_tabela %>%
+  filter(Flag == "") %>%  # Filtrar onde a coluna Flag está vazia
+ arrange(munResUf, Ano) %>% 
+  select(-Flag)
+
+# Exibir os primeiros registros da nova tabela para verificar
+View(uf_tabela_sem_flag)
+
+# Exportar a nova tabela para CSV, se necessário
+write.csv(uf_tabela_sem_flag, file = "e:/2-nao_subi_git20241101/dados_2012-2022/uf_tabela_sem_flag.csv", row.names = FALSE)
+cat("Tabela sem flag exportada com sucesso para: uf_tabela_sem_flag.csv")
+
+
+
+
 
 mae_e_pai <- Parana_select %>%
   filter(
