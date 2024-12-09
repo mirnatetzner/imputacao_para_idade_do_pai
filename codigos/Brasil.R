@@ -178,11 +178,10 @@ regioes_tabela <- Brasil_select %>%
   summarise(
     Total_Nascimentos = n(),
     Total_Missing_Idade_Mae = sum(is.na(IDADEMAE)),
-    Proporcao_Missing_Idade_Mae = sum(is.na(IDADEMAE)) / n() * 100,
+    Proporcao_Missing_Idade_Mae = round(sum(is.na(IDADEMAE)) / n() * 100, 1), 
     Total_Missing_Idade_Pai = sum(is.na(IDADEPAI)),
-    Proporcao_Missing_Idade_Pai = sum(is.na(IDADEPAI)) / n() * 100,
-    .groups = "drop"
-  ) %>% arrange(Ano, região)
+    Proporcao_Missing_Idade_Pai = round(sum(is.na(IDADEPAI)) / n() * 100, 1), 
+    .groups = "drop") %>% arrange(Ano, região)
 
 # Exibir os primeiros registros da tabela para verificar
 View(regioes_tabela)
@@ -202,45 +201,24 @@ rm(regioes_tabela)
 
 
 
-
-
-# Criar a tabela de nascimentos e dados de missing
-uf_tabela <- Brasil_select %>%
-  select(região,munResUf, Ano, missing, IDADEMAE, IDADEPAI, HORANASC) %>%
-  group_by(munResUf, Ano) %>%
-  summarise(
-    Total_Nascimentos = n(),
-    Total_Missing_Idade_Mae = sum(is.na(IDADEMAE)),
-    Proporcao_Missing_Idade_Mae = sum(is.na(IDADEMAE)) / n() * 100,
-    Total_Missing_Idade_Pai = sum(is.na(IDADEPAI)),
-    Proporcao_Missing_Idade_Pai = sum(is.na(IDADEPAI)) / n() * 100,
-    .groups = "drop"
-  ) %>% arrange(Ano, região)
-
-
-
-
-
-
-
 library(dplyr)
 
 # Criar a tabela de nascimentos e dados de missing com a flag
 uf_tabela <- Brasil_select %>%
   select(região, munResUf, Ano, missing, IDADEMAE, IDADEPAI, HORANASC) %>%
-  group_by(munResUf, Ano) %>%
+  group_by(munResUf, Ano, região) %>%
   summarise(
     Total_Nascimentos = n(),
     Total_Missing_Idade_Mae = sum(is.na(IDADEMAE)),
-    Proporcao_Missing_Idade_Mae = sum(is.na(IDADEMAE)) / n() * 100,
+    Proporcao_Missing_Idade_Mae = round(sum(is.na(IDADEMAE)) / n() * 100, 1), 
     Total_Missing_Idade_Pai = sum(is.na(IDADEPAI)),
-    Proporcao_Missing_Idade_Pai = sum(is.na(IDADEPAI)) / n() * 100,
+    Proporcao_Missing_Idade_Pai = round(sum(is.na(IDADEPAI)) / n() * 100, 1), 
     .groups = "drop"
   ) %>%
   mutate(
     Flag = ifelse(Proporcao_Missing_Idade_Pai > 50, "X", "") # Adicionar "X" se a proporção for > 50%
   ) %>%
-  arrange(Ano, munResUf) # Ordenar por Ano e UF
+  arrange(Ano,região, munResUf) # Ordenar por Ano e UF
 
 # Exibir os primeiros registros da tabela para verificar
 View(uf_tabela)
