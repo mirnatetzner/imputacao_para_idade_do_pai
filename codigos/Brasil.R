@@ -111,7 +111,7 @@ dim(Brasil_select)
 
 names(Brasil_select)
 
-
+# load("media//mramos//MIRNA TETZ//2-nao_subi_git20241101//dados_2012-2022//Brasil_selecionadas_tdsanos.RData")
 
 
 grafico_brasil_prop_miss <- Brasil_select %>%
@@ -152,6 +152,26 @@ grap_plot_missing
 
 ggsave("faltantes_brasil.png",plot = grap_plot_missing, width = 10, height = 6, dpi = 300)
 getwd()
+
+
+
+
+
+Parana_select2022 = Parana_select %>% filter(Ano== 2022)
+rm(Sul)
+
+mae_e_pai <- Parana_select %>%
+  filter(
+    (is.na(IDADEMAE) | (IDADEMAE >= 15 & IDADEMAE < 50)),
+    (is.na(IDADEPAI) | (IDADEPAI >= 15 & IDADEPAI < 60))
+  )
+
+mae_e_pai_test <- mae_e_pai %>%
+  mutate(
+    IDADEMAE = as.numeric(ifelse(is.na(IDADEMAE), NA, IDADEMAE)),
+    IDADEPAI = as.numeric(ifelse(is.na(IDADEPAI), NA, IDADEPAI))
+  )
+
 
 #intercep = gg_miss_upset(Brasil_select2022)
 
