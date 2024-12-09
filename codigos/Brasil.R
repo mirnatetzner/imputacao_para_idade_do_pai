@@ -74,7 +74,7 @@ caminho_dados <- "e:/2-nao_subi_git20241101/dados_2012-2022/"
 
 
 # Dataframe vazio para consolidar os dados
-Brasil_select2022 <- data.frame()
+Brasil_select <- data.frame()
 
 # Loop para processar cada região
 for (regiao in regioes) {
@@ -92,23 +92,66 @@ for (regiao in regioes) {
       IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai, 
       RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, ESCMAE, 
       ESCMAEAGR1, CODOCUPMAE, DTNASC, HORANASC, DIFDATA, ESTCIVMAE, DTNASCMAE, 
-      munResTipo, munResLat, munResLon, munResNome, TPFUNCRESP, DTDECLARAC, PARTO
+      munResTipo, munResLat, munResLon, munResNome, munResStatus, munResUf, TPFUNCRESP, DTDECLARAC, PARTO
     )
   
   # Filtrar apenas os dados do ano de 2022
-  dados_select2022 <- dados_select %>% filter(Ano == 2022)
+  #dados_select2022 <- dados_select %>% filter(Ano == 2022)
   
   # Adicionar os dados ao dataframe consolidado
-  Brasil_select2022 <- bind_rows(Brasil_select2022, dados_select2022)
+  Brasil_select <- bind_rows(Brasil_select, dados_select)
   
   # Remover os objetos temporários para liberar memória
-  rm(list = c(nome_objeto, "dados_select", "dados_select2022"))
+  rm(list = c(nome_objeto, "dados_select", "dados_select"))
+  print("|")
 }
-
+head(dados_regiao)
 # Verificar o resultado final
-dim(Brasil_select2022)
+dim(Brasil_select)
+
+names(Brasil_select)
 
 
+
+
+grafico_brasil_prop_miss <- Brasil_select %>%
+  select(missing, Ano, DTNASC) %>%
+  group_by(Ano) %>%
+  summarise(
+    total = n(),  # Counts the number of rows for each group (Ano)
+    total_missing = sum(missing, na.rm = TRUE),  # Sums missing values, ensuring NA handling
+    proporcao_missing = total_missing / total,  # Calculates the proportion
+    .groups = "drop"
+  )
+
+
+
+
+grap_plot_missing <- ggplot(grafico_brasil_prop_miss, aes(x = as.factor(Ano), y = proporcao_missing, group = 1)) +
+  geom_line(linewidth = 1) +  # Substituído `size` por `linewidth`
+  geom_point(size = 2) +  # Pontos sobre as linhas
+  scale_y_continuous(limits = c(0, 1)) +  # Define os limites do eixo y
+  labs(
+    title = "",
+    x = "Ano",
+    y = "Proporção de valores faltantes para a idade do pai"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    legend.position = "bottom",
+    legend.text = element_text(size = 14),
+    panel.grid = element_line(color = "grey75"),
+    title = element_text(color = "black", size = 14),
+    axis.text = element_text(color = "black", size = 14),
+    axis.title = element_text(color = "black", size = 14)
+  )
+
+grap_plot_missing
+
+
+ggsave("faltantes_brasil.png",plot = grap_plot_missing, width = 10, height = 6, dpi = 300)
+getwd()
 
 #intercep = gg_miss_upset(Brasil_select2022)
 
