@@ -81,6 +81,8 @@ parana_nenhum_aplicado = ggmice(mae_e_pai, aes(IDADEPAI, IDADEMAE)) +
 parana_nenhum_aplicado
 
 
+## REALIZAR TESTE DE CORRELACAO ENTRE COLUNA "MISSING" E IDADE DA MAE
+
 
 
 ggplot(mae_e_pai_test, aes(IDADEPAI, IDADEMAE)) + 
