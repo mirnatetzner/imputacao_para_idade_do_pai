@@ -61,14 +61,17 @@ mae_e_pai <- Parana_select %>%
 
 sum(is.na(Parana_select$IDADEPAI))
 
+mae_e_pai2022 = mae_e_pai %>% 
+filter(Ano == 2022)
 
 # ver o missing no paraná -- relação
 #-------
-parana_nenhum_aplicado = ggmice(mae_e_pai, aes(IDADEPAI, IDADEMAE)) + 
+parana_nenhum_aplicado2022 = ggmice(mae_e_pai2022, aes(IDADEPAI, IDADEMAE)) + 
   geom_point() +
  # guides(fill = guide_colourbar(title = ""))+
-  scale_fill_viridis_c(option = "viridis") + # muda a paleta de cores
-  facet_wrap(~Ano)+
+  #geom_point(alpha = 0.5, color = "blue") +  # Pontos com transparência
+  geom_density_2d(color = "red") +          # Linhas de densidade para mostrar a concentração
+  geom_smooth(method = "lm", color = "black", se = TRUE) +  # Linha de regressão linear com intervalo de confiança
   theme_minimal() +
   labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná", 
        x = "Idade do pai", 
@@ -78,10 +81,259 @@ parana_nenhum_aplicado = ggmice(mae_e_pai, aes(IDADEPAI, IDADEMAE)) +
     axis.text.x = element_text(size = 7),
     axis.text.y = element_text(size = 7)
   )
-parana_nenhum_aplicado
+parana_nenhum_aplicado2022
 
 
-## REALIZAR TESTE DE CORRELACAO ENTRE COLUNA "MISSING" E IDADE DA MAE
+
+mae_e_pai2022 <- mae_e_pai2022 %>%
+  mutate(FaixaEtariaMae = cut(
+    IDADEMAE, 
+    breaks = seq(15, 50, by = 5),  # Intervalos definidos
+    right = FALSE, 
+    labels = paste(seq(15, 45, by = 5), seq(20, 50, by = 5) - 1, sep = "-")  # Garante rótulos correspondentes
+  )) %>%
+  group_by(FaixaEtariaMae) %>%
+  mutate(Taxa_miss_fxt = sum(is.na(IDADEPAI)) / n())
+
+
+
+# Criar o gráfico de linha com limites no eixo Y
+grafico_taxa_missing_linha <- mae_e_pai2022 %>%
+  distinct(FaixaEtariaMae, Taxa_miss_fxt) %>%
+  ggplot(aes(x = FaixaEtariaMae, y = Taxa_miss_fxt, group = 1)) +
+  geom_line(color = "steelblue", size = 1) +   # Linha principal
+  geom_point(color = "darkred", size = 2) +   # Adiciona pontos nos valores
+  theme_minimal() +
+  labs(
+    title = "Taxa de Missing por Faixa Etária da Mãe (Paraná 2022)",
+    x = "Faixa Etária da Mãe",
+    y = "Taxa de Missing (proporção)"
+  ) +
+  scale_y_continuous(limits = c(0, 1)) +   # Define os limites do eixo Y de 0 a 1
+  theme(
+    plot.title = element_text(hjust = 0.5),  # Centraliza o título
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Inclina os rótulos do eixo x
+  )
+
+# Exibir o gráfico
+grafico_taxa_missing_linha
+
+
+# Calcular a taxa de missing por idade da mãe
+taxas_missing_idade <- mae_e_pai2022 %>%
+  group_by(IDADEMAE) %>%
+  summarise(Taxa_miss = sum(is.na(IDADEPAI)) / n()) %>%
+  ungroup()  # Remove agrupamento para evitar problemas posteriores
+
+
+# Criar o gráfico de linha com limites no eixo Y
+grafico_taxa_missing_idade <- taxas_missing_idade %>%
+  ggplot(aes(x = IDADEMAE, y = Taxa_miss)) +
+  geom_line(color = "steelblue", size = 1) +   # Linha principal
+  geom_point(color = "darkred", size = 2) +   # Pontos nos valores
+  theme_minimal() +
+  labs(
+    title = "Taxa de Missing por Idade da Mãe (Paraná 2022)",
+    x = "Idade da Mãe",
+    y = "Taxa de Missing (proporção)"
+  ) +
+  scale_y_continuous(limits = c(0, 1)) +   # Define os limites do eixo Y de 0 a 1
+  theme(
+    plot.title = element_text(hjust = 0.5),  # Centraliza o título
+    axis.text.x = element_text(size = 8),    # Rótulos do eixo X
+    axis.text.y = element_text(size = 8)     # Rótulos do eixo Y
+  )
+
+# Exibir o gráfico
+grafico_taxa_missing_idade
+
+
+
+
+
+## REALIZAR TESTE DE CORRELACAO ENTRE IDADE DA MAE e IDADEPAI
+
+# Sample dataset with missing values
+data <- mae_e_pai2022%>%
+ungroup()%>%
+select(IDADEMAE,IDADEPAI)
+
+# A hipótese nula do teste de Shapiro-Wilk é que a população possui distribuição 
+# normal. Portanto, um valor de p < 0.05 indica que você rejeitou a hipótese nula, 
+# ou seja, seus dados não possuem distribuição normal.
+
+# maximo de 5000 linhas
+set.seed(123)  # Para reprodutibilidade
+subamostra <- sample(data$IDADEMAE, size = 5000, replace = FALSE)  # Subamostra com no máximo 5000 elementos
+
+# Teste de Shapiro
+shapiro.test(subamostra)
+
+subamostra <- sample(data$IDADEPAI, size = 5000, replace = FALSE)  # Subamostra com no máximo 5000 elementos
+
+# Teste de Shapiro
+shapiro.test(subamostra)
+
+?cor()
+# Calculate correlation with missing values using cor() with complete.obs
+cor<- cor(data$IDADEPAI, data$IDADEMAE,  use = "complete.obs", method = "spearman")
+print(cor)
+
+dim(data)
+
+
+
+
+# Criar o gráfico de dispersão
+grafico_dispersao <- ggplot(data, aes(x = IDADEPAI, y = IDADEMAE)) +
+  geom_point(alpha = 0.5, color = "blue") +  # Adiciona os pontos com transparência
+  geom_smooth(method = "lm", se = FALSE, color = "red", size = 1) +  # Linha de regressão linear
+  theme_minimal() +  # Estilo do gráfico
+  labs(
+    title = "Relação entre Idade do Pai e Idade da Mãe",
+    x = "Idade do Pai",
+    y = "Idade da Mãe"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),  # Centralizar o título
+    axis.text = element_text(size = 10)      # Ajustar tamanho dos rótulos
+  )
+
+# Exibir o gráfico
+print(grafico_dispersao)
+
+
+# Criar um subconjunto aleatório com 10.000 observações (ou outro valor adequado)
+sub_data <- data[sample(nrow(data), size = 10000), ]
+
+# Criar o gráfico com o subconjunto
+grafico_dispersao_subset <- ggplot(sub_data, aes(x = IDADEPAI, y = IDADEMAE)) +
+  geom_point(alpha = 0.5, color = "blue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  theme_minimal() +
+  labs(
+    title = "Relação entre Idade do Pai e Idade da Mãe (Amostra)",
+    x = "Idade do Pai",
+    y = "Idade da Mãe"
+  )
+print(grafico_dispersao_subset)
+
+
+# Imputação com mice  regressão linear
+regre_lin <- mice(data, method = "norm.predict", m = 1)  # 'norm.predict' usa regressão linear
+data_regre_lin <- complete(regre_lin)
+
+
+cor2<- cor(data_regre_lin$IDADEPAI, data_regre_lin$IDADEMAE,  use = "complete.obs", method = "spearman")
+print(cor2)
+print(cor)
+summary(data_regre_lin$IDADEPAI)
+# aumenta a correlação entre as variaveis
+
+# testando sem o pacote mice, podem ser adicionadas outras variaveis
+
+# 1. Fit a regression model using complete cases (non-missing values of IDADEPAI)
+model <- lm(IDADEPAI ~ IDADEMAE, data = mae_e_pai2022, na.action = na.exclude)
+
+# model <- lm(IDADEPAI ~ IDADEMAE + outra_variavel1 + outra_variavel2, data = mae_e_pai2022, na.action = na.exclude)
+mae_e_pai2022_regre_model = mae_e_pai2022
+
+# 2. Predict the missing values of IDADEPAI based on the model
+mae_e_pai2022_regre_model$IDADEPAI[is.na(mae_e_pai2022_regre_model$IDADEPAI)] <- predict(model, newdata = mae_e_pai2022[is.na(mae_e_pai2022$IDADEPAI),])
+
+# 3. Check if missing values were imputed
+summary(mae_e_pai2022_regre_model$IDADEPAI)
+cor3<- cor(mae_e_pai2022_regre_model$IDADEPAI, mae_e_pai2022_regre_model$IDADEMAE,  use = "complete.obs", method = "spearman")
+print(cor3)
+print(cor2)
+print(cor)
+
+
+
+# ML -(incompativel)-- Multivariate Normality: DML assumes that the variables with missing data (in your case, IDADEPAI and IDADEMAE) follow a multivariate normal distribution. This is a key assumption because the likelihood function for a multivariate normal distribution is mathematically tractable and allows for efficient parameter estimation.
+
+# Install and load MVN package if necessary
+library(MVN)
+
+# Perform Mardia's test for multivariate normality
+mvn_result <- mvn(data = mae_e_pai2022[, c("IDADEPAI", "IDADEMAE")], 
+                  mvnTest = "mardia")
+
+# Print the result
+print(mvn_result)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# imputação KNN
+
+# The k value in the k-NN algorithm defines how many neighbors will 
+# be checked to determine the classification of a specific query 
+# point. For example, if k=1, the instance will be assigned to the 
+# same class as its single nearest neighbor. Defining k can be a 
+# balancing act as different values can lead to overfitting or 
+# underfitting. Lower values of k can have high variance, 
+# but low bias, and larger values of k may lead to high bias and 
+# lower variance. The choice of k will largely depend on the input 
+# data as data with more outliers or noise will likely perform 
+# better with higher values of k. Overall, it is recommended to have
+# an odd number for k to avoid ties in classification, and
+# cross-validation tactics can help you choose the optimal k for 
+# your dataset.
+
+
+# Pacote necessário
+
+library(data.table)
+library(VIM)
+
+data_imputado <- kNN(data, k = 3)
+
+# Verificar o resultado
+print(data_imputadoKNN)
+
+
+
+
+
+
+
+
+
+
+
+ggplot(mae_e_pai2022, aes(x = IDADEPAI, y = IDADEMAE)) +
+  geom_point(alpha = 0.3, color = "gray") +  # Pontos como base
+  stat_density2d(aes(fill = ..level..), geom = "polygon", color = "white") +
+  scale_fill_gradient(
+    low = "yellow", high = "red",
+    name = "Densidade"
+  ) +
+  labs(
+    title = "Densidade de Idades: Pai x Mãe",
+    x = "Idade em anos completos do Pai",
+    y = "Idade em anos completos da Mãe"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "right"
+  )
 
 
 
@@ -198,7 +450,16 @@ ggsave(filename = "na_remove_parana2022.png", width = 35, height = 25, units = "
   mae_e_pai2022 = mae_e_pai2022 %>% 
     filter(!is.na(IDADEMAE))
  
+
+
 # imputacao pela mediana
+
+---
+# Marginal mean imputation: Compute the mean of X using the non-missing values and use it to
+# impute missing values of X.
+# Limitations: It leads to biased estimates of variances and covariances and, generally, it
+# should be avoided.
+
 
 # Imputa valores missing em IDADEPAI com a mediana (menos influenciada por outliers, contem valores reais) - MCAR
  #------------
