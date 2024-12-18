@@ -287,12 +287,11 @@ tftM_media_condi = round(tftM_media_condi,2)
 # Exibir o resultado
 
 
-print(paste(
+print(cat(
   "Resumo:",
   "\n A Taxa de Fecundidade Total (TFT) é:", tftM,
   "\n A Taxa de Fecundidade Total masculina (TFTm) aplicando a imputação pela média é:", tftM_media,
-  "\n A Taxa de Fecundidade Total masculina (TFTm) aplicando a imputação pela média condicional à idade da mãe é:", tftM_media_condi
-))
+  "\n A Taxa de Fecundidade Total masculina (TFTm) aplicando a imputação pela média condicional à idade da mãe é:", tftM_media_condi))
 
 
 
