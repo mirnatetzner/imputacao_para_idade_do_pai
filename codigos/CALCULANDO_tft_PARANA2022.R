@@ -333,7 +333,7 @@ subamostra <- sample(data$IDADEPAI, size = 5000, replace = FALSE)  # Subamostra 
 # Teste de Shapiro
 shapiro.test(subamostra)
 
-?cor()
+#?cor()
 # Calculate correlation with missing values using cor() with complete.obs
 cor<- cor(data$IDADEPAI, data$IDADEMAE,  use = "complete.obs", method = "spearman")
 print(cor)

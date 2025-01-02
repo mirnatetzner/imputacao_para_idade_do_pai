@@ -121,8 +121,8 @@ resultados <- lapply(regioes, function(regiao) {
 })
 
 
-load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Centro_Oeste.RData")
-plot_missing = Centro_Oeste %>% select(missing, Ano, munResUf, um) %>% group_by(munResUf,Ano) 
+load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Norte.RData")
+plot_missing = Norte %>% select(missing, Ano, munResUf, um) %>% group_by(munResUf,Ano) 
 
 
 head(plot_missing)    
@@ -130,7 +130,7 @@ plot_missing = plot_missing %>%
 summarise(
   total = sum(um),
   total_missing = sum(missing),
-  proporcao_missing = total_missing / total, 
+  proporcao_missing = total_missing / total* 100, 
   .groups = "drop"
 )
 head(plot_missing)
@@ -142,11 +142,11 @@ grap_plot_missing <- ggplot(plot_missing, aes(x = as.factor(Ano), y = proporcao_
                                               color = munResUf, group = munResUf, linetype = munResUf)) +
   geom_line(size = 1) +  # Linhas conectando os pontos
   geom_point(size = 2) + # Pontos sobre as linhas
-  scale_y_continuous(limits = c(0, 1)) +  # Define os limites do eixo y
+  scale_y_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +  # Define os limites do eixo y
   labs(
     title = "",
     x = "Ano",
-    y = "Proporção de Valores Ausentes para a idade do pai",
+    y = "Percentual de Valores Ausentes \n para a idade do pai(%)",
     color = "Estado:",
     linetype = "Estado:"
   ) +
@@ -160,7 +160,7 @@ grap_plot_missing <- ggplot(plot_missing, aes(x = as.factor(Ano), y = proporcao_
       axis.text = element_text(color="black",size=14),
       axis.title = element_text(color="black",size=14)
   )
-grap_plot_missing 
+#grap_plot_missing 
 
-ggsave("faltantes-centro-oeste.png",plot = grap_plot_missing, width = 10, height = 6, path = "/home/mramos/Documentos/Dissetacao/MirnA_Dissertação - ENCE/imagens", dpi = 300)
-rm(Centro_Oeste,plot_missing,grap_plot_missing)
+ggsave("faltantes-norte.png",plot = grap_plot_missing, width = 10, height = 6, path = "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens", dpi = 300)
+rm(Norte,plot_missing,grap_plot_missing)
