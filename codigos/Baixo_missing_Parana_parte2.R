@@ -296,6 +296,16 @@ tft_por_ano <- tef_parana_mulher %>%
 print(tef_parana_mulher)  # TEFs detalhadas por ano e faixa etária
 print(tft_por_ano)        # TFT por ano
 
+tef_parana_mulher = tef_parana_mulher %>%
+  select(-c("nascimentos", "Populacao"))
+
+tef_parana_mulher <- tef_parana_mulher %>%
+  pivot_wider(
+    names_from = Ano,   # Os nomes das novas colunas serão os valores de 'Ano'
+    values_from = TEF,  # Os valores das novas colunas serão as TEFs
+    names_sort = TRUE   # Organiza os anos em ordem crescente
+  )
+
 
 
 # Nome do arquivo de saída
@@ -481,8 +491,20 @@ tft_por_ano_homem <- tef_parana_homens %>%
 
 # Exibe os resultados
 print(tef_parana_homens)  # TEFs detalhadas por ano e faixa etária
-print(tft_por_ano_homem)        # TFT por ano
+tef_parana_homens = tef_parana_homens %>%
+  select(-c("nascimentos", "Populacao"))
 
+tef_parana_homens <- tef_parana_homens %>%
+  pivot_wider(
+    names_from = Ano,   # Os nomes das novas colunas serão os valores de 'Ano'
+    values_from = TEF,  # Os valores das novas colunas serão as TEFs
+    names_sort = TRUE   # Organiza os anos em ordem crescente
+  )
+
+print(tft_por_ano_homem)        # TFT por ano
+tef_parana_homens
+View(tef_parana_homens
+)
 
 
 # Nome do arquivo de saída
@@ -666,6 +688,18 @@ tft_por_ano_homem <- tef_parana_homens %>%
 # Exibe os resultados
 print(tef_parana_homens)  # TEFs detalhadas por ano e faixa etária
 print(tft_por_ano_homem)        # TFT por ano
+
+
+
+tef_parana_homens = tef_parana_homens%>%
+ select(-c("nascimentos", "Populacao"))
+
+tef_parana_homens <- tef_parana_homens %>%
+  pivot_wider(
+    names_from = Ano,   # Os nomes das novas colunas serão os valores de 'Ano'
+    values_from = TEF,  # Os valores das novas colunas serão as TEFs
+    names_sort = TRUE   # Organiza os anos em ordem crescente
+  )
 
 
 
@@ -853,6 +887,16 @@ tft_por_ano_homem <- tef_parana_homens %>%
 # Exibe os resultados
 print(tef_parana_homens)  # TEFs detalhadas por ano e faixa etária
 print(tft_por_ano_homem)        # TFT por ano
+
+tef_parana_homens = tef_parana_homens %>%
+  select(-c("nascimentos", "Populacao"))
+
+tef_parana_homens <- tef_parana_homens %>%
+  pivot_wider(
+    names_from = Ano,   # Os nomes das novas colunas serão os valores de 'Ano'
+    values_from = TEF,  # Os valores das novas colunas serão as TEFs
+    names_sort = TRUE   # Organiza os anos em ordem crescente
+  )
 
 
 
