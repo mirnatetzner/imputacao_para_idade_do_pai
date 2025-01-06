@@ -2,14 +2,10 @@
 
 # CARREGANDO PACOTES
 
-library(naniar)
 library(mice)
-library(dplyr)
 require(RCurl)
 require(tidyverse)
 library(ggplot2)
-library(read.dbc)
-library(microdatasus)
 library(stringr)
 library(hexbin)
 library(RColorBrewer)
@@ -18,6 +14,7 @@ library(ggmice)
 library(lubridate)
 library(readxl)
 library(tidyr)
+library(openxlsx)
 
 # CONFIGURANDO AMBIENTE
 ## Notação científica
@@ -137,7 +134,7 @@ grafico_taxa_missing_linha <- mae_e_pai2022 %>%
 
 grafico_taxa_missing_linha
 
-# Calcular a taxa de missing por idade da mãe
+# Calcular missing por idade da mãe
 taxas_missing_idade <- mae_e_pai2022 %>%
   group_by(IDADEMAE) %>%
   summarise(Taxa_miss = sum(is.na(IDADEPAI)) / n()) %>%
@@ -241,81 +238,84 @@ print(grafico_dispersao_subset)
 glimpse(pop_parana2022)
 glimpse(Parana_select2022)
 
+library(openxlsx)
 
-# taxas específicas de fecundidade (TEF) MULHERES PARANA 2022
-pop_parana_mulher2022 <- pop_parana2022 %>%
-  filter(SEXO == "Mulheres") %>%  # Filtra apenas os registros do sexo feminino
+# Passo 1: Processar os dados populacionais
+pop_parana_mulher <- pop_parana %>%
+  filter(SEXO == "Mulheres") %>%
   pivot_longer(
-    cols = `2022`,               # Transforma a coluna '2022' em uma estrutura longa
-    names_to = "Ano",            # Nomeia a coluna criada como "Ano"
-    values_to = "Populacao"      # Nomeia os valores como "Populacao"
+    cols = `2012`:`2022`, 
+    names_to = "Ano", 
+    values_to = "Populacao"
   ) %>%
   mutate(
-    Ano = as.integer(Ano),       # Converte o ano para inteiro
-    Grupo_idade = cut(           # Cria grupos etários usando o intervalo de idade
-      IDADE,                     # Baseado na variável IDADE
-      breaks = seq(15, 50, 5),   # Faixas etárias de 5 em 5 anos
-      right = FALSE              # Inclui o limite inferior, exclui o superior
+    Ano = as.integer(Ano),
+    Grupo_idade = cut(
+      IDADE, 
+      breaks = seq(15, 50, 5), 
+      right = FALSE
     )
   ) %>%
-  group_by(Grupo_idade) %>%      # Agrupa por faixas etárias
+  group_by(Ano, Grupo_idade) %>%  # Agrupa por ano e faixa etária
   summarise(
-    Populacao = sum(Populacao, na.rm = TRUE),  # Soma a população por grupo
-    .groups = "drop"             # Remove informações de agrupamento ao final
-  )%>% filter(!is.na(Grupo_idade))
+    Populacao = sum(Populacao, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Grupo_idade))
+View(pop_parana_mulher)
 
-View(pop_parana_mulher2022)       # Exibe o resultado na interface
+# Passo 2: Processar os nascimentos por ano e faixa etária
+nascimentos_parana_mae <- Parana_select %>%
+  mutate(
+    Ano = as.integer(Ano),
+    Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)
+  ) %>%
+  group_by(Ano, Grupo_idade) %>%
+  summarise(
+    nascimentos = n(),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Grupo_idade))
 
-########## VErificar porque a diferente entre a projeção da pop de 2024 e a pop do sidra censo 2022
-    
-     # Prepara os dados de nascimento agrupados por ano e faixa etária
-     nascimentos_parana_mae2022 <- Parana_select2022 %>%
-       mutate(
-         Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)
-       ) %>%
-       group_by(Grupo_idade) %>%
-              summarise(nascimentos = n(), .groups = "drop")  %>% #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
-       filter(!is.na(Grupo_idade))
+# Passo 3: Calcular as TEFs por ano
+tef_parana_mulher <- nascimentos_parana_mae %>%
+  inner_join(pop_parana_mulher, by = c("Ano", "Grupo_idade")) %>%
+  mutate(
+    TEF = (nascimentos / Populacao)   # Taxa por mil mulheres
+  )
 
-     
-# Junta os dados de nascimento com os de população e calcula as TEFs
-     tef_parana_2022_mulher <- nascimentos_parana_mae2022 %>%
-       inner_join(pop_parana_mulher2022, by = c("Grupo_idade")) %>%
-       mutate(TEF = (nascimentos / Populacao) * 1000)
-     
-     print(tef_parana_2022_mulher)
-# Supondo que os dados estão no dataframe tef_parana_2022_mulher
+# Passo 4: Calcular a TFT para cada ano
+tft_por_ano <- tef_parana_mulher %>%
+  group_by(Ano) %>%
+  summarise(
+    TFT = sum(TEF) * 5,  # Multiplicação para ajustar os intervalos de 5 anos
+    .groups = "drop"
+  )
 
-# Calcular a Taxa de Fecundidade Total (TFT)
-tft <- sum(tef_parana_2022_mulher$TEF) * 5
-
-# Exibir o resultado
-print(paste("A Taxa de Fecundidade Total (TFT) é:", round(tft, 2)))
-
-
-
-
-
-
-
-
+# Exibe os resultados
+print(tef_parana_mulher)  # TEFs detalhadas por ano e faixa etária
+print(tft_por_ano)        # TFT por ano
 
 
 
+# Nome do arquivo de saída
+arquivo_excel <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/4_Resultados/tabelas/tef_parana_mulheres.xlsx"
 
+# Cria um workbook
+wb <- createWorkbook()
 
+# Adiciona as folhas
+addWorksheet(wb, "TEFFs")
+addWorksheet(wb, "TFTF por Ano")
 
+# Escreve os dados nas folhas correspondentes
+writeData(wb, sheet = "TEFFs", tef_parana_mulher)
+writeData(wb, sheet = "TFTF por Ano", tft_por_ano)
 
+# Salva o arquivo Excel
+saveWorkbook(wb, arquivo_excel, overwrite = TRUE)
 
-
-
-
-
-
-
-
-
-
+cat("Os dados foram salvos no arquivo:", arquivo_excel, "\n")
 
 
 
@@ -364,38 +364,56 @@ print(paste("A Taxa de Fecundidade Total (TFT) é:", round(tft, 2)))
      # Carrega bibliotecas
      library(ggplot2)
      library(RColorBrewer)
-     
+
      # Esquema de cores
      display.brewer.all()
-     colors <- brewer.pal(9, "PuBuGn")  # Paleta de cores
-     
-     # Cria o gráfico de linha das TEFs com esquema de cores em gradiente
-     ggplot(tef_parana_formatted_mulher, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
-       geom_line(size = 1.2) +    # Adiciona linhas para cada ano
-       geom_point(size = 1.5) +   # Adiciona pontos
-       scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
-       labs(
-         title = "Taxa Específica de Fecundidade Femininas (TEFs) por Faixa Etária e Ano - Paraná",
-         x = "Faixa Etária (anos)",
-         y = "TEFs (Nascimentos por 1.000 mulheres)",
-         color = "Ano"
-       ) +
-       theme_minimal() +
-       theme(
-         axis.text.x = element_text(angle = 45, hjust = 1),  # Rotaciona as legendas do eixo x
-         legend.position = "bottom",  # Posiciona a legenda na parte inferior
-         legend.title = element_text(size = 12, face = "bold"),  # Ajusta o tamanho e estilo do título
-         legend.text = element_text(size = 10)  # Ajusta o tamanho do texto da legenda
-       ) +
-       guides(
-         color = guide_colorbar(
-           title.position = "top",  # Move o título da legenda de cores para o topo
-           title.hjust = 0.5,  # Centraliza o título da barra de cores
-           barwidth = 15,       # Ajusta a largura da barra de cores
-           barheight = 0.5      # Ajusta a altura da barra de cores
-         )
-       )
-     ggsave(filename = "TEF_PANANA_MULHERES_NA-15-49.png", dpi = 300)
+     colors <- brewer.pal(9,"Purples")  # Paleta de cores
+     colors <- colors[4:10]
+     View(colors)
+    
+
+# Verifique o número de valores únicos de 'Ano'
+n_anos <- length(unique(tef_parana_formatted_mulher$Ano))
+
+# Crie uma lista de tipos de linha suficientes para os anos
+linetypes <- c("solid", "dashed", "dotted", "dotdash", "longdash", "twodash", "twodash", "dotted", "dashed", "solid")
+
+# Certifique-se de ter tantos tipos de linha quanto o número de anos
+if (n_anos > length(linetypes)) {
+  linetypes <- rep(linetypes, length.out = n_anos)
+}
+
+# Cria o gráfico de linha das TEFs com esquema de cores em gradiente e tipos de linha diferentes para cada ano
+ggplot(tef_parana_formatted_mulher, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano, linetype = factor(Ano))) +
+  geom_line(size = 1.2) +    # Adiciona linhas para cada ano
+  geom_point(size = 1.5) +   # Adiciona pontos
+  scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
+  scale_linetype_manual(values = linetypes) +  # Tipos de linha diferentes com base no número de anos
+  labs(
+    title = "Taxa Específica de Fecundidade Feminina (TEFFs) por Faixa Etária e Ano - Paraná",
+    x = "Faixa Etária (anos)",
+    y = "TEFFs (Nascimentos por 1.000 mulheres)",
+    color = "Ano",
+    linetype = "Ano"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotaciona as legendas do eixo x
+    legend.position = "bottom",  # Posiciona a legenda na parte inferior
+    legend.title = element_text(size = 12, face = "bold"),  # Ajusta o tamanho e estilo do título
+    legend.text = element_text(size = 10)  # Ajusta o tamanho do texto da legenda
+  ) +
+  guides(
+    color = guide_colorbar(
+      title.position = "top",  # Move o título da legenda de cores para o topo
+      title.hjust = 0.5,  # Centraliza o título da barra de cores
+      barwidth = 15,       # Ajusta a largura da barra de cores
+      barheight = 0.5      # Ajusta a altura da barra de cores
+    ),
+    linetype = guide_legend(title.position = "top")  # Personaliza a legenda de tipos de linha
+  )
+
+     ggsave(filename = "TEF_PANANA_MULHERES_NA-15-49.png", path="/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens", dpi = 300)
      # conferir - mulheres para projecao 2018: https://sidra.ibge.gov.br/Tabela/7363
 #------
      
@@ -404,8 +422,92 @@ print(paste("A Taxa de Fecundidade Total (TFT) é:", round(tft, 2)))
      
      # Gráfico das taxas específicas de fecundidade (TEF) HOMENS - NA
      
+
+
+
+#HOMENS
+# CALCULO 1- TEFS E TFT COM ANALISE DE CASOS COMPLETOS (COMPLETE CASE ANALYSES) 
+# Passo 1: Processar os dados populacionais
+pop_parana_homens <- pop_parana %>%
+  filter(SEXO == "Homens") %>%
+  pivot_longer(
+    cols = `2012`:`2022`, 
+    names_to = "Ano", 
+    values_to = "Populacao"
+  ) %>%
+  mutate(
+    Ano = as.integer(Ano),
+    Grupo_idade = cut(
+      IDADE, 
+      breaks = seq(15, 60, 5), 
+      right = FALSE
+    )
+  ) %>%
+  group_by(Ano, Grupo_idade) %>%  # Agrupa por ano e faixa etária
+  summarise(
+    Populacao = sum(Populacao, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Grupo_idade))
+View(pop_parana_homens)
+
+# Passo 2: Processar os nascimentos por ano e faixa etária
+nascimentos_parana_pai <- Parana_select %>%
+  mutate(
+    Ano = as.integer(Ano),
+    Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
+  ) %>%
+  group_by(Ano, Grupo_idade) %>%
+  summarise(
+    nascimentos = n(),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Grupo_idade))
+
+# Passo 3: Calcular as TEFs por ano
+tef_parana_homens <- nascimentos_parana_pai %>%
+  inner_join(pop_parana_homens, by = c("Ano", "Grupo_idade")) %>%
+  mutate(
+    TEF = (nascimentos / Populacao)   # Taxa por mil homenses
+  )
+
+# Passo 4: Calcular a TFT para cada ano
+tft_por_ano_homem <- tef_parana_homens %>%
+  group_by(Ano) %>%
+  summarise(
+    TFT = sum(TEF) * 5,  # Multiplicação para ajustar os intervalos de 5 anos
+    .groups = "drop"
+  )
+
+# Exibe os resultados
+print(tef_parana_homens)  # TEFs detalhadas por ano e faixa etária
+print(tft_por_ano_homem)        # TFT por ano
+
+
+
+# Nome do arquivo de saída
+arquivo_excel <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/4_Resultados/tabelas/tef_parana_masculina.xlsx"
+
+# Cria um workbook
+wb <- createWorkbook()
+
+# Adiciona as folhas
+addWorksheet(wb, "TEFFs")
+addWorksheet(wb, "TFTF por Ano homens")
+
+# Escreve os dados nas folhas correspondentes
+writeData(wb, sheet = "TEFFs", tef_parana_homens)
+writeData(wb, sheet = "TFTF por Ano homens", tft_por_ano_homem)
+
+# Salva o arquivo Excel
+saveWorkbook(wb, arquivo_excel, overwrite = TRUE)
+
+cat("Os dados foram salvos no arquivo:", arquivo_excel, "\n")
+
+
+
      # Etapa 1: Filtra os dados populacionais para o Paraná e agrupa por faixa etária e ano
-     pop_parana_homem <- projecoes_2024_tab1_idade_simples %>%
+     pop_parana_homens <- projecoes_2024_tab1_idade_simples %>%
        filter(SEXO == "Homens", LOCAL == "Paraná") %>%
        pivot_longer(
          cols = `2012`:`2022`, 
@@ -414,425 +516,108 @@ print(paste("A Taxa de Fecundidade Total (TFT) é:", round(tft, 2)))
        ) %>%
        mutate(
          Ano = as.integer(Ano),
-         Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+         Grupo_idade = cut(IDADE, breaks = seq(15, 60, 5), right = FALSE)
        ) %>%
        group_by(Ano, Grupo_idade) %>%
        summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
      
-     View(pop_parana_homem)
+     View(pop_parana_homens)
      
      # Filtra as linhas com grupos etários não definidos ou fora do intervalo (NA)
-     pop_parana_homem_filtered <- pop_parana_homem %>%
+     pop_parana_homens_filtered <- pop_parana_homens %>%
        filter(!is.na(Grupo_idade))
      
      # Prepara os dados de nascimento agrupados por ano e faixa etária
-     nascimentos_parana <- Parana %>%
+     nascimentos_parana_pai <- Parana %>%
        mutate(
          Ano = Ano,
-         Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)
+         Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
        ) %>%
        group_by(Ano, Grupo_idade) %>%
               summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
      
      # Junta os dados de nascimento com os de população e calcula as TEFs
-     tef_parana_todos_Anos <- nascimentos_parana %>%
-       inner_join(pop_parana_homem_filtered, by = c("Ano", "Grupo_idade")) %>%
+     tef_parana_todos_Anos_homens <- nascimentos_parana_pai %>%
+       inner_join(pop_parana_homens_filtered, by = c("Ano", "Grupo_idade")) %>%
        mutate(TEF = (nascimentos / Populacao) * 1000)
      
-     print(tef_parana_todos_Anos)
+     View(tef_parana_todos_Anos_homens)
      
      # Preparando a estrutura necessária para calcular as TEFs
-     tef_parana_formatted <- tef_parana_todos_Anos %>%
-       mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caractere
+     tef_parana_formatted_homens <- tef_parana_todos_Anos_homens %>%
+       mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caracter
        select(Ano, Grupo_idade, TEF)  # Seleciona as colunas de interesse
      
-     # Carrega bibliotecas
-     library(ggplot2)
-     library(RColorBrewer)
-     
-     # Esquema de cores
-     display.brewer.all()
-     colors <- brewer.pal(9, "PuBuGn")  # Paleta de cores
-     
-     # Cria o gráfico de linha das TEFs com esquema de cores em gradiente
-     ggplot(tef_parana_formatted, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
-       geom_line(size = 1.2) +    # Adiciona linhas para cada ano
-       geom_point(size = 1.5) +   # Adiciona pontos
-       scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
-       labs(
-         title = "Taxa Específica de Fecundidade Masculinas (TEFs) por Faixa Etária e Ano - Paraná (deletando NA)",
-         x = "Faixa Etária (anos)",
-         y = "TEFs (Nascimentos por 1.000 homemes)",
-         color = "Ano"
-       ) +
-       theme_minimal() +
-       theme(
-         axis.text.x = element_text(angle = 45, hjust = 1),  # Rotaciona as legendas do eixo x
-         legend.position = "bottom",  # Posiciona a legenda na parte inferior
-         legend.title = element_text(size = 12, face = "bold"),  # Ajusta o tamanho e estilo do título
-         legend.text = element_text(size = 10)  # Ajusta o tamanho do texto da legenda
-       ) +
-       guides(
-         color = guide_colorbar(
-           title.position = "top",  # Move o título da legenda de cores para o topo
-           title.hjust = 0.5,  # Centraliza o título da barra de cores
-           barwidth = 15,       # Ajusta a largura da barra de cores
-           barheight = 0.5      # Ajusta a altura da barra de cores
-         )
-       )
-     
-     ggsave(filename = "TEF_PANANA_HOMENS_NA-15-49.png", dpi = 300)
-     
-     
-     # Gráfico das taxas específicas de fecundidade (TEF) HOMENS - imputado pela mediana
-     
-     # Etapa 1: Filtra os dados populacionais para o Paraná e agrupa por faixa etária e ano
-     pop_parana_homem <- projecoes_2024_tab1_idade_simples %>%
-       filter(SEXO == "Homens", LOCAL == "Paraná") %>%
-       pivot_longer(
-         cols = `2012`:`2022`, 
-         names_to = "Ano", 
-         values_to = "Populacao"
-       ) %>%
-       mutate(
-         Ano = as.integer(Ano),
-         Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
-       ) %>%
-       group_by(Ano, Grupo_idade) %>%
-       summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
-     
-     View(pop_parana_homem)
-     
-     # Filtra as linhas com grupos etários não definidos ou fora do intervalo (NA)
-     pop_parana_homem_filtered <- pop_parana_homem %>%
-       filter(!is.na(Grupo_idade))
-     
-     
-     
-     # Prepara os dados de nascimento agrupados por ano e faixa etária
-     nascimentos_parana <- mae_e_pai_mediana %>%
-       mutate(
-         Ano = Ano,
-         Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)
-       ) %>%
-       group_by(Ano, Grupo_idade) %>%
-       summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
-     
-     # Junta os dados de nascimento com os de população e calcula as TEFs
-     tef_parana_todos_Anos <- nascimentos_parana %>%
-       inner_join(pop_parana_homem_filtered, by = c("Ano", "Grupo_idade")) %>%
-       mutate(TEF = (nascimentos / Populacao) * 1000)
-     
-     print(tef_parana_todos_Anos)
-     
-     # Preparando a estrutura necessária para calcular as TEFs
-     tef_parana_formatted <- tef_parana_todos_Anos %>%
-       mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caractere
-       select(Ano, Grupo_idade, TEF)  # Seleciona as colunas de interesse
-     
-     # Carrega bibliotecas
-     library(ggplot2)
-     library(RColorBrewer)
-     
-     # Esquema de cores
-     display.brewer.all()
-     colors <- brewer.pal(9, "PuBuGn")  # Paleta de cores
-     
-     # Cria o gráfico de linha das TEFs com esquema de cores em gradiente
-     ggplot(tef_parana_formatted, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
-       geom_line(size = 1.2) +    # Adiciona linhas para cada ano
-       geom_point(size = 1.5) +   # Adiciona pontos
-       scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
-       labs(
-         title = "Taxa Específica de Fecundidade Masculinas (TEFs) \n por Faixa Etária e Ano - Paraná (imputado mediana)",
-         x = "Faixa Etária (anos)",
-         y = "TEFs (Nascimentos por 1.000 homens)",
-         color = "Ano"
-       ) +
-       theme_minimal() +
-       theme(
-         plot.title = element_text(hjust = 0.5),  # Centraliza o título
-         axis.text.x = element_text(angle = 45, hjust = 1),  # Rotaciona as legendas do eixo x
-         legend.position = "bottom",  # Posiciona a legenda na parte inferior
-         legend.title = element_text(size = 12, face = "bold"),  # Ajusta o tamanho e estilo do título
-         legend.text = element_text(size = 10)  # Ajusta o tamanho do texto da legenda
-       ) +
-       guides(
-         color = guide_colorbar(
-           title.position = "top",  # Move o título da legenda de cores para o topo
-           title.hjust = 0.5,  # Centraliza o título da barra de cores
-           barwidth = 15,       # Ajusta a largura da barra de cores
-           barheight = 0.5      # Ajusta a altura da barra de cores
-         )
-       )
-     
-     ggsave(filename = "TEF_PANANA_HOMENS_mediana-15-49.png", dpi = 300)
-     
-     
-     
 
 
+     View(colors)
+    
 
+# Verifique o número de valores únicos de 'Ano'
+n_anos <- length(unique(tef_parana_formatted_homens$Ano))
 
+# Crie uma lista de tipos de linha suficientes para os anos
+linetypes <- c("solid", "dashed", "dotted", "dotdash", "longdash", "twodash", "twodash", "dotted", "dashed", "solid")
 
+# Certifique-se de ter tantos tipos de linha quanto o número de anos
+if (n_anos > length(linetypes)) {
+  linetypes <- rep(linetypes, length.out = n_anos)
+}
 
-
-
-
-
-
-
-
-
-
-
-
-# Imputação com mice  regressão linear
-regre_lin <- mice(data, method = "norm.predict", m = 1)  # 'norm.predict' usa regressão linear
-data_regre_lin <- complete(regre_lin)
-
-
-cor2<- cor(data_regre_lin$IDADEPAI, data_regre_lin$IDADEMAE,  use = "complete.obs", method = "spearman")
-print(cor2)
-print(cor)
-summary(data_regre_lin$IDADEPAI)
-# aumenta a correlação entre as variaveis
-
-# testando sem o pacote mice, podem ser adicionadas outras variaveis
-
-# 1. Fit a regression model using complete cases (non-missing values of IDADEPAI)
-model <- lm(IDADEPAI ~ IDADEMAE, data = mae_e_pai2022, na.action = na.exclude)
-
-# model <- lm(IDADEPAI ~ IDADEMAE + outra_variavel1 + outra_variavel2, data = mae_e_pai2022, na.action = na.exclude)
-mae_e_pai2022_regre_model = mae_e_pai2022
-
-# 2. Predict the missing values of IDADEPAI based on the model
-mae_e_pai2022_regre_model$IDADEPAI[is.na(mae_e_pai2022_regre_model$IDADEPAI)] <- predict(model, newdata = mae_e_pai2022[is.na(mae_e_pai2022$IDADEPAI),])
-
-# 3. Check if missing values were imputed
-summary(mae_e_pai2022_regre_model$IDADEPAI)
-cor3<- cor(mae_e_pai2022_regre_model$IDADEPAI, mae_e_pai2022_regre_model$IDADEMAE,  use = "complete.obs", method = "spearman")
-print(cor3)
-print(cor2)
-print(cor)
-
-
-
-# ML -(incompativel)-- Multivariate Normality: DML assumes that the variables with missing data (in your case, IDADEPAI and IDADEMAE) follow a multivariate normal distribution. This is a key assumption because the likelihood function for a multivariate normal distribution is mathematically tractable and allows for efficient parameter estimation.
-
-# Install and load MVN package if necessary
-library(MVN)
-
-# Perform Mardia's test for multivariate normality
-mvn_result <- mvn(data = mae_e_pai2022[, c("IDADEPAI", "IDADEMAE")], 
-                  mvnTest = "mardia")
-
-# Print the result
-print(mvn_result)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# imputação KNN
-
-# The k value in the k-NN algorithm defines how many neighbors will 
-# be checked to determine the classification of a specific query 
-# point. For example, if k=1, the instance will be assigned to the 
-# same class as its single nearest neighbor. Defining k can be a 
-# balancing act as different values can lead to overfitting or 
-# underfitting. Lower values of k can have high variance, 
-# but low bias, and larger values of k may lead to high bias and 
-# lower variance. The choice of k will largely depend on the input 
-# data as data with more outliers or noise will likely perform 
-# better with higher values of k. Overall, it is recommended to have
-# an odd number for k to avoid ties in classification, and
-# cross-validation tactics can help you choose the optimal k for 
-# your dataset.
-
-
-# Pacote necessário
-
-library(data.table)
-library(VIM)
-
-data_imputado <- kNN(data, k = 3)
-
-# Verificar o resultado
-print(data_imputadoKNN)
-
-
-
-
-
-
-
-
-
-
-
-ggplot(mae_e_pai2022, aes(x = IDADEPAI, y = IDADEMAE)) +
-  geom_point(alpha = 0.3, color = "gray") +  # Pontos como base
-  stat_density2d(aes(fill = ..level..), geom = "polygon", color = "white") +
-  scale_fill_gradient(
-    low = "yellow", high = "red",
-    name = "Densidade"
-  ) +
+# Cria o gráfico de linha das TEFs com esquema de cores em gradiente e tipos de linha diferentes para cada ano
+ggplot(tef_parana_formatted_homens, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano, linetype = factor(Ano))) +
+  geom_line(size = 1.2) +    # Adiciona linhas para cada ano
+  geom_point(size = 1.5) +   # Adiciona pontos
+  scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
+  scale_linetype_manual(values = linetypes) +  # Tipos de linha diferentes com base no número de anos
   labs(
-    title = "Densidade de Idades: Pai x Mãe",
-    x = "Idade em anos completos do Pai",
-    y = "Idade em anos completos da Mãe"
+    title = "Taxa Específica de Fecundidade Masculina (TEFMs) por Faixa Etária e Ano - Paraná",
+    x = "Faixa Etária (anos)",
+    y = "TEFFs (Nascimentos por 1.000 homens)",
+    color = "Ano",
+    linetype = "Ano"
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "right"
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotaciona as legendas do eixo x
+    legend.position = "bottom",  # Posiciona a legenda na parte inferior
+    legend.title = element_text(size = 12, face = "bold"),  # Ajusta o tamanho e estilo do título
+    legend.text = element_text(size = 10)  # Ajusta o tamanho do texto da legenda
+  ) +
+  guides(
+    color = guide_colorbar(
+      title.position = "top",  # Move o título da legenda de cores para o topo
+      title.hjust = 0.5,  # Centraliza o título da barra de cores
+      barwidth = 15,       # Ajusta a largura da barra de cores
+      barheight = 0.5      # Ajusta a altura da barra de cores
+    ),
+    linetype = guide_legend(title.position = "top")  # Personaliza a legenda de tipos de linha
   )
-
-
-
-ggplot(mae_e_pai_test, aes(IDADEPAI, IDADEMAE)) + 
-  geom_miss_point(color = brewer.pal(3, "Set2")[3], alpha = 0.7) + 
-  facet_wrap(~Ano) +
-  scale_color_brewer(palette = "Set2") + 
-  theme_minimal() +
-  labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná", 
-       x = "Idade do pai", 
-       y = "Idade da mãe") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    axis.text.x = element_text(size = 7),
-    axis.text.y = element_text(size = 7)
-  )
-
-
-
-
-
-ggplot(mae_e_pai, 
-       aes(IDADEPAI, IDADEMAE)) + 
-   geom_miss_point(alpha = 0.5,color = brewer.pal(3, "YlGnBu")[1]) +  # Ajuste da cor com paleta de RColorBrewer 
-  facet_wrap(~Ano)
-
-ggsave(filename = "missing paraná nenhum método aplicado.png",path="/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
-
-# visualizando pontos 2022 (com idades da mae com missing)
-
-mae_e_pai2022 <- mae_e_pai %>%
-  filter(Ano == 2022)
-
-
-
-parana_nenhum_aplicado2022 = ggmice(mae_e_pai2022, aes(IDADEPAI, IDADEMAE)) + 
-  geom_hex(binwidth = c(1, 1)) +
-  scale_fill_viridis_c(option = "magma",direction = -1) + # muda a paleta de cores
-  theme_minimal() +
-  labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná de 2022", 
-       x = "Idade do pai", 
-       y = "Idade da mãe") +
-  theme(
-    plot.title = element_text(hjust = 0.5), # Centraliza o título
-    axis.text.x = element_text(size = 14),
-    axis.text.y = element_text(size = 14)
-  )
-
-
-parana_nenhum_aplicado2022
-
-
-
-ggsave(filename = "missing paraná nenhum método aplicado2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
-
-#-----
-
-# deleção (apenas não considera os valores NA):
-#-----
-
-# Filtrando valores NA
+     ggsave(filename = "TEF_PANANA_HOMENS_NA-15-59.png", path="/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens", dpi = 300)
+     # conferir - mulheres para projecao 2018: https://sidra.ibge.gov.br/Tabela/7363
 #------
-# legenda ilegivel
-mae_e_pai_del <- na.omit(mae_e_pai)
-
-# Criando o gráfico sem valores NA
-mae_e_pai_del_parana = ggplot(mae_e_pai_del, aes(x = IDADEPAI, y = IDADEMAE)) +
-  geom_hex() +
-  guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
-  scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
-  facet_wrap(~Ano)+
-theme_minimal() +
-  labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná todos os anos sem considerar valores faltantes", 
-       x = "Idade do pai", 
-       y = "Idade da mãe") +
-  theme(
-    plot.title = element_text(hjust = 0.5), # Centraliza o título
-    axis.text.x = element_text(size = 7),
-    axis.text.y = element_text(size = 7)
-  )
-ggsave(filename = "na_remove_parana.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
-#-------
 
 
 
 
-# Criando o gráfico sem valores faltantes 2022
-mae_e_pai_del2022 <- mae_e_pai_del %>%
-  filter(Ano == 2022)
-
-na_remove_paran2022 = ggplot(mae_e_pai_del2022, aes(x = IDADEPAI, y = IDADEMAE)) +
-  geom_hex() +
-  guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
-  scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
-  theme_minimal() +
-  labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná 2022 sem considerar valores faltantes", 
-       x = "Idade do pai", 
-       y = "Idade da mãe") +
-  theme(
-    plot.title = element_text(hjust = 0.5), # Centraliza o título
-    axis.text.x = element_text(size = 7),
-    axis.text.y = element_text(size = 7)
-  )
-ggsave(filename = "na_remove_parana2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
-
- 
-# retira os NAs para idade da mãe
-
-  mae_e_pai = mae_e_pai %>% 
-    filter(!is.na(IDADEMAE))
- 
 
 
-  mae_e_pai2022 = mae_e_pai2022 %>% 
-    filter(!is.na(IDADEMAE))
- 
 
 
-# imputacao pela mediana
-
----
-# Marginal mean imputation: Compute the mean of X using the non-missing values and use it to
-# impute missing values of X.
-# Limitations: It leads to biased estimates of variances and covariances and, generally, it
-# should be avoided.
 
 
-# Imputa valores missing em IDADEPAI com a mediana (menos influenciada por outliers, contem valores reais) - MCAR
- #------------
+
+
+
+
+
+
+   # Gráfico das taxas específicas de fecundidade (TEF) HOMENS - imputado pela mediana
+
+
+   # Garante que a coluna IDADEPAI seja numérica
+   mae_e_pai$IDADEPAI <- as.numeric(mae_e_pai$IDADEPAI)
    
-
    # Calcula a mediana de IDADEPAI por variável categórica 'ANO' ignorando valores NA
    mediana_por_ano <- mae_e_pai %>%
      group_by(Ano) %>%
@@ -847,356 +632,318 @@ ggsave(filename = "na_remove_parana2022.png", width = 35, height = 25, units = "
      select(-mediana_idade_pai)  # Remove a coluna auxiliar
    
    # Verificando o resultado
-   mediana_por_ano_MCAR = summary(mediana_por_ano)
+ hist(mae_e_pai_mediana$IDADEPAI)
    
-   
 
-# criando grafico imputacao pela mediana
-  #------ 
-   # versão não simplicada mas com a legenda do eixo y ilegivel
-   
-   mae_e_pai_mediana_plot =   ggplot(mae_e_pai_mediana, aes(x = IDADEPAI, y = IDADEMAE)) +
-     geom_hex() +
-     guides(fill = guide_colourbar(title = "IDADEMAE"))+
-     scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
-     facet_wrap(~Ano)+
-     theme_minimal() +
-     labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná todos os anos (NA imputado pela mediana por ano )", 
-          x = "Idade do pai", 
-          y = "Idade da mãe") +
-     theme(
-       plot.title = element_text(hjust = 0.5), # Centraliza o título
-       axis.text.x = element_text(size = 7),
-       axis.text.y = element_text(size = 7)
-     )
-      mae_e_pai_mediana_plot
-   
-   #ggsave(filename = "mae_e_pai_mediana_parana_MCAR.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
- 
-    mae_e_pai_mediana_plot
-   
-   
-   
-   # Imputa valores missing em IDADEPAI com a mediana condicionada a idade da mãe - MAR
-   #------------
-  
-   
-   # Calcula a mediana de IDADEPAI por variável categórica 'ANO' e idade da mãe ignorando valores NA
-   mediana_por_ano_mae <- mae_e_pai %>%
-     group_by(Ano,IDADEMAE) %>%
-     summarise(mediana_idade_pai = median(IDADEPAI, na.rm = TRUE))
+# Passo 2: Processar os nascimentos por ano e faixa etária
+nascimentos_parana_pai <- mae_e_pai_mediana %>%
+  mutate(
+    Ano = as.integer(Ano),
+    Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
+  ) %>%
+  group_by(Ano, Grupo_idade) %>%
+  summarise(
+    nascimentos = n(),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Grupo_idade))
 
-   # Junta a mediana por ano de volta à base original
-   mae_e_pai_mediana_MAR <- mae_e_pai %>%
-     left_join(mediana_por_ano_mae, by = "Ano", "IDADEMAE") %>%
-     mutate(
-       IDADEPAI = ifelse(is.na(IDADEPAI), mediana_idade_pai, IDADEPAI)
-     ) %>%
-     select(-mediana_idade_pai)  # Remove a coluna auxiliar
-   
-   # Verificando o resultado
-    mediana_por_ano_MAR  = summary(mediana_por_ano_mae)
-   
-   
-   # criando grafico imputacao pela mediana
-   #------ 
-   # versão não simplicada mas com a legenda do eixo y ilegivel
-   
-   mae_e_pai_mediana_plot =   ggplot(mae_e_pai_mediana, aes(x = IDADEPAI, y = IDADEMAE)) +
-     geom_hex() +
-     guides(fill = guide_colourbar(title = "Contagem"))+
-     scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
-     facet_wrap(~Ano)+
-     theme_minimal() +
-     labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná todos os anos (NA imputado pela mediana por ano e idade da mãe- supõe MAR)", 
-          x = "Idade do pai", 
-          y = "Idade da mãe") +
-     theme(
-       plot.title = element_text(hjust = 0.5), # Centraliza o título
-       axis.text.x = element_text(size = 7),
-       axis.text.y = element_text(size = 7)
-     )
-   ggsave(filename = "mae_e_pai_mediana_parana_MAR.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
-   #------
-   
-   
-   
-   
-   
-   
-   
-   # Criando o gráfico imputacao pela mediana 2022
-   mae_e_pai_mediana2022 <- mae_e_pai_mediana %>%
-     filter(Ano == 2022)
-   
- 
-   mae_e_pai_mediana_parana2022 = ggplot(mae_e_pai_mediana2022, aes(x = IDADEPAI, y = IDADEMAE)) +
-     geom_hex() +
-     guides(fill = guide_colourbar(title = ", "IDADEMAE""))+
-     scale_fill_viridis_c(option = "turbo") + # muda a paleta de cores
-     theme_minimal() +
-     labs(title = "Gráfico idade do pai pela idade da mãe\n Paraná 2022 (NA imputado pela mediana)", 
-          x = "Idade do pai", 
-          y = "Idade da mãe") +
-       theme(
-         plot.title = element_text(hjust = 0.5), # Centraliza o título
-         axis.text.x = element_text(size = 7),
-         axis.text.y = element_text(size = 7)
-       )
-     ggsave(filename = "mae_e_pai_mediana_parana2022.png", width = 35, height = 25, units = "cm", dpi = 300, bg = "transparent")
- 
-         
+# Passo 3: Calcular as TEFs por ano
+tef_parana_homens <- nascimentos_parana_pai %>%
+  inner_join(pop_parana_homens, by = c("Ano", "Grupo_idade")) %>%
+  mutate(
+    TEF = (nascimentos / Populacao)   
+  )
+
+# Passo 4: Calcular a TFT para cada ano
+tft_por_ano_homem <- tef_parana_homens %>%
+  group_by(Ano) %>%
+  summarise(
+    TFT = sum(TEF) * 5,  # Multiplicação para ajustar os intervalos de 5 anos
+    .groups = "drop"
+  )
+
+# Exibe os resultados
+print(tef_parana_homens)  # TEFs detalhadas por ano e faixa etária
+print(tft_por_ano_homem)        # TFT por ano
 
 
 
+# Nome do arquivo de saída
+arquivo_excel <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/4_Resultados/tabelas/tef_parana_masculina_mediana.xlsx"
+
+# Cria um workbook
+wb <- createWorkbook()
+
+# Adiciona as folhas
+addWorksheet(wb, "TEFFs")
+addWorksheet(wb, "TFTF por Ano homens")
+
+# Escreve os dados nas folhas correspondentes
+writeData(wb, sheet = "TEFFs", tef_parana_homens)
+writeData(wb, sheet = "TFTF por Ano homens", tft_por_ano_homem)
+
+# Salva o arquivo Excel
+saveWorkbook(wb, arquivo_excel, overwrite = TRUE)
+
+cat("Os dados foram salvos no arquivo:", arquivo_excel, "\n")
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-     
-     
-     
-#------     
-     
-     #testando grafico com mediana para maes
-     
-     
-     # Imputa valores missing em  com a mediana (menos influenciada por outliers, contem valores reais)
-     #------------
-        # Seleciona as colunas relevantes e verifica o conteúdo de IDADEMAE
-     mae_e_pai <- Parana %>%
-       select(IDADEMAE, IDADEPAI, missing, Ano, faixa_etaria_mae, faixa_etaria_pai)
-     
-     # Garante que a coluna IDADEMAE seja numérica e substitui valores inválidos por NA
-     mae_e_pai <- mae_e_pai %>%
-       mutate(
-         IDADEMAE = suppressWarnings(as.numeric(IDADEMAE))  # Converte para numérico e ignora warnings
-       )
-     
-     # Verifica se há valores NA após a conversão
-     summary(mae_e_pai$IDADEMAE)
-     
-     # Calcula a mediana de IDADEMAE por variável categórica 'Ano', ignorando valores NA
-     mediana_por_ano_MAE <- mae_e_pai %>%
-       group_by(Ano) %>%
-       summarise(mediana_idade_MAE = median(IDADEMAE, na.rm = TRUE))
-     
-     # Exibe o resultado
-     print(mediana_por_ano_MAE)
-     
-     
-     # Junta a mediana por ano de volta à base original
-     mae_mediana <- mae_e_pai %>%
-       left_join(mediana_por_ano_MAE, by = "Ano") %>%
-       mutate(
-         IDADEMAE = ifelse(is.na(IDADEMAE), mediana_idade_MAE, IDADEMAE)
-       ) %>%
-       select(-mediana_idade_MAE)  # Remove a coluna auxiliar
-     
-     # Verificando o resultado
-     summary(mediana_por_ano)
-     
-     
-     
-     # Gráfico das taxas específicas de fecundidade (TEF) mulheres - imputado pela mediana
-     
-     # Etapa 1: Filtra os dados populacionais para o Paraná e agrupa por faixa etária e ano
-     pop_parana_mulheres <- projecoes_2024_tab1_idade_simples %>%
-       filter(SEXO == "Mulheres", LOCAL == "Paraná") %>%
-       pivot_longer(
-         cols = `2012`:`2022`, 
-         names_to = "Ano", 
-         values_to = "Populacao"
-       ) %>%
-       mutate(
-         Ano = as.integer(Ano),
-         Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
-       ) %>%
-       group_by(Ano, Grupo_idade) %>%
-       summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
-     
-     View(pop_parana_mulheres)
-     
-     # Filtra as linhas com grupos etários não definidos ou fora do intervalo (NA)
-     pop_parana_mulheres_filtered <- pop_parana_mulheres %>%
-       filter(!is.na(Grupo_idade))
-     
-     
      
      # Prepara os dados de nascimento agrupados por ano e faixa etária
-     nascimentos_parana <-mae_mediana %>%
+     nascimentos_parana_pai <- mae_e_pai_mediana %>%
        mutate(
          Ano = Ano,
-         Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)
+         Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
        ) %>%
        group_by(Ano, Grupo_idade) %>%
-       summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
+              summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
      
      # Junta os dados de nascimento com os de população e calcula as TEFs
-     tef_parana_todos_Anos <- nascimentos_parana %>%
-       inner_join(pop_parana_mulheres_filtered, by = c("Ano", "Grupo_idade")) %>%
+     tef_parana_todos_Anos_homens <- nascimentos_parana_pai %>%
+       inner_join(pop_parana_homens_filtered, by = c("Ano", "Grupo_idade")) %>%
        mutate(TEF = (nascimentos / Populacao) * 1000)
      
-     print(tef_parana_todos_Anos)
+     View(tef_parana_todos_Anos_homens)
      
      # Preparando a estrutura necessária para calcular as TEFs
-     tef_parana_formatted_median_mulheres <- tef_parana_todos_Anos %>%
-       mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caractere
+     tef_parana_formatted_homens <- tef_parana_todos_Anos_homens %>%
+       mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caracter
        select(Ano, Grupo_idade, TEF)  # Seleciona as colunas de interesse
      
-     # Carrega bibliotecas
-     library(ggplot2)
-     library(RColorBrewer)
-     
-     # Esquema de cores
-     display.brewer.all()
-     colors <- brewer.pal(9, "PuBuGn")  # Paleta de cores
-     
-     # Cria o gráfico de linha das TEFs com esquema de cores em gradiente
-     ggplot(tef_parana_formatted_median_mulheres, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano)) +
-       geom_line(size = 1.2) +    # Adiciona linhas para cada ano
-       geom_point(size = 1.5) +   # Adiciona pontos
-       scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
-       labs(
-         title = "Taxa Específica de Fecundidade Femininas (TEFs) \n por Faixa Etária e Ano - Paraná (imputado mediana)",
-         x = "Faixa Etária (anos)",
-         y = "TEFs (Nascimentos por 1.000 mulheres)",
-         color = "Ano"
-       ) +
-       theme_minimal() +
-       theme(
-         plot.title = element_text(hjust = 0.5),  # Centraliza o título
-         axis.text.x = element_text(angle = 45, hjust = 1),  # Rotaciona as legendas do eixo x
-         legend.position = "bottom",  # Posiciona a legenda na parte inferior
-         legend.title = element_text(size = 12, face = "bold"),  # Ajusta o tamanho e estilo do título
-         legend.text = element_text(size = 10)  # Ajusta o tamanho do texto da legenda
-       ) +
-       guides(
-         color = guide_colorbar(
-           title.position = "top",  # Move o título da legenda de cores para o topo
-           title.hjust = 0.5,  # Centraliza o título da barra de cores
-           barwidth = 15,       # Ajusta a largura da barra de cores
-           barheight = 0.5      # Ajusta a altura da barra de cores
-         )
-       )
-     
-     ggsave(filename = "TEF_PANANA_MULHERES_mediana-15-49.png", dpi = 300)
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
 
 
 
-
-
-
-
-
-
-
-
-
-     
     
-# Form a regression model where age is predicted from bmi.
 
-fit <- with(Parana_select2022, lm(IDADEPAI ~ IDADEMAE))
-summary(fit)
+# Verifique o número de valores únicos de 'Ano'
+n_anos <- length(unique(tef_parana_formatted_homens$Ano))
+
+# Crie uma lista de tipos de linha suficientes para os anos
+linetypes <- c("solid", "dashed", "dotted", "dotdash", "longdash", "twodash", "twodash", "dotted", "dashed", "solid")
+
+# Certifique-se de ter tantos tipos de linha quanto o número de anos
+if (n_anos > length(linetypes)) {
+  linetypes <- rep(linetypes, length.out = n_anos)
+}
+
+# Cria o gráfico de linha das TEFs com esquema de cores em gradiente e tipos de linha diferentes para cada ano
+ggplot(tef_parana_formatted_homens, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano, linetype = factor(Ano))) +
+  geom_line(size = 1.2) +    # Adiciona linhas para cada ano
+  geom_point(size = 1.5) +   # Adiciona pontos
+  scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
+  scale_linetype_manual(values = linetypes) +  # Tipos de linha diferentes com base no número de anos
+  labs(
+    title = "Taxa Específica de Fecundidade Masculina (TEFMs) por Faixa Etária e Ano - Paraná",
+    x = "Faixa Etária (anos)",
+    y = "TEFMs (Nascimentos por 1.000 homens)",
+    color = "Ano",
+    linetype = "Ano"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotaciona as legendas do eixo x
+    legend.position = "bottom",  # Posiciona a legenda na parte inferior
+    legend.title = element_text(size = 12, face = "bold"),  # Ajusta o tamanho e estilo do título
+    legend.text = element_text(size = 10)  # Ajusta o tamanho do texto da legenda
+  ) +
+  guides(
+    color = guide_colorbar(
+      title.position = "top",  # Move o título da legenda de cores para o topo
+      title.hjust = 0.5,  # Centraliza o título da barra de cores
+      barwidth = 15,       # Ajusta a largura da barra de cores
+      barheight = 0.5      # Ajusta a altura da barra de cores
+    ),
+    linetype = guide_legend(title.position = "top")  # Personaliza a legenda de tipos de linha
+  )
+     ggsave(filename = "TEF_PANANA_HOMENS_MEDIANA-15-59.png", path="/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens", dpi = 300)
+     # conferir - mulheres para projecao 2018: https://sidra.ibge.gov.br/Tabela/7363
+#------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Garante que a coluna IDADEPAI e IDADEMAE sejam numéricas
+mae_e_pai$IDADEPAI <- as.numeric(mae_e_pai$IDADEPAI)
+mae_e_pai$IDADEMAE <- as.numeric(mae_e_pai$IDADEMAE)
+
+# Calcula a mediana de IDADEPAI por faixa etária da mãe (IDADEMAE)
+mediana_por_idade_mae <- mae_e_pai %>%
+  group_by(IDADEMAE,Ano) %>%
+  summarise(mediana_idade_pai = median(IDADEPAI, na.rm = TRUE))
+
+# Junta a mediana por faixa etária da mãe de volta à base original
+mae_e_pai_mediana_mae <- mae_e_pai %>%
+  left_join(mediana_por_idade_mae, by = c("IDADEMAE", "Ano")) %>%
+  mutate(
+    IDADEPAI = ifelse(is.na(IDADEPAI), mediana_idade_pai, IDADEPAI)
+  ) %>%
+  select(-mediana_idade_pai)  # Remove a coluna auxiliar
+
+# Verificando o resultado
+summary(mae_e_pai_mediana_mae)
+
+
+
+   # Verificando o resultado
+ hist(mae_e_pai_mediana_mae$IDADEPAI)
+   
+
+# Passo 2: Processar os nascimentos por ano e faixa etária
+nascimentos_parana_pai <- mae_e_pai_mediana_mae %>%
+  mutate(
+    Ano = as.integer(Ano),
+    Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
+  ) %>%
+  group_by(Ano, Grupo_idade) %>%
+  summarise(
+    nascimentos = n(),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Grupo_idade))
+
+# Passo 3: Calcular as TEFs por ano
+tef_parana_homens <- nascimentos_parana_pai %>%
+  inner_join(pop_parana_homens, by = c("Ano", "Grupo_idade")) %>%
+  mutate(
+    TEF = (nascimentos / Populacao)   
+  )
+
+# Passo 4: Calcular a TFT para cada ano
+tft_por_ano_homem <- tef_parana_homens %>%
+  group_by(Ano) %>%
+  summarise(
+    TFT = sum(TEF) * 5,  # Multiplicação para ajustar os intervalos de 5 anos
+    .groups = "drop"
+  )
+
+# Exibe os resultados
+print(tef_parana_homens)  # TEFs detalhadas por ano e faixa etária
+print(tft_por_ano_homem)        # TFT por ano
+
+
+
+# Nome do arquivo de saída
+arquivo_excel <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/4_Resultados/tabelas/tef_parana_masculina_mediana_condicional.xlsx"
+
+# Cria um workbook
+wb <- createWorkbook()
+
+# Adiciona as folhas
+addWorksheet(wb, "TEFFs")
+addWorksheet(wb, "TFTF por Ano homens")
+
+# Escreve os dados nas folhas correspondentes
+writeData(wb, sheet = "TEFFs", tef_parana_homens)
+writeData(wb, sheet = "TFTF por Ano homens", tft_por_ano_homem)
+
+# Salva o arquivo Excel
+saveWorkbook(wb, arquivo_excel, overwrite = TRUE)
+
+cat("Os dados foram salvos no arquivo:", arquivo_excel, "\n")
+
+
 
      
+     # Prepara os dados de nascimento agrupados por ano e faixa etária
+     nascimentos_parana_pai <- mae_e_pai_mediana_mae %>%
+       mutate(
+         Ano = Ano,
+         Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
+       ) %>%
+       group_by(Ano, Grupo_idade) %>%
+              summarise(nascimentos = n(), .groups = "drop")  #Conta o número de ocorrências (nascimentos) em cada combinação de ano e faixa etária.
      
+     # Junta os dados de nascimento com os de população e calcula as TEFs
+     tef_parana_todos_Anos_homens <- nascimentos_parana_pai %>%
+       inner_join(pop_parana_homens_filtered, by = c("Ano", "Grupo_idade")) %>%
+       mutate(TEF = (nascimentos / Populacao) * 1000)
+     
+     View(tef_parana_todos_Anos_homens)
+     
+     # Preparando a estrutura necessária para calcular as TEFs
+     tef_parana_formatted_homens <- tef_parana_todos_Anos_homens %>%
+       mutate(Grupo_idade = as.character(Grupo_idade)) %>%  # Certifica que Grupo_idade é tratado como caracter
+       select(Ano, Grupo_idade, TEF)  # Seleciona as colunas de interesse
      
 
- 
-# aplicar imputação pela mediana ou média -- condicional a idade da mãe (MAR) 
-  
-# Verificar o impacto dos diferentes métodos
-# de imputação e na análise de casos completos no calculo da TFT masculina     
-#      
-
-# colocar paleta preta e branca (tracejado)  
-     
 
 
+    
 
-     
+# Verifique o número de valores únicos de 'Ano'
+n_anos <- length(unique(tef_parana_formatted_homens$Ano))
 
-# PARTE 3
+# Crie uma lista de tipos de linha suficientes para os anos
+linetypes <- c("solid", "dashed", "dotted", "dotdash", "longdash", "twodash", "twodash", "dotted", "dashed", "solid")
 
-#----
+# Certifique-se de ter tantos tipos de linha quanto o número de anos
+if (n_anos > length(linetypes)) {
+  linetypes <- rep(linetypes, length.out = n_anos)
+}
 
-# Verificar estrutura do conjunto de dados
-str(Parana_select2022)
-
-
-# Definir métodos de imputação
-methods <- make.method(Parana_select2022)  # Determina métodos automaticamente
-class(methods)
-
-#no mice: Multilevel categorical variables: Use "polyreg" (polytomous regression) or "rf" (random forest, for flexibility).
-
-Parana_select2022 = Parana_select2022 %>% 
-mutate(IDADEMAE = as.numeric(IDADEMAE), 
-IDADEPAI = as.numeric(IDADEPAI), 
-faixa_etaria_mae = as.factor(faixa_etaria_mae),
-faixa_etaria_mae = as.factor(faixa_etaria_mae))
-
-# Alterar métodos para variáveis categóricas
-methods["faixa_etaria_mae"] <- "polyreg" # categorical
-methods["faixa_etaria_pai"] <- "polyreg" # categorical
-
-methods["IDADEMAE"] <- "norm.predict"   # Numeric
-methods ["IDADEPAI"] <- "norm.predict"   # Numeric
-
-# Imputar dados
-imp <- mice(Parana_select2022, method = methods, m = 1, maxit = 1)
-summar
-# Visualizar resultado da imputação
-summary(imp)
-head(imp)
-
-ggplot(Parana_select2022, aes(x = IDADEMAE, y = IDADEPAI)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = TRUE, color = "blue") +
-  labs(title = "Idade do Pai vs. Idade da Mãe",
-       x = "Idade da Mãe",
-       y = "Idade do Pai") +
-  theme_minimal()
+# Cria o gráfico de linha das TEFs com esquema de cores em gradiente e tipos de linha diferentes para cada ano
+ggplot(tef_parana_formatted_homens, aes(x = Grupo_idade, y = TEF, group = Ano, color = Ano, linetype = factor(Ano))) +
+  geom_line(size = 1.2) +    # Adiciona linhas para cada ano
+  geom_point(size = 1.5) +   # Adiciona pontos
+  scale_color_gradientn(colors = colors) +  # Aplica escala de cores em gradiente
+  scale_linetype_manual(values = linetypes) +  # Tipos de linha diferentes com base no número de anos
+  labs(
+    title = "Taxa Específica de Fecundidade Masculina (TEFMs) por Faixa Etária e Ano - Paraná",
+    x = "Faixa Etária (anos)",
+    y = "TEFMs (Nascimentos por 1.000 homens)",
+    color = "Ano",
+    linetype = "Ano"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotaciona as legendas do eixo x
+    legend.position = "bottom",  # Posiciona a legenda na parte inferior
+    legend.title = element_text(size = 12, face = "bold"),  # Ajusta o tamanho e estilo do título
+    legend.text = element_text(size = 10)  # Ajusta o tamanho do texto da legenda
+  ) +
+  guides(
+    color = guide_colorbar(
+      title.position = "top",  # Move o título da legenda de cores para o topo
+      title.hjust = 0.5,  # Centraliza o título da barra de cores
+      barwidth = 15,       # Ajusta a largura da barra de cores
+      barheight = 0.5      # Ajusta a altura da barra de cores
+    ),
+    linetype = guide_legend(title.position = "top")  # Personaliza a legenda de tipos de linha
+  )
+     ggsave(filename = "TEF_PANANA_HOMENS_MEDIANA-CONDICIONAL_15-59.png", path="/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens", dpi = 300)
+     # conferir - mulheres para projecao 2018: https://sidra.ibge.gov.br/Tabela/7363
+#------
