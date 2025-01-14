@@ -21,12 +21,12 @@ load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData"
 Parana = Sul %>% 
 filter(Sul$munResUf == "Paraná")
 dim(Parana)
-
+glimpse(Parana)
 
 # DENOMINADOR - projecao de populacao de 2024
 
 projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/datasus_fecundidade_masculina/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
-
+glimpse(projecoes_2024_tab1_idade_simples)
 pop_parana<- projecoes_2024_tab1_idade_simples %>%
   filter(LOCAL == "Paraná") %>% 
   select(`SEXO`,`IDADE`,`2012`:`2022`)
