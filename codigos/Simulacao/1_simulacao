@@ -1,0 +1,215 @@
+# CONFIGURANDO AMBIENTE
+## Notação científica
+options(scipen = 999)
+#decimais com virgula
+options(OutDec=",")
+
+library(truncnorm)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# 𝑄 - a estimativa de erro vai ser a média das
+# diferenças encontradas no total de registros
+# (pais) por idade 
+
+
+
+projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/datasus_fecundidade_masculina/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
+
+Parana = Sul %>% 
+filter(Sul$munResUf == "Paraná")
+dim(Parana)
+
+uf = Parana
+
+rm(Parana)
+
+
+
+# Função para preparar os dados
+uf_prepare <- function(df) {
+  dist_complete_case <- df %>%
+    select(Ano, IDADEPAI) %>%  # Seleciona as colunas Ano e IDADEPAI
+    filter(IDADEPAI >= 15 & IDADEPAI <= 59) %>%  # Filtra para idades de pais entre 15 e 59
+    group_by(Ano, IDADEPAI) %>%  # Agrupa por Ano e IDADEPAI
+    summarise(total_pais = n(), .groups = "drop")  # Conta o número de pais para cada combinação
+  
+  # Criando uma lista onde cada ano é um índice
+  dist_by_year <- dist_complete_case %>%
+    split(.$Ano) %>%  # Divide por Ano
+    lapply(function(x) {
+      # Retorna um data frame com idade do pai e total de pais
+      data.frame(idade_pai = x$IDADEPAI, total_pais = x$total_pais)
+    })
+  
+  return(dist_by_year)
+}
+
+# Chama a função e passa o dataframe 'Parana'
+dist_complete_case <- uf_prepare(Parana)
+
+# Visualiza o resultado para o ano de 2012 (exemplo)
+dist_complete_case$`2012`
+
+
+
+
+
+
+uf$IDADEMAE <- as.numeric(as.character(uf$IDADEMAE))
+uf$IDADEPAI <- as.numeric(as.character(uf$IDADEPAI))
+
+
+mean_mae <- mean(uf$IDADEMAE, na.rm = TRUE)
+sd_mae <- sd(uf$IDADEMAE, na.rm = TRUE)
+
+mean_pai <- mean(uf$IDADEPAI, na.rm = TRUE)
+sd_pai <- sd(uf$IDADEPAI, na.rm = TRUE)
+
+print(mean_mae)
+print(sd_mae)
+print(mean_pai)
+print(sd_pai)
+
+modelo <- lm(IDADEPAI ~ IDADEMAE, data = uf)
+
+beta <- coef(modelo)[2]  # Coeficiente de regressão (inclinação)
+sigma2 <- var(residuals(modelo))  # Variância dos resíduos (erro)
+residuos <- residuals(modelo)  # Obtendo os resíduos
+
+create.data <- function(beta, sigma2, n = 5, run = 2) {
+  set.seed(12345 + run)  # Permite variação entre diferentes execuções
+  
+  # Gerando idade da mãe entre 15 e 49 anos
+  x <- round(rtruncnorm(n, a = 15, b = 49, mean = mean_mae, sd = sd_mae))
+  
+  # Gerando idade do pai entre 15 e 59 anos
+  y <- round(rtruncnorm(n, a = 15, b = 59, mean = mean_pai, sd = sd_pai))
+  
+  data.frame(idade_mae = x, idade_pai = y)
+}
+
+
+uf_size = nrow(Parana)  # Número de linhas
+
+# Agora você pode passar diretamente beta e sigma2 ao chamar a função
+dado.completo <- create.data(beta = beta, sigma2 = sigma2, n = uf_size)
+
+glimpse(dado.completo)
+
+
+
+# Visualizando a distribuição das idades das mães
+hist(dado.completo$idade_pai, main = "Histograma das Idades dos Pais", 
+     xlab = "Idade", col = "lightblue", border = "black")
+
+boxplot(dado.completo$idade_mae,dado.completo$idade_pai)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(dplyr)
+library(truncnorm)
+
+# Função para calcular a média e o desvio padrão por ano
+calculate_stats_by_year <- function(df) {
+  stats_by_year <- df %>%
+    group_by(Ano) %>%
+    filter(IDADEMAE >= 15 & IDADEMAE < 50 & !is.na(IDADEMAE), IDADEPAI >= 15 & IDADEPAI < 60 & !is.na(IDADEPAI))%>%
+    summarise(
+      mean_mae = mean(IDADEMAE, na.rm = TRUE),
+      sd_mae = sd(IDADEMAE, na.rm = TRUE),
+      mean_pai = mean(IDADEPAI, na.rm = TRUE),
+      sd_pai = sd(IDADEPAI, na.rm = TRUE),
+      n = n()  # Número de registros para o ano
+    )
+  return(stats_by_year)
+}
+
+
+# Função para gerar dados simulados para cada ano
+create_data_by_year <- function(df, stats_by_year) {
+  # Gerar os dados simulados para cada ano
+  simulated_data_list <- lapply(1:nrow(stats_by_year), function(i) {
+    # Obter as estatísticas para o ano
+    year_stats <- stats_by_year[i, ]
+    
+    # Gerar idades da mãe (número de registros do ano)
+    idade_mae <- round(rtruncnorm(year_stats$n, a = 15, b = 49, mean = year_stats$mean_mae, sd = year_stats$sd_mae))
+    # Gerar idades do pai (número de registros do ano)
+    IDADEPAI <- round(rtruncnorm(year_stats$n, a = 15, b = 59, mean = year_stats$mean_pai, sd = year_stats$sd_pai))
+    print("Ano ", year_stats, "registros pai ", year_stats$n)
+    # Criar um dataframe para esse ano
+    data.frame(Ano = rep(year_stats$Ano, year_stats$n), idade_mae = idade_mae, IDADEPAI = IDADEPAI)
+  })
+  
+  # Combinar os dataframes de todos os anos em um único dataframe
+  dado_completo <- do.call(rbind, simulated_data_list)
+  
+  return(dado_completo)
+}
+
+# Função para calcular a distribuição real de pais por idade
+calculate_real_distribution <- function(df) {
+  real_distribution <- df %>%
+  filter(IDADEPAI >= 15 & IDADEPAI < 60 & !is.na(IDADEPAI))%>%
+    group_by(Ano, IDADEPAI) %>%
+    summarise(total_pais = n()) %>%
+    ungroup()
+  
+  return(real_distribution)
+}
+
+# Função para calcular a diferença percentual
+calculate_percentage_difference <- function(real_data, simulated_data) {
+  combined_data <- real_data %>%
+    left_join(simulated_data, by = c("Ano", "IDADEPAI")) %>%
+    mutate(
+      total_simulado = ifelse(is.na(total_pais_simulado), 0, total_pais_simulado),
+      diff_percentual = 100 * (total_simulado - total_pais) / total_pais
+    )
+  
+  return(combined_data)
+}
+
+# Passo 1: Calcular as estatísticas por ano
+stats_by_year <- calculate_stats_by_year(uf)
+
+# Passo 2: Gerar dados simulados com base nas estatísticas de cada ano
+dado_simulado <- create_data_by_year(uf, stats_by_year)
+
+# Passo 3: Calcular a distribuição real de pais por idade
+real_distribution <- calculate_real_distribution(uf)
+
+# Passo 4: Calcular a distribuição simulada de pais por idade
+simulated_distribution <- dado_simulado %>%
+  group_by(Ano, IDADEPAI) %>%
+  summarise(total_pais_simulado = n()) %>%
+  ungroup()
+
+# Passo 5: Calcular a diferença percentual entre a distribuição real e simulada
+result <- calculate_percentage_difference(real_distribution, simulated_distribution)
+
+# Visualizar o resultado final
+glimpse(result)
+View(result)
+
+
+
