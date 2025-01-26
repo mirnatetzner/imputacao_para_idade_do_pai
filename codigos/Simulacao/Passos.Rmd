@@ -1,0 +1,554 @@
+# Passos para simulação:
+
+1.  Métodos de geração do dado 'real'
+
+2.  Métodos de geração do missing simulado (MCAR, MAR, NMAR)
+
+3.  Métodos de imputação
+
+4.  Métodos de análise (avaliação da qualidade da imputação)
+
+## Métodos de geração do dado 'real'
+
+### Cuidados para a geração dos dados 'reais', o que Gerkovink e Oberman chamam de '*verdade fundante simulada*'
+
+------------------------------------------------------------------------
+
+#### Compreender a estrutura dos dados
+
+-   **Relação entre as variáveis**: Identificar as variáveis de interesse e suas relações (e.g., correlação).
+
+-   **Propriedades estatísticas**: Analisar estatísticas resumo (média, variância, assimetria, etc.) e checar se os dados seguem alguma distribuição de probabilidade conhecida (e.g., normal, exponêncial).
+
+```{r, warnings= FALSE}
+ # Lista de pacotes necessários
+pacotes <- c(
+  "naniar",
+  "mice",
+  "RCurl",
+  "tidyverse",
+  "ggplot2",
+  "stringr",
+  "RColorBrewer",
+  "dplyr",
+  "ggmice",
+  "lubridate",
+  "readxl"
+)
+
+# Instalar pacotes que ainda não estão instalados
+pacotes_a_instalar <- pacotes[!pacotes %in% installed.packages()[, "Package"]]
+if (length(pacotes_a_instalar) > 0) {
+  install.packages(pacotes_a_instalar)
+}
+
+# Carregar todos os pacotes
+lapply(pacotes, library, character.only = TRUE)
+
+# CONFIGURANDO AMBIENTE
+## Notação científica
+options(scipen = 999)
+
+## Decimais com vírgula
+options(OutDec = ",")
+
+```
+
+```{r}
+
+load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
+
+```
+
+```{r}
+
+Parana = Sul %>% 
+filter(Sul$munResUf == "Paraná")
+dim(Parana)
+rm(Sul)
+```
+##### **Relação entre as variáveis**: Identificar as variáveis de interesse e suas relações (e.g., correlação).
+```{r}
+colnames(Parana)
+```
+
+ Avaliando a documentação. Esse trecho visualiza a sessão da DN onde estão presentes as categorias associadas ao preenchimento da DN:
+ 
+```{r}
+#Estrutura_SINASC <- read_excel("E:/DOCS SINASC/Estrutura_SINASC_para_CD.xlsx")
+#View(Estrutura_SINASC_para_CD)
+ver = Estrutura_SINASC %>% 
+  filter(`Sessão da DN`== "VII -\r\nPreenchimento") %>% 
+  print()
+
+
+```
+
+```{r}
+ver = Estrutura_SINASC %>% 
+  filter(`Nome do campo no DBF`== "QTDGESTANT") %>% 
+  print()
+
+```
+
+
+```{r}
+Parana = Parana %>% 
+  select("CODESTAB","CODMUNNASC","LOCNASC","IDADEMAE","ESTCIVMAE","ESCMAE","CODOCUPMAE", "QTDFILVIVO","QTDFILMORT","CODMUNRES","GESTACAO","GRAVIDEZ","PARTO", "DTNASC","HORANASC","SEXO","RACACOR","RACACORMAE","DTCADASTRO","NUMEROLOTE","DTRECEBIM","DIFDATA","NATURALMAE","CODMUNNATU","ESCMAE2010","SERIESCMAE", "DTNASCMAE" ,"QTDGESTANT","QTDPARTNOR","QTDPARTCES","IDADEPAI","STCESPARTO","CODUFNATU","TPFUNCRESP","TPDOCRESP","DTDECLARAC","munResStatus","munResTipo","munResNome","munResUf","munResLat","munResLon","um","Ano","missing")
+
+```
+
+
+```{r}
+glimpse(Parana)
+```
+
+##### Transforma colunas para os tipos corretos: 
+
+```{r}
+library(lubridate)
+library(hms)
+
+Parana = Parana %>% 
+       mutate(
+    # Filtra valores inválidos ou transforma em NA
+    HORANASC = ifelse(
+      grepl("^[0-9]{1,4}$", HORANASC), # Verifica se HORANASC contém apenas números (1-4 dígitos)
+      str_pad(HORANASC, width = 4, pad = "0"), # Preenche com zeros à esquerda se necessário
+      NA_character_ # Define como NA se for inválido
+    )
+  ) %>%
+  mutate(
+    HORANASC = ifelse(
+      is.na(HORANASC),
+      NA, # Mantém NA para valores inválidos
+      parse_hms(paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4), ":00"))
+    ),
+    HORANASC = hms::hms(HORANASC),
+    DTNASC = as.Date(DTNASC, format = "%Y-%m-%d"),
+    Ano = as.Date(paste0(Ano, "-01-01")),
+    DTCADASTRO=as.Date(DTCADASTRO, format = "%Y-%m-%d"),
+    DTRECEBIM =as.Date(DTRECEBIM, format = "%Y-%m-%d"))
+```
+
+
+```{r}
+
+library(sf)
+
+# Preparar as coordenadas
+Parana <- Parana %>%
+  mutate(
+    munResLat = as.numeric(gsub(",", ".", munResLat)),
+    munResLon = as.numeric(gsub(",", ".", munResLon))
+  ) %>%
+  filter(!is.na(munResLat) & !is.na(munResLon)) # Remover linhas com coordenadas inválidas
+
+# Criar objeto sf
+Parana <- st_as_sf(
+  Parana, # DataFrame base
+  coords = c("munResLon", "munResLat"), # Nome das colunas
+  crs = 4326 # Sistema de coordenadas geográficas (WGS 84)
+)
+
+```
+
+
+
+```{r}
+library(knitr)
+
+
+# Selecionar colunas relevantes e resumir
+custom_summary <- Parana %>%
+  summarise(
+    Total_Observacoes = n(),
+    Media_IdadeMae = mean(as.numeric(IDADEMAE), na.rm = TRUE),
+    Media_IdadePai = mean(as.numeric(IDADEPAI), na.rm = TRUE),
+    Total_NAs_IdadeMae = sum(is.na(IDADEMAE)),
+    Total_NAs_IdadePai = sum(is.na(IDADEPAI)),
+    Min_DataNascimento = min(DTNASC), na.rm = TRUE,
+    Max_DataNascimento = max(DTNASC), na.rm = TRUE
+  )
+
+# Exibir como tabela formatada
+kable(custom_summary, caption = "Resumo de Parana")
+
+```
+
+
+
+
+```{r}
+library(skimr)
+library(kableExtra)
+
+# resumo_skim_df_original = skim(Parana)
+
+# Salvar a tabela em formato LaTeX
+latex_table <- resumo_skim_df_original %>%
+  kable("latex", booktabs = TRUE, caption = "Resumo Estatístico do Dataset Parana") %>%
+  kable_styling(latex_options = c("hold_position", "striped"))
+
+# Exportar a tabela para um arquivo .tex
+cat(latex_table, file = "skim_summary.tex")
+
+resumo_skim_df_original 
+
+```
+ Resumo dos valores ausentes
+```{r}
+
+naniar::miss_var_summary(Parana,warn_large_data = FALSE) %>%
+  arrange(desc(pct_miss)) %>%
+  knitr::kable(caption = "Resumo dos Valores Ausentes")
+
+
+```
+#### Filtrar idades do pai e da mãe para o intervalo plausível (retirar valores discrepantes)
+
+```{r}
+Parana <- Parana_sf %>%
+  filter(
+   (is.na(IDADEPAI) | (IDADEPAI >= 15 & IDADEPAI <= 59)),
+    IDADEMAE >= 15 & IDADEMAE <= 49   
+  )
+
+Parana <- Parana_sf %>%
+  mutate(
+     IDADEPAI= as.numeric(IDADEPAI),
+      IDADEMAE= as.numeric(IDADEMAE)   
+  )
+
+  
+```
+
+
+###  Distribuição e Correlação: 
+
+```{r}
+# Loop para realizar o teste Shapiro-Wilk em várias amostras
+for (i in 1:n_amostras) {
+  # Selecionar amostras aleatórias
+  amostra <- Parana %>%
+    sample_n(tamanho_amostra) %>%
+    mutate(
+      IDADEPAI = as.numeric(IDADEPAI),
+      IDADEMAE = as.numeric(IDADEMAE)
+    )
+  
+  # Remover valores NA antes do teste Shapiro-Wilk
+  amostra_pai <- na.omit(amostra$IDADEPAI)
+  amostra_mae <- na.omit(amostra$IDADEMAE)
+  
+  # Teste Shapiro-Wilk para IDADEPAI
+  if (length(amostra_pai) > 2) { # O Shapiro-Wilk requer pelo menos 3 observações
+    sw_pai <- shapiro.test(amostra_pai)$p.value
+    resultados <- resultados %>%
+      add_row(Amostra = i, Variavel = "IDADEPAI", P_Valor = sw_pai)
+  }
+  
+  # Teste Shapiro-Wilk para IDADEMAE
+  if (length(amostra_mae) > 2) { # O Shapiro-Wilk requer pelo menos 3 observações
+    sw_mae <- shapiro.test(amostra_mae)$p.value
+    resultados <- resultados %>%
+      add_row(Amostra = i, Variavel = "IDADEMAE", P_Valor = sw_mae)
+  }
+}
+
+# Calcular a média dos p-valores em notação científica
+media_p_valores <- resultados %>%
+  group_by(Variavel) %>%
+  summarise(Media_P_Valor = mean(P_Valor, na.rm = TRUE), .groups = "drop") %>%
+  mutate(Media_P_Valor = format(Media_P_Valor, scientific = TRUE))
+
+# Exibir os resultados em uma tabela formatada
+media_p_valores %>%
+  kable(
+    caption = "Média dos P-Valores do Teste Shapiro-Wilk em 30 Amostras",
+    col.names = c("Variável", "Média do P-Valor"),
+    format = "markdown"
+  )
+```
+
+
+
+##### Calcula a probabilidade da idade do pai ser ausente de acordo com a idade da mae:
+
+ - Adequa para construção do modelo 
+```{r}
+# Converter HORANASC em segundos do dia
+Parana <- Parana %>%
+  mutate(
+    HORANASC_seconds = hms::as_hms(HORANASC) %>% as.numeric()
+  )
+
+Parana <- Parana %>%
+  mutate(
+    HORANASC_seconds_binned = cut(
+      HORANASC_seconds,
+      breaks = c(0, 21600, 43200, 64800, 86400),  # Midnight to 6AM, 6AM to Noon, etc.
+      labels = c("Madrugada", "Manhã", "Tarde", "Noite"),
+      include.lowest = TRUE
+    )
+  )
+
+
+
+
+
+# Converte para factors
+Parana <- Parana %>%
+  mutate(
+    LOCNASC = as.factor(LOCNASC),
+    ESTCIVMAE = as.factor(ESTCIVMAE),
+    RACACORMAE = as.factor(RACACORMAE),
+    GESTACAO = as.factor(GESTACAO),
+    TPFUNCRESP = as.factor(TPFUNCRESP),
+    CODESTAB = as.factor(CODESTAB),
+    NUMEROLOTE = as.factor(NUMEROLOTE),
+    munResNome = as.factor(munResNome)
+  )
+
+```
+calcular depois o modelo: 
+DTNASC_days + DTCADASTRO_days + DTRECEBIM_days + HORANASC_seconds +
+```{r}
+
+# Ajustar um modelo com todas as variáveis explicativas
+# Ajustar o modelo logístico
+
+# Install and load glmnet for LASSO
+install.packages("glmnet")
+library(glmnet)
+
+# Prepare data for glmnet
+x <- model.matrix(missing ~ 
+                  IDADEMAE + GESTACAO + ESCMAE + LOCNASC + CODESTAB + ESTCIVMAE +
+                  RACACORMAE + DIFDATA + TPFUNCRESP + QTDPARTNOR + QTDPARTCES +
+                  QTDFILVIVO + CODOCUPMAE + NUMEROLOTE + munResNome, data = Parana)[, -1]
+y <- Parana$missing
+
+# Fit LASSO model
+lasso_model <- glmnet(x, y, family = "binomial", alpha = 1)
+
+# Cross-validation for optimal lambda
+cv_lasso <- cv.glmnet(x, y, family = "binomial", alpha = 1)
+optimal_lambda <- cv_lasso$lambda.min
+
+# Extract coefficients at optimal lambda
+coef(cv_lasso, s = "lambda.min")
+
+
+
+
+
+
+
+```
+
+
+
+
+------------------------------------------------------------------------
+
+## 2. Choose an Appropriate Data-Generating Mechanism
+
+-   **Model-Based Simulation**:
+    -   Use a statistical model (e.g., `mvrnorm` in R) to generate data with known properties.
+    -   Example: Generate data with specified means (`mu`) and covariance matrix (`Sigma`).
+-   **Design-Based Simulation**:
+    -   Use real-world data with known characteristics, modifying or imputing it as necessary.
+-   **Hybrid Approach**:
+    -   Combine model-based and design-based techniques to reflect complex real-world data structures.
+
+------------------------------------------------------------------------
+
+## 3. Consider Missingness Mechanisms
+
+-   **Types of Missingness**:
+    -   **MCAR** (Missing Completely At Random): Missingness is unrelated to data values.
+    -   **MAR** (Missing At Random): Missingness depends on observed data.
+    -   **MNAR** (Missing Not At Random): Missingness depends on unobserved values.
+-   **Analysis**:
+    -   Evaluate patterns of missingness (e.g., correlation of missingness with specific variables).
+    -   Document the assumptions underlying the missingness mechanism.
+    
+
+    
+
+------------------------------------------------------------------------
+
+## 4. Validate Relationships in Your Data
+
+-   **Correlation Matrix**:
+    -   Ensure variable correlations match expected relationships.
+
+------------------------------------------------------------------------
+
+## 5. Define Ground Truth Metrics
+
+-   Decide what constitutes the "ground truth":
+    -   True mean or variance of a variable.
+    -   True regression coefficients or causal effects.
+-   Use these metrics for comparison during evaluations.
+
+------------------------------------------------------------------------
+
+## 6. Define the Range of Simulated Scenarios
+
+-   **Missingness Proportions**:
+    -   Simulate different levels of missingness (e.g., 10%, 30%, 50%).
+-   **Patterns of Missingness**:
+    -   Test various missingness patterns (e.g., monotone, block-wise, random).
+-   **Sample Size Variations**:
+    -   Evaluate performance across datasets with varying sample sizes.
+```{r}
+library(missMethods)
+
+# Simulate MCAR (50% missingness in IDADEPAI)
+Parana_mcar <- prodNA(Parana, noNA = 0.5) # Simulates 50% missing values
+
+# Simulate MAR (missingness depends on IDADEMAE)
+Parana_mar <- ampute(Parana, prop = 0.5, mech = "MAR")$amp
+
+# Simulate MNAR (missingness depends on IDADEPAI itself)
+Parana_mnar <- ampute(Parana, prop = 0.5, mech = "MNAR")$amp
+
+
+
+
+
+```
+
+
+
+```{r}
+library(mice)
+
+# Impute missing data using MICE
+imputed_data <- mice(Parana_mcar, m = 5, method = 'pmm', seed = 123)
+
+# Extract completed dataset
+completed_data <- complete(imputed_data)
+
+```
+
+
+------------------------------------------------------------------------
+
+## 7. Evaluate the Generated Data
+
+-   **Compare Generated Data to Original Data**:
+    -   Ensure the generated dataset resembles the original in terms of distribution and relationships.
+-   **Validate Simulated Missingness**:
+    -   Confirm that induced missingness aligns with assumptions (e.g., MCAR or MAR).
+    -   Use visualizations or correlation checks to verify missingness mechanisms.
+
+
+```{r}
+library(Metrics)
+
+# Calculate RMSE for IDADEPAI
+rmse_true_imputed <- rmse(Parana$IDADEPAI, completed_data$IDADEPAI, na.rm = TRUE)
+print(rmse_true_imputed)
+
+```
+
+
+
+------------------------------------------------------------------------
+
+## 8. Document and Reproduce Your Ground Truth Creation Process
+
+-   Record all steps for reproducibility:
+    -   Data generation code and parameters (e.g., means, covariance matrix).
+    -   Missingness mechanisms and patterns.
+-   Transparency ensures consistent evaluation and allows for future replication.
+
+------------------------------------------------------------------------
+
+## Tools and Resources
+
+-   **R Packages**:
+    -   `mice`: For introducing and handling missingness.
+    -   `mvtnorm` or `MASS`: For generating multivariate normal data.
+-   **Guidelines**:
+    -   Follow the **reporting guidelines** in Oberman and Vink’s article (Appendix A.1).
+
+------------------------------------------------------------------------
+
+By following these steps, you ensure that your ground truth provides a robust foundation for evaluating imputation methodologies effectively.
+
+## Exemplo simulação proposta por  Gerkovink e Oberman:
+
+```{r}
+#simulate function
+simulate.mis <- function(true, mech = "MCAR", prop = .5){
+  colnames(true) <- c("Y", "X")
+  incompl <- ampute(true, 
+                    mis.var = 1, 
+                    cov.var = 2, 
+                    prop.mis = prop, 
+                    m.mech = mech)
+  imp <- mice(incompl$data, 
+              method = "norm", 
+              m = 5, 
+              maxit = 1, #missingness is monotone
+              print = FALSE)
+  return(list(imp = imp, 
+              incompl = incompl))
+} 
+
+```
+
+```{r}
+#simulation to demonstrate MCAR being (not) distinct from MAR
+require(MASS)
+require(mice)
+source("functions/Ampute.R")
+source("functions/simulate.R")
+source("functions/pool.finite.R")
+source("functions/evaluate.R")
+
+
+set.seed(12345)
+
+#generate complete data
+compl <- data.frame(mvrnorm(
+  n     = 500,
+  mu    = c(5, 10, 10),
+  Sigma = matrix(c(1, .8, .01,
+                   .8, 1, 0,
+                   .01, 0, 1),
+                 3, 3)
+))
+
+#create empty object to store simulations
+output.MCAR <- list(NA)
+output.MAR1 <- list(NA)
+output.MAR2 <- list(NA)
+
+#start simulations
+nsim = 1000
+pb <- txtProgressBar(min = 0, max = nsim, style = 3)
+for (i in 1:nsim) {
+  output.MCAR[[i]] <-
+    simulate.mis(compl[,-3], "MCAR", .5) #exclude tp conform to 2 dims
+  output.MAR1[[i]] <-
+    simulate.mis(compl[,-3], "MARright", .5) #high correlation
+  output.MAR2[[i]] <-
+    simulate.mis(compl[,-2], "MARright", .5) #low correlation
+  setTxtProgressBar(pb, i)
+}
+close(pb)
+
+#start evaluations
+eval.MCAR <- evaluate(object = output.MCAR, population = compl[, 1])
+eval.MAR1 <- evaluate(object = output.MAR1, population = compl[, 1])
+eval.MAR2 <- evaluate(object = output.MAR2, population = compl[, 1])
+
+#store it all
+save.image("1. Simulate_MCARvMAR.RData")
+
+```
