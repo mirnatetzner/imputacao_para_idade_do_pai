@@ -67,13 +67,15 @@ filter(Sul$munResUf == "Paraná")
 dim(Parana)
 rm(Sul)
 ```
+
 ##### **Relação entre as variáveis**: Identificar as variáveis de interesse e suas relações (e.g., correlação).
+
 ```{r}
 colnames(Parana)
 ```
 
- Avaliando a documentação. Esse trecho visualiza a sessão da DN onde estão presentes as categorias associadas ao preenchimento da DN:
- 
+Avaliando a documentação. Esse trecho visualiza a sessão da DN onde estão presentes as categorias associadas ao preenchimento da DN:
+
 ```{r}
 #Estrutura_SINASC <- read_excel("E:/DOCS SINASC/Estrutura_SINASC_para_CD.xlsx")
 #View(Estrutura_SINASC_para_CD)
@@ -91,19 +93,17 @@ ver = Estrutura_SINASC %>%
 
 ```
 
-
 ```{r}
 Parana = Parana %>% 
   select("CODESTAB","CODMUNNASC","LOCNASC","IDADEMAE","ESTCIVMAE","ESCMAE","CODOCUPMAE", "QTDFILVIVO","QTDFILMORT","CODMUNRES","GESTACAO","GRAVIDEZ","PARTO", "DTNASC","HORANASC","SEXO","RACACOR","RACACORMAE","DTCADASTRO","NUMEROLOTE","DTRECEBIM","DIFDATA","NATURALMAE","CODMUNNATU","ESCMAE2010","SERIESCMAE", "DTNASCMAE" ,"QTDGESTANT","QTDPARTNOR","QTDPARTCES","IDADEPAI","STCESPARTO","CODUFNATU","TPFUNCRESP","TPDOCRESP","DTDECLARAC","munResStatus","munResTipo","munResNome","munResUf","munResLat","munResLon","um","Ano","missing")
 
 ```
 
-
 ```{r}
 glimpse(Parana)
 ```
 
-##### Transforma colunas para os tipos corretos: 
+##### Transforma colunas para os tipos corretos:
 
 ```{r}
 library(lubridate)
@@ -131,7 +131,6 @@ Parana = Parana %>%
     DTRECEBIM =as.Date(DTRECEBIM, format = "%Y-%m-%d"))
 ```
 
-
 ```{r}
 
 library(sf)
@@ -152,8 +151,6 @@ Parana <- st_as_sf(
 )
 
 ```
-
-
 
 ```{r}
 library(knitr)
@@ -176,14 +173,11 @@ kable(custom_summary, caption = "Resumo de Parana")
 
 ```
 
-
-
-
 ```{r}
 library(skimr)
 library(kableExtra)
 
-# resumo_skim_df_original = skim(Parana)
+ resumo_skim_df_original = skim(Parana)
 
 # Salvar a tabela em formato LaTeX
 latex_table <- resumo_skim_df_original %>%
@@ -196,7 +190,9 @@ cat(latex_table, file = "skim_summary.tex")
 resumo_skim_df_original 
 
 ```
- Resumo dos valores ausentes
+
+Resumo dos valores ausentes
+
 ```{r}
 
 naniar::miss_var_summary(Parana,warn_large_data = FALSE) %>%
@@ -205,6 +201,8 @@ naniar::miss_var_summary(Parana,warn_large_data = FALSE) %>%
 
 
 ```
+
+
 #### Filtrar idades do pai e da mãe para o intervalo plausível (retirar valores discrepantes)
 
 ```{r}
@@ -223,8 +221,7 @@ Parana <- Parana_sf %>%
   
 ```
 
-
-###  Distribuição e Correlação: 
+### Distribuição e Correlação:
 
 ```{r}
 # Loop para realizar o teste Shapiro-Wilk em várias amostras
@@ -271,11 +268,10 @@ media_p_valores %>%
   )
 ```
 
-
-
 ##### Calcula a probabilidade da idade do pai ser ausente de acordo com a idade da mae:
 
- - Adequa para construção do modelo 
+-   Adequa para construção do modelo
+
 ```{r}
 # Converter HORANASC em segundos do dia
 Parana <- Parana %>%
@@ -311,8 +307,9 @@ Parana <- Parana %>%
   )
 
 ```
-calcular depois o modelo: 
-DTNASC_days + DTCADASTRO_days + DTRECEBIM_days + HORANASC_seconds +
+
+calcular depois o modelo: DTNASC_days + DTCADASTRO_days + DTRECEBIM_days + HORANASC_seconds +
+
 ```{r}
 
 # Ajustar um modelo com todas as variáveis explicativas
@@ -347,9 +344,6 @@ coef(cv_lasso, s = "lambda.min")
 
 ```
 
-
-
-
 ------------------------------------------------------------------------
 
 ## 2. Choose an Appropriate Data-Generating Mechanism
@@ -373,9 +367,6 @@ coef(cv_lasso, s = "lambda.min")
 -   **Analysis**:
     -   Evaluate patterns of missingness (e.g., correlation of missingness with specific variables).
     -   Document the assumptions underlying the missingness mechanism.
-    
-
-    
 
 ------------------------------------------------------------------------
 
@@ -398,30 +389,34 @@ coef(cv_lasso, s = "lambda.min")
 ## 6. Define the Range of Simulated Scenarios
 
 -   **Missingness Proportions**:
+
     -   Simulate different levels of missingness (e.g., 10%, 30%, 50%).
+
 -   **Patterns of Missingness**:
+
     -   Test various missingness patterns (e.g., monotone, block-wise, random).
+
 -   **Sample Size Variations**:
+
     -   Evaluate performance across datasets with varying sample sizes.
-```{r}
-library(missMethods)
 
-# Simulate MCAR (50% missingness in IDADEPAI)
-Parana_mcar <- prodNA(Parana, noNA = 0.5) # Simulates 50% missing values
+    ```{r}
+    library(missMethods)
 
-# Simulate MAR (missingness depends on IDADEMAE)
-Parana_mar <- ampute(Parana, prop = 0.5, mech = "MAR")$amp
+    # Simulate MCAR (50% missingness in IDADEPAI)
+    Parana_mcar <- prodNA(Parana, noNA = 0.5) # Simulates 50% missing values
 
-# Simulate MNAR (missingness depends on IDADEPAI itself)
-Parana_mnar <- ampute(Parana, prop = 0.5, mech = "MNAR")$amp
+    # Simulate MAR (missingness depends on IDADEMAE)
+    Parana_mar <- ampute(Parana, prop = 0.5, mech = "MAR")$amp
 
-
-
+    # Simulate MNAR (missingness depends on IDADEPAI itself)
+    Parana_mnar <- ampute(Parana, prop = 0.5, mech = "MNAR")$amp
 
 
-```
 
 
+
+    ```
 
 ```{r}
 library(mice)
@@ -434,7 +429,6 @@ completed_data <- complete(imputed_data)
 
 ```
 
-
 ------------------------------------------------------------------------
 
 ## 7. Evaluate the Generated Data
@@ -445,7 +439,6 @@ completed_data <- complete(imputed_data)
     -   Confirm that induced missingness aligns with assumptions (e.g., MCAR or MAR).
     -   Use visualizations or correlation checks to verify missingness mechanisms.
 
-
 ```{r}
 library(Metrics)
 
@@ -454,8 +447,6 @@ rmse_true_imputed <- rmse(Parana$IDADEPAI, completed_data$IDADEPAI, na.rm = TRUE
 print(rmse_true_imputed)
 
 ```
-
-
 
 ------------------------------------------------------------------------
 
@@ -480,7 +471,7 @@ print(rmse_true_imputed)
 
 By following these steps, you ensure that your ground truth provides a robust foundation for evaluating imputation methodologies effectively.
 
-## Exemplo simulação proposta por  Gerkovink e Oberman:
+## Exemplo simulação proposta por Gerkovink e Oberman:
 
 ```{r}
 #simulate function
