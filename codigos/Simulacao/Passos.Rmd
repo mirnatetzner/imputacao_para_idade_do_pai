@@ -261,26 +261,6 @@ naniar::miss_var_summary(Parana,warn_large_data = FALSE) %>%
 #VIM::marginplot(Parana[, c("IDADEPAI", "IDADEMAE")])
 #dev.off()
 
-library(ggplot2)
-library(tidyr)
-
-# Transformar para formato longo
-pai_mae_long <- pai_mae |> 
-  pivot_longer(cols = c(IDADEPAI, IDADEMAE), names_to = "Variável", values_to = "Valor")
-
-# Criar o gráfico e armazená-lo em uma variável
-grafico <- ggplot(pai_mae_long, aes(x = Variável, y = Valor)) +
-  geom_boxplot(outlier.shape = NA, fill = "lightblue", alpha = 0.5) + # Boxplot dos valores
-  geom_jitter(aes(color = is.na(Valor)), alpha = 0.3, width = 0.2) + # Marcar os valores NA
-  scale_color_manual(values = c("TRUE" = "red", "FALSE" = "black"), labels = c("Presente", "Ausente")) +
-  facet_wrap(~Ano) +  # Separar os gráficos por Ano
-  labs(title = "Distribuição de Valores Ausentes de IDADEPAI e IDADEMAE por Ano",
-       x = "Variável", y = "Valor", color = "Status") +
-  theme_minimal()
-
-# Salvar o gráfico em SVG sem exibi-lo
-ggsave(filename = "pai_mae_missingness.svg", plot = grafico, width = 10, height = 6, dpi = 300)
-
 ```
 
 **Interpretação de marginplot()**
