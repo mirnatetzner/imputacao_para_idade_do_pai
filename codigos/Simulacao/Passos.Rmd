@@ -6,16 +6,15 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 
-```
+# Passos para simulação (Oberman, 202x):
 
-
-# Passos para simulação:
+0. Antes, Objetivos da simulação:
+    - Desenho da simulação (incluir pseudo-código ou diagrama de fluxo).
+    - Estabelecer nível de precição necessário. (incluir número de simulações que serão precisas)
 
 1.  Métodos de geração do dado 'real'
-
+    - Fonte dos dados simulados (baseada em modelo ou baseada em design, fonte de variabilidade para indicar incerteza sobre os valores imputados)
 2.  Métodos de geração do missing simulado (MCAR, MAR, NMAR)
 
 3.  Métodos de imputação
@@ -34,7 +33,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 -   **Propriedades estatísticas**: Analisar estatísticas resumo (média, variância, assimetria, etc.) e checar se os dados seguem alguma distribuição de probabilidade conhecida (e.g., normal, exponêncial).
 
-```{r, warnings= FALSE}
+```{r, echo=FALSE , include=FALSE, warnings= FALSE}
+
  # Lista de pacotes necessários
 pacotes <- c(
   "naniar",
@@ -75,22 +75,22 @@ load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame
 ```
 
 ```{r}
-
 Parana = Sul %>% 
 filter(Sul$munResUf == "Paraná")
 dim(Parana)
 rm(Sul)
+gc()
 ```
 
 ##### Relação entre as variáveis: Identificar as variáveis de interesse e suas relações (e.g., correlação).
 
-```{r}
+```{r, eval=FALSE}
 colnames(Parana)
 ```
 
 Avaliando a documentação. Esse trecho visualiza a sessão da DN onde estão presentes as categorias associadas ao preenchimento da DN:
 
-```{r}
+```{r, eval=FALSE}
 #Estrutura_SINASC <- read_excel("E:/DOCS SINASC/Estrutura_SINASC_para_CD.xlsx")
 #View(Estrutura_SINASC_para_CD)
 ver = Estrutura_SINASC %>% 
@@ -100,16 +100,23 @@ ver = Estrutura_SINASC %>%
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 ver = Estrutura_SINASC %>% 
   filter(`Nome do campo no DBF`== "QTDGESTANT") %>% 
   print()
 
 ```
 
-```{r}
+```{r, warning=FALSE}
+library(data.table)
+
+
 Parana = Parana %>% 
-  select("CODESTAB","CODMUNNASC","LOCNASC","IDADEMAE","ESTCIVMAE","ESCMAE","CODOCUPMAE", "QTDFILVIVO","CODMUNRES","GESTACAO","GRAVIDEZ","PARTO", "DTNASC","HORANASC","SEXO","RACACOR","RACACORMAE","NUMEROLOTE","DIFDATA","NATURALMAE","CODMUNNATU","ESCMAE2010","SERIESCMAE", "DTNASCMAE" ,"QTDGESTANT","IDADEPAI","STCESPARTO","CODUFNATU","TPFUNCRESP","TPDOCRESP","DTDECLARAC","munResStatus","munResTipo","munResNome","munResUf","munResLat","munResLon","um","Ano","missing")
+  select("CODESTAB","CODMUNNASC","LOCNASC","IDADEMAE","ESTCIVMAE","ESCMAE","CODOCUPMAE", "QTDFILVIVO","CODMUNRES","GESTACAO","GRAVIDEZ","PARTO", "DTNASC","HORANASC","SEXO","RACACOR","RACACORMAE","NUMEROLOTE","DIFDATA","ESCMAE2010","SERIESCMAE", "DTNASCMAE" ,"QTDGESTANT","IDADEPAI","STCESPARTO","CODUFNATU","TPFUNCRESP","TPDOCRESP","DTDECLARAC","munResStatus","munResTipo","munResNome","munResUf","munResLat","munResLon","um","Ano","missing")
+
+
+setDT(Parana) # transforma em obj data.table
+
 
 ```
 
@@ -128,17 +135,15 @@ Parana <- Parana %>%
      IDADEPAI= as.numeric(IDADEPAI),
       IDADEMAE= as.numeric(IDADEMAE)   
   )
-
-  
 ```
 
-```{r}
+```{r, eval=FALSE}
 glimpse(Parana)
 ```
-
+<!--
 ##### Transforma colunas para os tipos corretos:
-HORA, DATA...
-```{r}
+- HORA, DATA...
+```{r, eval=FALSE}
 library(lubridate)
 library(hms)
 
@@ -163,7 +168,7 @@ Parana = Parana %>%
 ```
 
 Dados geográficos georreferênciados
-```{r}
+```{r, eval=FALSE}
 
 library(sf)
 
@@ -183,11 +188,11 @@ Parana <- st_as_sf(
 )
 
 ```
-
+-->
 ### Pequeno resumo dos dados sem tratamentos:
 
 #### Média das idades do pai e da mãe, assim como quantidade de NAs
-```{r}
+```{r, eval=FALSE}
 library(knitr)
 
 
@@ -206,8 +211,8 @@ kable(custom_summary, caption = "Resumo de Parana")
 
 ```
 
-
-```{r}
+#### Resumo conjunto de dados Parana (pacote skim)
+```{r, resumo_skim_df_original, eval=FALSE}
 library(skimr)
 library(kableExtra)
 
@@ -225,9 +230,20 @@ resumo_skim_df_original
 
 ```
 
-Resumo dos valores ausentes
+#### Cria objeto reduzido, pai, mae, ano, missing
 
 ```{r}
+pai_mae = Parana |> 
+  select(IDADEPAI, IDADEMAE,missing, Ano) |> 
+  group_by(Ano)
+
+```
+
+
+
+#### Resumo dos valores ausentes
+
+```{r, eval=FALSE}
 
 naniar::miss_var_summary(Parana,warn_large_data = FALSE) %>%
   arrange(desc(pct_miss)) %>%
@@ -238,14 +254,32 @@ naniar::miss_var_summary(Parana,warn_large_data = FALSE) %>%
 
 ## Visualizando relações entre duas variáveis e seus dados faltantes 
 (Se houver evidências de relações sistemáticas entre os dados ausentes e os valores observados os dados podem não ser MCAR, e sim MAR.)
-```{r}
-library(VIM)
+```{r, eval=FALSE}
+# library(VIM)
 #Save the plot to a file
 #png("marginplot.png", width = 800, height = 600)
 #VIM::marginplot(Parana[, c("IDADEPAI", "IDADEMAE")])
 #dev.off()
 
+library(ggplot2)
+library(tidyr)
 
+# Transformar para formato longo
+pai_mae_long <- pai_mae |> 
+  pivot_longer(cols = c(IDADEPAI, IDADEMAE), names_to = "Variável", values_to = "Valor")
+
+# Criar o gráfico e armazená-lo em uma variável
+grafico <- ggplot(pai_mae_long, aes(x = Variável, y = Valor)) +
+  geom_boxplot(outlier.shape = NA, fill = "lightblue", alpha = 0.5) + # Boxplot dos valores
+  geom_jitter(aes(color = is.na(Valor)), alpha = 0.3, width = 0.2) + # Marcar os valores NA
+  scale_color_manual(values = c("TRUE" = "red", "FALSE" = "black"), labels = c("Presente", "Ausente")) +
+  facet_wrap(~Ano) +  # Separar os gráficos por Ano
+  labs(title = "Distribuição de Valores Ausentes de IDADEPAI e IDADEMAE por Ano",
+       x = "Variável", y = "Valor", color = "Status") +
+  theme_minimal()
+
+# Salvar o gráfico em SVG sem exibi-lo
+ggsave(filename = "pai_mae_missingness.svg", plot = grafico, width = 10, height = 6, dpi = 300)
 
 ```
 
@@ -257,9 +291,8 @@ Se os pontos vermelhos se agruparem ou se alinharem sistematicamente com os valo
 
  ### Teste MCAR de Little's  
 ```{r}
-
 # Restringir o teste MCAR a variáveis específicas
-resultado_mcar <- naniar::mcar_test(Parana[, c("IDADEMAE", "IDADEPAI")])
+resultado_mcar <- naniar::mcar_test(pai_mae[, c("IDADEMAE", "IDADEPAI")])
 
 # Exibir o resultado
 print(resultado_mcar$p.value)
@@ -273,7 +306,6 @@ Se for menor ou igual a 0.05, rejeita-se a hipótese de MCAR.
 
 
 ### Distribuição e Correlação:
-
 ```{r}
 
 # Definir o tamanho da amostra
@@ -329,10 +361,8 @@ media_p_valores %>%
     format = "markdown"
   )
 ```
-
-
+<!--
 ##### Adequa para construção do modelo
-
 ```{r}
 # Converter HORANASC em segundos do dia
 Parana <- Parana %>%
@@ -350,11 +380,7 @@ Parana <- Parana %>%
     )
   )
 
-
-
-
-
-# Converte para factors
+# Converte para factors para facilitar o processamento
 Parana <- Parana %>%
   mutate(
     LOCNASC = as.factor(LOCNASC),
@@ -370,6 +396,43 @@ Parana <- Parana %>%
 ```
 
 ### Calcula a probabilidade da idade do pai ser ausente de acordo com a idade da mae (e outros preditores):
+
+#### Regressão Logística
+```{r}
+# Carregar os pacotes necessários
+library(tidyr)   # Para manipulação de dados aninhados (nest, unnest)
+library(purrr)   # Para aplicar funções de forma funcional (map)
+library(broom)   # Para extrair estatísticas de modelos de regressão
+
+# Criar um modelo GLM para prever a ausência (missing) de IDADEPAI baseado em IDADEMAE por Ano
+pai_mae_glm <- Parana |> 
+  select(IDADEPAI, IDADEMAE, missing, Ano) |>  # Selecionar apenas as variáveis relevantes
+  group_by(Ano) |>  # Agrupar os dados por Ano
+  nest() |>  # Transformar os dados de cada ano em uma lista separada (um "mini data frame" por ano)
+  
+  mutate(
+    # Criar um modelo GLM (regressão logística) para cada Ano
+    glm_model = map(data, ~glm(missing ~ IDADEMAE, 
+                               family = binomial, data = .x)), 
+    
+    # Extrair os coeficientes do modelo de cada ano usando a função `tidy()` do pacote `broom`
+    glm_summary = map(glm_model, tidy)
+  ) |> 
+
+  # Selecionar apenas o Ano e o resumo do modelo (coeficientes)
+  select(Ano, glm_summary) |> 
+
+  # Expandir os coeficientes para que cada linha represente um coeficiente do modelo de cada ano
+  unnest(glm_summary)
+
+# Exibir os resultados
+print(pai_mae_glm)
+
+```
+
+-->
+<!-- 
+
 
 **regularização LASSO**
 
@@ -398,9 +461,8 @@ Parana_clean <- Parana %>%
 
 # Criar a matriz de preditores com linhas limpas
 x <- model.matrix(missing ~ 
-                  IDADEMAE + HORANASC_seconds_binned, 
-                  data = Parana_clean)[, -1]
-y <- Parana_clean$missing
+                  IDADEMAE, data = Parana)[, -1]
+y <- Parana$missing
 
 
 # Prepare data for glmnet
@@ -434,9 +496,567 @@ Um valor de p significativo (por exemplo, <0,05) sugere que a probabilidade de I
 *O sinal do coeficiente:*
 Um coeficiente positivo significa que IDADEMAE mais alto aumenta a probabilidade de falta.
 Um coeficiente negativo significa que IDADEMAE mais alto diminui a probabilidade de falta.
-
+ -->
 
 ------------------------------------------------------------------------
+
+# Código para gerar os dados:
+
+##### A princípio, os dados reais representam melhor a distribuição dos dados
+Ao gerar dados sintéticos com distribuições definidas (rtruncnorm(), rnorm(), etc.), esses dados podem não refletir a variabilidade presente nos dados reais.
+O conjunto Parana já possui padrões reais de dispersão e correlação entre IDADEPAI, IDADEMAE e outras variáveis
+
+```{r, codigos_para_gerar_os_dados}
+# Definindo a semente para reprodutibilidade
+set.seed(123)
+
+library(truncnorm)
+
+dados <- pai_mae |> 
+  filter(!is.na(IDADEMAE))   # Remover casos onde IDADEMAE é NA, pois será usado como referência
+
+
+#create.data <- function(beta = 1, sigma2 = 1, n = 50, run = 1) {
+#  set.seed(seed = 123)
+#  x <- ceiling(rtruncnorm(n, a=12, b=45, mean=20, sd=10))
+#  y <- ceiling(rtruncnorm(n, a=12, b=85, mean=40, sd=25))
+#  data.frame(Idade_Mae = x, Idade_Pai = y)
+#}
+
+#dados <- create.data(n=100)
+
+```
+
+### Função para gerar dados MAR (Missing at Random)
+```{r,func_para_gerar_dados_MAR}
+gerar_mar <- function(dados, porcentagem) {
+  # Ordenando os dados pela Idade da Mãe (MAR depende dela)
+  dados_ordenados <- dados[order(dados$IDADEMAE), ]
+  
+  # Calculando o número de observações a serem removidas
+  n_remover <- floor(nrow(dados_ordenados) * porcentagem)
+  
+  # Removendo os menores valores da Idade do Pai
+  dados_ordenados$IDADEPAI[1:n_remover] <- NA
+  
+  return(dados_ordenados)
+}
+```
+
+### Função para gerar dados NMAR (Not Missing at Random)
+
+```{r,func_para_gerar_dados_NMAR}
+gerar_nmar <- function(dados, porcentagem) {
+  # Ordenando os dados pela Idade do Pai (NMAR depende dele)
+  dados_ordenados <- dados[order(dados$IDADEPAI), ]
+  
+  # Calculando o número de observações a serem removidas
+  n_remover <- floor(nrow(dados_ordenados) * porcentagem)
+  
+  # Removendo os maiores valores da Idade do Pai
+  dados_ordenados$IDADEPAI[(nrow(dados_ordenados) - n_remover + 1):nrow(dados_ordenados)] <- NA
+  
+  return(dados_ordenados)
+}
+```
+
+
+### Função para gerar dados MCAR (Missing Completely at Random)
+```{r,func_para_gerar_dados_MCAR}
+gerar_mcar <- function(dados, porcentagem) {
+  # Copiando os dados para evitar modificar o original
+  dados_mcar <- dados
+  
+  # Calculando o número de observações a serem removidas
+  n_remover <- floor(nrow(dados_mcar) * porcentagem)
+  
+  # Selecionando aleatoriamente índices para remover
+  indices_remover <- sample(1:nrow(dados_mcar), n_remover)
+  
+  # Removendo os valores da Idade do Pai nos índices selecionados
+  dados_mcar$IDADEPAI[indices_remover] <- NA
+  
+  return(dados_mcar)
+}
+
+
+```
+
+### **Aplicando as funções de simulação**
+
+ **Proporções de dados ausentes para cada mecanismo**
+
+```{r}
+porcentagens <- c(0.2, 0.4, 0.6, 0.8)
+```
+
+### Gerar dados MAR
+```{r, gerar_mar}
+resultados_mar <- setNames(lapply(porcentagens, function(p) gerar_mar(dados, p)), 
+                           paste0("MAR_", porcentagens * 100))
+```
+
+### Gerar dados NMAR
+```{r, gerar_nmar}
+resultados_nmar <- setNames(lapply(porcentagens, function(p) gerar_nmar(dados, p)), 
+                            paste0("NMAR_", porcentagens * 100))
+```
+
+### Gerar dados MCAR
+```{r, gerar_mcar}
+resultados_mcar <- setNames(lapply(porcentagens, function(p) gerar_mcar(dados, p)), 
+                            paste0("MCAR_", porcentagens * 100))
+```
+
+## Resumo da Distribuição e Correlação por Nível de Missingness
+
+```{r}
+library(dplyr)
+library(knitr)
+
+# Função para calcular estatísticas descritivas e correlação
+calcular_resumo <- function(df, tipo) {
+  # Garantir que não há erros ao calcular estatísticas com NA
+  df <- df %>% filter(!is.na(IDADEPAI) & !is.na(IDADEMAE))
+
+  # Estatísticas descritivas
+  resumo <- df %>%
+    summarise(
+      Media_IDADEPAI = mean(IDADEPAI, na.rm = TRUE),
+      Mediana_IDADEPAI = median(IDADEPAI, na.rm = TRUE),
+      DP_IDADEPAI = sd(IDADEPAI, na.rm = TRUE),
+      Media_IDADEMAE = mean(IDADEMAE, na.rm = TRUE),
+      Mediana_IDADEMAE = median(IDADEMAE, na.rm = TRUE),
+      DP_IDADEMAE = sd(IDADEMAE, na.rm = TRUE),
+      Correlacao = cor(IDADEPAI, IDADEMAE, use = "pairwise.complete.obs") # Correlação entre as variáveis
+    )
+
+  # Adicionar tipo de missingness e proporção
+  resumo <- resumo %>%
+    mutate(
+      Tipo = tipo
+    )
+
+  return(resumo)
+}
+
+# Criar lista para armazenar resultados
+resumo_resultados <- list()
+
+# Iterar sobre cada conjunto de dados para MAR, MCAR e NMAR
+for (nome in names(resultados_mar)) {
+  resumo_resultados[[nome]] <- calcular_resumo(resultados_mar[[nome]], tipo = "MAR")
+}
+
+for (nome in names(resultados_mcar)) {
+  resumo_resultados[[nome]] <- calcular_resumo(resultados_mcar[[nome]], tipo = "MCAR")
+}
+
+for (nome in names(resultados_nmar)) {
+  resumo_resultados[[nome]] <- calcular_resumo(resultados_nmar[[nome]], tipo = "NMAR")
+}
+
+# Converter a lista em um único data.frame
+tabela_resumo <- bind_rows(resumo_resultados, .id = "Proporcao")
+
+# Exibir tabela formatada
+kable(tabela_resumo, caption = "Resumo da Distribuição e Correlação dos Dados por Tipo e Proporção de Missingness")
+
+```
+## Gráfico de Densidade Comparativo
+
+Esse gráfico mostra como a distribuição da IDADEPAI muda conforme a proporção de missingness cresce dentro de um mesmo ano.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Escolher um ano específico (exemplo: 2015)
+ano_escolhido <- 2015
+
+# Criar um dataframe combinando diferentes níveis de missingness (MAR, MCAR, NMAR)
+dados_combinados <- bind_rows(
+  resultados_mar$MAR_20 |> mutate(Tipo = "MAR", Proporcao = "20%"),
+  resultados_mar$MAR_40 |> mutate(Tipo = "MAR", Proporcao = "40%"),
+  resultados_mar$MAR_60 |> mutate(Tipo = "MAR", Proporcao = "60%"),
+  resultados_mar$MAR_80 |> mutate(Tipo = "MAR", Proporcao = "80%"),
+  resultados_mcar$MCAR_20 |> mutate(Tipo = "MCAR", Proporcao = "20%"),
+  resultados_mcar$MCAR_40 |> mutate(Tipo = "MCAR", Proporcao = "40%"),
+  resultados_mcar$MCAR_60 |> mutate(Tipo = "MCAR", Proporcao = "60%"),
+  resultados_mcar$MCAR_80 |> mutate(Tipo = "MCAR", Proporcao = "80%"),
+  resultados_nmar$NMAR_20 |> mutate(Tipo = "NMAR", Proporcao = "20%"),
+  resultados_nmar$NMAR_40 |> mutate(Tipo = "NMAR", Proporcao = "40%"),
+  resultados_nmar$NMAR_60 |> mutate(Tipo = "NMAR", Proporcao = "60%"),
+  resultados_nmar$NMAR_80 |> mutate(Tipo = "NMAR", Proporcao = "80%")
+) |> filter(Ano == ano_escolhido)  # Filtra para o ano escolhido
+
+# Plotar distribuições de densidade
+ggplot(dados_combinados, aes(x = IDADEPAI, fill = Proporcao)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~ Tipo) +  # Separa os gráficos por mecanismo de missing
+  labs(title = paste("Distribuição da Idade do Pai por Proporção de Missing - Ano", ano_escolhido),
+       x = "Idade do Pai",
+       y = "Densidade",
+       fill = "Proporção de Missing") +
+  theme_minimal()
+
+```
+
+
+## Boxplots dos dados com mecanismos de missing simulados
+
+Os boxplots mostram mediana, quartis e outliers para IDADEPAI em diferentes proporções de missing dentro do mesmo ano.
+
+```{r}
+ggplot(dados_combinados, aes(x = Proporcao, y = IDADEPAI, fill = Tipo)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = paste("Boxplots da Idade do Pai por Tipo e Proporção de Missing - Ano", ano_escolhido),
+       x = "Proporção de Missing",
+       y = "Idade do Pai",
+       fill = "Mecanismo") +
+  theme_minimal()
+
+```
+
+
+```{r}
+ggplot(dados_combinados, aes(x = IDADEPAI, fill = Proporcao)) +
+  geom_histogram(alpha = 0.6, bins = 20, position = "identity") +
+  facet_wrap(~ Tipo) +
+  labs(title = paste("Distribuição de Idade do Pai por Tipo de Missing - Ano", ano_escolhido),
+       x = "Idade do Pai",
+       y = "Frequência",
+       fill = "Proporção de Missing") +
+  theme_minimal()
+
+```
+
+
+
+
+
+```{r}
+library(mice)
+imputacoes <- mice(resultados_mar$MAR_20, method = "pmm", m = 5)
+dados_imputados <- complete(imputacoes)
+
+```
+
+```{r, simulações_MAR_com_dif_prop miss}
+# Definindo a semente para reprodutibilidade
+set.seed(123)
+
+# Instalando e carregando os pacotes necessários
+# install.packages("truncnorm")
+# install.packages("dplyr")
+# install.packages("knitr")
+library(truncnorm)
+library(dplyr)
+library(knitr)
+
+# Função para criar dados com Idade da Mãe e Idade do Pai -- Aqui vc pode colocar os dados do PARANÁ
+create.data <- function(n = 50) {
+  x <- ceiling(rtruncnorm(n, a=12, b=45, mean=20, sd=10))  # Idade da Mãe
+  y <- ceiling(rtruncnorm(n, a=12, b=85, mean=40, sd=25))  # Idade do Pai
+  data.frame(Idade_Mae = x, Idade_Pai = y)
+}
+
+# Função para gerar dados MAR com percentual de missing
+gerar_mar <- function(dados, porcentagem) {
+  dados_ordenados <- dados %>% arrange(Idade_Mae)
+  n_remover <- floor(nrow(dados_ordenados) * porcentagem)
+  dados_ordenados$Idade_Pai[1:n_remover] <- NA
+  return(dados_ordenados)
+}
+
+# Função para imputar pela média
+imputar_media <- function(dados) {
+  media_idade_pai <- mean(dados$Idade_Pai, na.rm = TRUE)  # Calcula a média ignorando NAs
+  dados$Idade_Pai[is.na(dados$Idade_Pai)] <- media_idade_pai  # Imputa a média nos NAs
+  return(dados)
+}
+
+# Percentuais de missing a serem testados
+percentuais_missing <- c(0.2, 0.4, 0.6, 0.8)
+n_simulacoes <- 500
+
+# Tabela para armazenar os resultados
+resultados_tabela <- tibble(
+  Percentual_Missing = numeric(),
+  Media_Idade_Pai_Imputada = numeric(),
+  Media_RB = numeric(),
+  Media_RMSE = numeric()
+)
+
+# Simulação para cada percentual de missing
+for (porcentagem in percentuais_missing) {
+  
+  medias_idades_imputadas <- numeric(n_simulacoes)  # Vetor para armazenar as médias
+  todas_idades_pai <- numeric(n_simulacoes)          # Vetor para armazenar as idades do pai originais
+  
+  for (i in seq_len(n_simulacoes)) {
+    dados <- create.data(n = 100)         # Cria os dados
+    dados_mar <- gerar_mar(dados, porcentagem)          # Gera dados MAR com o percentual de missing atual
+    dados_imputados <- imputar_media(dados_mar) # Imputa pela média
+    
+    medias_idades_imputadas[i] <- mean(dados_imputados$Idade_Pai) # Armazena a média das idades do pai imputadas
+    todas_idades_pai[i] <- mean(dados$Idade_Pai)                 # Armazena a média das idades do pai originais
+  }
+  
+  # Resultado final para o percentual atual: média das idades do pai imputadas em cada dado
+  media_final <- mean(medias_idades_imputadas)
+  
+  # Resultados das métricas médias
+  mean_rb <- mean(medias_idades_imputadas - todas_idades_pai)   # Viés Bruto médio
+  mean_rmse <- sqrt(mean((medias_idades_imputadas - todas_idades_pai)^2)) # RMSE
+
+  # Armazenando os resultados na tabela usando dplyr
+  resultados_tabela <- resultados_tabela %>%
+    add_row(
+      Percentual_Missing = porcentagem * 100,
+      Media_Idade_Pai_Imputada = media_final,
+      Media_RB = mean_rb,
+      Media_RMSE = mean_rmse
+    )
+}
+
+# Exibindo a tabela final com os resultados usando kable
+resultados_tabela %>%
+  kable(caption = "Resultados da Simulação de Dados com Missingness")
+
+```
+
+```{r, Para_MCAR}
+set.seed(123)
+
+# Instalando e carregando os pacotes necessários
+# install.packages("truncnorm")
+# install.packages("dplyr")
+# install.packages("knitr")
+library(truncnorm)
+library(dplyr)
+library(knitr)
+
+# Função para criar dados com Idade da Mãe e Idade do Pai
+create.data <- function(n = 50) {
+  x <- ceiling(rtruncnorm(n, a=12, b=45, mean=20, sd=10))  # Idade da Mãe
+  y <- ceiling(rtruncnorm(n, a=12, b=85, mean=40, sd=25))  # Idade do Pai
+  data.frame(Idade_Mae = x, Idade_Pai = y)
+}
+
+# Função para gerar dados MCAR com percentual de missing
+gerar_mcar <- function(dados, porcentagem) {
+  n_remover <- floor(nrow(dados) * porcentagem)
+  indices_remover <- sample(1:nrow(dados), n_remover)  # Seleciona aleatoriamente os índices a serem removidos
+  dados$Idade_Pai[indices_remover] <- NA  # Remove os valores da Idade do Pai nos índices selecionados
+  return(dados)
+}
+
+# Função para imputar pela média
+imputar_media <- function(dados) {
+  media_idade_pai <- mean(dados$Idade_Pai, na.rm = TRUE)  # Calcula a média ignorando NAs
+  dados$Idade_Pai[is.na(dados$Idade_Pai)] <- media_idade_pai  # Imputa a média nos NAs
+  return(dados)
+}
+
+# Percentuais de missing a serem testados
+percentuais_missing <- c(0, 0.2, 0.4, 0.6, 0.8)
+n_simulacoes <- 500
+
+# Tabela para armazenar os resultados
+resultados_tabela <- tibble(
+  Percentual_Missing = numeric(),
+  Media_Idade_Pai_Imputada = numeric(),
+  Media_RB = numeric(),
+  Media_RMSE = numeric()
+)
+
+# Simulação para cada percentual de missing
+for (porcentagem in percentuais_missing) {
+  
+  medias_idades_imputadas <- numeric(n_simulacoes)  # Vetor para armazenar as médias
+  todas_idades_pai <- numeric(n_simulacoes)          # Vetor para armazenar as idades do pai originais
+  
+  for (i in seq_len(n_simulacoes)) {
+    dados <- create.data(n = 100)         # Cria os dados
+    dados_mcar <- gerar_mcar(dados, porcentagem)          # Gera dados MCAR com o percentual de missing atual
+    dados_imputados <- imputar_media(dados_mcar) # Imputa pela média
+    
+    medias_idades_imputadas[i] <- mean(dados_imputados$Idade_Pai) # Armazena a média das idades do pai imputadas
+    todas_idades_pai[i] <- mean(dados$Idade_Pai)                 # Armazena a média das idades do pai originais
+  }
+  
+  # Resultado final para o percentual atual: média das idades do pai imputadas em cada dado
+  media_final <- mean(medias_idades_imputadas)
+  
+  # Resultados das métricas médias
+  mean_rb <- mean(medias_idades_imputadas - todas_idades_pai)   # Viés Bruto médio
+  mean_rmse <- sqrt(mean((medias_idades_imputadas - todas_idades_pai)^2)) # RMSE
+
+  # Armazenando os resultados na tabela usando dplyr
+  resultados_tabela <- resultados_tabela %>%
+    add_row(
+      Percentual_Missing = porcentagem * 100,
+      Media_Idade_Pai_Imputada = media_final,
+      Media_RB = mean_rb,
+      Media_RMSE = mean_rmse
+    )
+}
+
+# Exibindo a tabela final com os resultados usando kable
+resultados_tabela %>%
+  kable(caption = "Resultados da Simulação de Dados com Missingness (MCAR)")
+
+```
+
+```{r, Para_NMAR}
+# Definindo a semente para reprodutibilidade
+set.seed(123)
+
+# Instalando e carregando os pacotes necessários
+# install.packages("truncnorm")
+# install.packages("dplyr")
+# install.packages("knitr")
+library(truncnorm)
+library(dplyr)
+library(knitr)
+
+# Função para criar dados com Idade da Mãe e Idade do Pai
+create.data <- function(n = 50) {
+  x <- ceiling(rtruncnorm(n, a=12, b=45, mean=20, sd=10))  # Idade da Mãe
+  y <- ceiling(rtruncnorm(n, a=12, b=85, mean=40, sd=25))  # Idade do Pai
+  data.frame(Idade_Mae = x, Idade_Pai = y)
+}
+
+# Função para gerar dados NMAR com percentual de missing
+gerar_nmar <- function(dados, porcentagem) {
+  dados_ordenados <- dados %>% arrange(Idade_Pai)  # Ordena pela Idade do Pai
+  n_remover <- floor(nrow(dados_ordenados) * porcentagem)
+  dados_ordenados$Idade_Pai[(nrow(dados_ordenados) - n_remover + 1):nrow(dados_ordenados)] <- NA  # Remove os maiores valores
+  return(dados_ordenados)
+}
+
+# Função para imputar pela média
+imputar_media <- function(dados) {
+  media_idade_pai <- mean(dados$Idade_Pai, na.rm = TRUE)  # Calcula a média ignorando NAs
+  dados$Idade_Pai[is.na(dados$Idade_Pai)] <- media_idade_pai  # Imputa a média nos NAs
+  return(dados)
+}
+
+# Percentuais de missing a serem testados
+percentuais_missing <- c(0.2, 0.4, 0.6, 0.8)
+n_simulacoes <- 500
+
+# Tabela para armazenar os resultados
+resultados_tabela <- tibble(
+  Percentual_Missing = numeric(),
+  Media_Idade_Pai_Imputada = numeric(),
+  Media_RB = numeric(),
+  Media_RMSE = numeric()
+)
+
+# Simulação para cada percentual de missing
+for (porcentagem in percentuais_missing) {
+  
+  medias_idades_imputadas <- numeric(n_simulacoes)  # Vetor para armazenar as médias
+  todas_idades_pai <- numeric(n_simulacoes)          # Vetor para armazenar as idades do pai originais
+  
+  for (i in seq_len(n_simulacoes)) {
+    dados <- create.data(n = 100)         # Cria os dados
+    dados_nmar <- gerar_nmar(dados, porcentagem)          # Gera dados NMAR com o percentual de missing atual
+    dados_imputados <- imputar_media(dados_nmar) # Imputa pela média
+    
+    medias_idades_imputadas[i] <- mean(dados_imputados$Idade_Pai) # Armazena a média das idades do pai imputadas
+    todas_idades_pai[i] <- mean(dados$Idade_Pai)                 # Armazena a média das idades do pai originais
+  }
+  
+  # Resultado final para o percentual atual: média das idades do pai imputadas em cada dado
+  media_final <- mean(medias_idades_imputadas)
+  
+  # Resultados das métricas médias
+  mean_rb <- mean(medias_idades_imputadas - todas_idades_pai)   # Viés Bruto médio
+  mean_rmse <- sqrt(mean((medias_idades_imputadas - todas_idades_pai)^2)) # RMSE
+
+  # Armazenando os resultados na tabela usando dplyr
+  resultados_tabela <- resultados_tabela %>%
+    add_row(
+      Percentual_Missing = porcentagem * 100,
+      Media_Idade_Pai_Imputada = media_final,
+      Media_RB = mean_rb,
+      Media_RMSE = mean_rmse
+    )
+}
+
+# Exibindo a tabela final com os resultados usando kable
+resultados_tabela %>%
+  kable(caption = "Resultados da Simulação de Dados com Missingness (NMAR)")
+
+```
+
+# Fluxograma do Processo de Simulação
+
+```{r}
+
+# Instalar pacotes se necessário
+# install.packages("DiagrammeR")
+
+library(DiagrammeR)
+
+grViz("
+digraph process {
+  graph [layout = dot, rankdir = TB]
+
+  node [shape = rectangle, style = filled, fillcolor = lightblue]
+
+  inicio [label = 'Início', shape = ellipse, fillcolor = lightgray]
+  definir_semente [label = 'Definir Semente para Reprodutibilidade']
+  criar_dados [label = 'Criar Dados (Idade da Mãe e do Pai)']
+  loop_missing [label = 'Para Cada Percentual de Dados Faltantes']
+  
+  simulacao [label = 'Simulação - Repetir Processo']
+  gerar_faltantes [label = 'Gerar Dados Faltantes']
+  imputacao [label = 'Imputação de Dados']
+  calcular_metricas [label = 'Calcular Métricas (Média, RB, RMSE)']
+  
+  armazenar_resultados [label = 'Armazenar Resultados']
+  exibir_resultados [label = 'Exibir Tabela de Resultados']
+  fim [label = 'Fim', shape = ellipse, fillcolor = lightgray]
+
+  inicio -> definir_semente
+  definir_semente -> criar_dados
+  criar_dados -> loop_missing
+  loop_missing -> simulacao
+  simulacao -> gerar_faltantes
+  gerar_faltantes -> imputacao
+  imputacao -> calcular_metricas
+  calcular_metricas -> armazenar_resultados
+  armazenar_resultados -> exibir_resultados
+  exibir_resultados -> fim
+}
+")
+
+```
+
+
+## **Explicação do Fluxograma**
+1. **Início**: Define-se a semente para garantir reprodutibilidade.
+2. **Criar Dados**: Gera-se um conjunto de dados completos contendo `Idade da Mãe` e `Idade do Pai`.
+3. **Loop Percentual de Missing**: Para cada percentual de valores ausentes (ex.: 20%, 40%, 60%, 80%), repete-se a simulação.
+4. **Simulação**: Para cada iteração da simulação:
+   - **Gerar Dados Faltantes**:
+     - **MCAR** (Remover aleatoriamente).
+     - **MAR** (Ordenar por idade da mãe e remover sistematicamente).
+     - **NMAR** (Ordenar por idade do pai e remover sistematicamente).
+   - **Imputação**: Aplicação de métodos de imputação para preencher os dados ausentes.
+   - **Cálculo de Métricas**: Avaliação do viés médio (`RB`) e erro quadrático médio (`RMSE`).
+5. **Armazenar Resultados**: Salva-se os resultados de cada simulação em um banco de dados.
+6. **Exibir Resultados**: Geração de tabela com os valores médios de RB e RMSE.
+7. **Fim**: O processo se encerra.
+
+Isso permitirá avaliar qual técnica de imputação é mais eficiente sob diferentes padrões de missingness.
+
+
+
 
 ## 2. Escolha um Mecanismo Adequado para Gerar Dados
 
