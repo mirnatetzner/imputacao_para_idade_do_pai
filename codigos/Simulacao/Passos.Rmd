@@ -33,7 +33,7 @@ output: html_document
 
 -   **Propriedades estatísticas**: Analisar estatísticas resumo (média, variância, assimetria, etc.) e checar se os dados seguem alguma distribuição de probabilidade conhecida (e.g., normal, exponêncial).
 
-```{r, echo=FALSE , include=FALSE, warnings= FALSE}
+```{r, echo=TRUE, include= FALSE, warnings= FALSE}
 
  # Lista de pacotes necessários
 pacotes <- c(
@@ -67,20 +67,24 @@ options(scipen = 999)
 options(OutDec = ",")
 
 ```
-
-```{r}
+<!--
+```{r, eval=FALSE}
 
 load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
-
-```
-
-```{r}
 Parana = Sul %>% 
-filter(Sul$munResUf == "Paraná")
+filter(munResUf == "Paraná")
 dim(Parana)
 rm(Sul)
+library(data.table)
+setDT(Parana) # transforma em obj data.table
 gc()
+
 ```
+-->
+```{r}
+load("E:/2-nao_subi_git20241101/Parana.RData")
+```
+
 
 ##### Relação entre as variáveis: Identificar as variáveis de interesse e suas relações (e.g., correlação).
 
@@ -108,15 +112,8 @@ ver = Estrutura_SINASC %>%
 ```
 
 ```{r, warning=FALSE}
-library(data.table)
-
-
 Parana = Parana %>% 
   select("CODESTAB","CODMUNNASC","LOCNASC","IDADEMAE","ESTCIVMAE","ESCMAE","CODOCUPMAE", "QTDFILVIVO","CODMUNRES","GESTACAO","GRAVIDEZ","PARTO", "DTNASC","HORANASC","SEXO","RACACOR","RACACORMAE","NUMEROLOTE","DIFDATA","ESCMAE2010","SERIESCMAE", "DTNASCMAE" ,"QTDGESTANT","IDADEPAI","STCESPARTO","CODUFNATU","TPFUNCRESP","TPDOCRESP","DTDECLARAC","munResStatus","munResTipo","munResNome","munResUf","munResLat","munResLon","um","Ano","missing")
-
-
-setDT(Parana) # transforma em obj data.table
-
 
 ```
 
@@ -140,6 +137,7 @@ Parana <- Parana %>%
 ```{r, eval=FALSE}
 glimpse(Parana)
 ```
+
 <!--
 ##### Transforma colunas para os tipos corretos:
 - HORA, DATA...
@@ -192,7 +190,7 @@ Parana <- st_as_sf(
 ### Pequeno resumo dos dados sem tratamentos:
 
 #### Média das idades do pai e da mãe, assim como quantidade de NAs
-```{r, eval=FALSE}
+```{r}
 library(knitr)
 
 
@@ -212,7 +210,7 @@ kable(custom_summary, caption = "Resumo de Parana")
 ```
 
 #### Resumo conjunto de dados Parana (pacote skim)
-```{r, resumo_skim_df_original, eval=FALSE}
+```{r, resumo_skim_df_original}
 library(skimr)
 library(kableExtra)
 
@@ -236,11 +234,11 @@ resumo_skim_df_original
 pai_mae = Parana |> 
   select(IDADEPAI, IDADEMAE,missing, Ano) |> 
   group_by(Ano)
-
+gc()
 ```
 
 
-
+<!--
 #### Resumo dos valores ausentes
 
 ```{r, eval=FALSE}
@@ -262,6 +260,7 @@ naniar::miss_var_summary(Parana,warn_large_data = FALSE) %>%
 #dev.off()
 
 ```
+-->
 
 **Interpretação de marginplot()**
 *Pontos Azuis:* Casos onde são observados tanto IDADEPAI quanto IDADEMAE.
@@ -283,10 +282,10 @@ print(resultado_mcar$p.value)
 **Resultados:**
 Se o p-valor for maior que 0.05, os dados para essas variáveis são considerados MCAR.
 Se for menor ou igual a 0.05, rejeita-se a hipótese de MCAR.
-
+<!--
 
 ### Distribuição e Correlação:
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 # Definir o tamanho da amostra
 tamanho_amostra <- 5000  # Ajuste conforme necessário
@@ -301,7 +300,7 @@ resultados <- tibble(Amostra = integer(), Variavel = character(), P_Valor = nume
 # Loop para realizar o teste Shapiro-Wilk em várias amostras
 for (i in 1:n_amostras) {
   # Selecionar amostras aleatórias
-  amostra <- Parana %>%
+  amostra <- pai_mae %>%
     sample_n(tamanho_amostra) %>%
     mutate(
       IDADEPAI = as.numeric(IDADEPAI),
@@ -341,9 +340,9 @@ media_p_valores %>%
     format = "markdown"
   )
 ```
-<!--
+
 ##### Adequa para construção do modelo
-```{r}
+```{r, eval=FALSE, include=FALSE}
 # Converter HORANASC em segundos do dia
 Parana <- Parana %>%
   mutate(
@@ -378,7 +377,7 @@ Parana <- Parana %>%
 ### Calcula a probabilidade da idade do pai ser ausente de acordo com a idade da mae (e outros preditores):
 
 #### Regressão Logística
-```{r}
+```{r, eval=FALSE, include=FALSE}
 # Carregar os pacotes necessários
 library(tidyr)   # Para manipulação de dados aninhados (nest, unnest)
 library(purrr)   # Para aplicar funções de forma funcional (map)
@@ -427,7 +426,7 @@ Multicolinearidade:
 O LASSO lida com a multicolinearidade penalizando preditores correlacionados e escolhendo entre eles.
 
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 # Ajustar o modelo logístico
 
@@ -645,14 +644,14 @@ kable(tabela_resumo, caption = "Resumo da Distribuição e Correlação dos Dado
 ```
 ## Gráfico de Densidade Comparativo
 
-Esse gráfico mostra como a distribuição da IDADEPAI muda conforme a proporção de missingness cresce dentro de um mesmo ano.
-
+#### Esse gráfico mostra como a distribuição da IDADEPAI muda conforme a proporção de missingness cresce dentro de um mesmo ano.
+ Escolher um ano específico para exemplo
 ```{r}
 library(ggplot2)
 library(dplyr)
 
-# Escolher um ano específico (exemplo: 2015)
-ano_escolhido <- 2015
+
+ano_escolhido <- 2022
 
 # Criar um dataframe combinando diferentes níveis de missingness (MAR, MCAR, NMAR)
 dados_combinados <- bind_rows(
@@ -713,16 +712,184 @@ ggplot(dados_combinados, aes(x = IDADEPAI, fill = Proporcao)) +
 
 
 
+# IMPUTAÇÃO POR ANO USANDO PMM DO PACOTE MICE
+# testar: mice(df, method = c("pmm", "cart", "rf"), m = 5)
+    pmm → Predictive Mean Matching
+    cart → Árvores de decisão
+    norm → Regressão normal
+    rf → Random Forest (se os dados forem grandes)
 
 
-```{r}
-library(mice)
-imputacoes <- mice(resultados_mar$MAR_20, method = "pmm", m = 5)
-dados_imputados <- complete(imputacoes)
+
+<!--
+  ```{r, eval=FALSE,include=FALSE}
+IM_pmm_ano_metricas <- function(dataset_original, dataset_imputado, nome_dataset) {
+  if (!is.data.frame(dataset_original) || !is.data.frame(dataset_imputado)) {
+    stop("Erro: Ambos os datasets precisam ser data.frames")
+  }
+  
+  if (!"Ano" %in% colnames(dataset_original) || !"Ano" %in% colnames(dataset_imputado)) {
+    stop("Erro: A coluna 'Ano' não está presente em um dos datasets.")
+  }
+  
+  if (!"IDADEPAI" %in% colnames(dataset_original) || !"IDADEPAI" %in% colnames(dataset_imputado)) {
+    stop("Erro: A coluna 'IDADEPAI' não está presente em um dos datasets.")
+  }
+  
+  dataset_original_split <- split(dataset_original, dataset_original$Ano)
+  dataset_imputado_split <- split(dataset_imputado, dataset_imputado$Ano)
+  
+  # faz processamento paralelo, garante que a comparacao seja feita para o mesmo ano
+  metricas_por_ano <- future_lapply(names(dataset_original_split), function(ano) {
+    df_original <- dataset_original_split[[ano]]
+    df_imputado <- dataset_imputado_split[[ano]]
+    
+    # Filtrar apenas os casos onde IDADEPAI estava ausente antes da imputação
+    dados_com_imputacao <- df_original %>% filter(is.na(IDADEPAI))
+    
+    if (nrow(dados_com_imputacao) == 0) {
+      return(data.frame(Ano = ano, Dataset = nome_dataset, RSME = NA, DiferencaMedia = NA))
+    }
+    
+    # Pegando os valores imputados correspondentes aos ausentes antes da imputação
+    valores_imputados <- df_imputado$IDADEPAI[is.na(df_original$IDADEPAI)]
+    valores_originais <- dados_com_imputacao$IDADEPAI
+    
+    # DEPURAÇÃO: Verificar se há valores válidos
+    print(paste("Ano:", ano, "- Originais:", length(valores_originais), "Imputados:", length(valores_imputados)))
+    
+    # Evitar erro: Verificar se existem valores antes de calcular RMSE
+    if (length(valores_imputados) == 0 || length(valores_originais) == 0 || all(is.na(valores_imputados))) {
+      return(data.frame(Ano = ano, Dataset = nome_dataset, RSME = NA, DiferencaMedia = NA))
+    }
+    
+    # Agora calculamos o RMSE corretamente
+    rmse <- sqrt(mean((valores_imputados - valores_originais)^2, na.rm = TRUE))
+    
+    # Calcular diferença da média
+    media_original <- mean(df_original$IDADEPAI, na.rm = TRUE)
+    media_imputada <- mean(df_imputado$IDADEPAI, na.rm = TRUE)
+    diferenca_media <- media_imputada - media_original
+    
+    return(data.frame(Ano = ano, Dataset = nome_dataset, RSME = rmse, DiferencaMedia = diferenca_media))
+  }, future.seed = TRUE)
+  
+  bind_rows(metricas_por_ano)
+}
+
 
 ```
 
-```{r, simulações_MAR_com_dif_prop miss}
+
+# Aplicar a função aos datasets MAR, MCAR e NMAR
+
+```{r, echo=FALSE, include=FALSE}
+
+#resultados_mar_imputados <- IM_pmm_ano(resultados_mar)
+# resultados_mar_imputados = as.data.table(resultados_mar_imputados)
+
+```
+
+```{r,include=FALSE, echo=FALSE}
+#resultados_mcar_imputados <- IM_pmm_ano(resultados_mcar)
+#resultados_mcar_imputados = as.data.table(resultados_mcar_imputados)
+
+```
+
+
+
+
+```{r,include=FALSE, echo=FALSE}
+#resultados_nmar_imputados <- IM_pmm_ano(resultados_nmar)
+#resultados_nmar_imputados = as.data.table(resultados_nmar_imputados)
+
+```
+
+
+## Avaliação
+
+```{r, eval =FALSE, include=FALSE}
+library(dplyr)
+library(future.apply)
+library(Metrics)
+library(knitr)
+
+# Definir paralelismo
+plan(multisession)  # Usa múltiplos núcleos
+
+# Função para calcular métricas de erro (RMSE, MAE, Correlação)
+calcular_metricas_imputacao <- function(original, imputado) {
+  
+  # Selecionar apenas os valores que estavam ausentes
+  df_comparacao <- original %>%
+    filter(is.na(IDADEPAI)) %>%
+    mutate(IDADEPAI_imputado = imputado$IDADEPAI[is.na(original$IDADEPAI)])
+  
+  # Cálculo das métricas
+  rmse_value <- rmse(df_comparacao$IDADEPAI, df_comparacao$IDADEPAI_imputado)
+  mae_value <- mae(df_comparacao$IDADEPAI, df_comparacao$IDADEPAI_imputado)
+  correlacao <- cor(df_comparacao$IDADEPAI, df_comparacao$IDADEPAI_imputado, use = "pairwise.complete.obs")
+  
+  # Retornar os resultados como data frame
+  return(data.frame(RMSE = rmse_value, MAE = mae_value, Correlacao = correlacao))
+}
+
+# Criar uma lista com todos os datasets imputados
+datasets_imputados <- list(
+  MAR = resultados_mar_imputados,
+  MCAR = resultados_mcar_imputados,
+  NMAR = resultados_nmar_imputados
+)
+
+# Aplicar a avaliação paralelamente para cada conjunto de imputação
+metricas_resultados <- future_lapply(names(datasets_imputados), function(tipo) {
+  
+  imputados <- datasets_imputados[[tipo]]
+  
+  metricas_tipo <- lapply(names(imputados), function(nome) {
+    original <- resultados[[nome]]  # Pegar o dataset original correspondente
+    imputado <- imputados[[nome]]
+    
+    metricas <- calcular_metricas_imputacao(original, imputado)
+    metricas$Tipo <- tipo
+    metricas$Proporcao <- nome
+    
+    return(metricas)
+  })
+  
+  return(bind_rows(metricas_tipo))
+})
+
+# Retornar ao modo sequencial
+plan(sequential)
+
+# Transformar lista em data.frame final
+tabela_metricas <- bind_rows(metricas_resultados)
+
+# Exibir tabela formatada
+kable(tabela_metricas, caption = "Métricas de Erro para Diferentes Métodos de Imputação")
+
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+library(kableExtra)
+
+# Criar a tabela LaTeX formatada
+tabela_latex <- tabela_metricas %>%
+  kable("latex", booktabs = TRUE, caption = "Métricas de Erro para Diferentes Métodos de Imputação") %>%
+  kable_styling(latex_options = c("hold_position", "striped"))
+
+# Exportar a tabela para um arquivo .tex
+cat(tabela_latex, file = "metricas_imputacao.tex")
+
+```
+
+-->
+  
+  
+  <!--
+  ```{r, simulações_MAR_com_dif_prop miss, eval=FALSE, include=FALSE}
 # Definindo a semente para reprodutibilidade
 set.seed(123)
 
@@ -789,7 +956,7 @@ for (porcentagem in percentuais_missing) {
   # Resultados das métricas médias
   mean_rb <- mean(medias_idades_imputadas - todas_idades_pai)   # Viés Bruto médio
   mean_rmse <- sqrt(mean((medias_idades_imputadas - todas_idades_pai)^2)) # RMSE
-
+  
   # Armazenando os resultados na tabela usando dplyr
   resultados_tabela <- resultados_tabela %>%
     add_row(
@@ -806,7 +973,7 @@ resultados_tabela %>%
 
 ```
 
-```{r, Para_MCAR}
+```{r, Para_MCAR, eval=FALSE, include=FALSE}
 set.seed(123)
 
 # Instalando e carregando os pacotes necessários
@@ -872,7 +1039,7 @@ for (porcentagem in percentuais_missing) {
   # Resultados das métricas médias
   mean_rb <- mean(medias_idades_imputadas - todas_idades_pai)   # Viés Bruto médio
   mean_rmse <- sqrt(mean((medias_idades_imputadas - todas_idades_pai)^2)) # RMSE
-
+  
   # Armazenando os resultados na tabela usando dplyr
   resultados_tabela <- resultados_tabela %>%
     add_row(
@@ -889,7 +1056,7 @@ resultados_tabela %>%
 
 ```
 
-```{r, Para_NMAR}
+```{r, Para_NMAR, eval=FALSE, include=FALSE}
 # Definindo a semente para reprodutibilidade
 set.seed(123)
 
@@ -956,7 +1123,7 @@ for (porcentagem in percentuais_missing) {
   # Resultados das métricas médias
   mean_rb <- mean(medias_idades_imputadas - todas_idades_pai)   # Viés Bruto médio
   mean_rmse <- sqrt(mean((medias_idades_imputadas - todas_idades_pai)^2)) # RMSE
-
+  
   # Armazenando os resultados na tabela usando dplyr
   resultados_tabela <- resultados_tabela %>%
     add_row(
@@ -973,13 +1140,10 @@ resultados_tabela %>%
 
 ```
 
-# Fluxograma do Processo de Simulação
 
-```{r}
+## Fluxograma do Processo de Simulação
 
-# Instalar pacotes se necessário
-# install.packages("DiagrammeR")
-
+```{r, eval=FALSE, include=FALSE}
 library(DiagrammeR)
 
 grViz("
@@ -989,8 +1153,7 @@ digraph process {
   node [shape = rectangle, style = filled, fillcolor = lightblue]
 
   inicio [label = 'Início', shape = ellipse, fillcolor = lightgray]
-  definir_semente [label = 'Definir Semente para Reprodutibilidade']
-  criar_dados [label = 'Criar Dados (Idade da Mãe e do Pai)']
+  dados_completos [label = 'Dados_completos (Idade da Mãe e do Pai)']
   loop_missing [label = 'Para Cada Percentual de Dados Faltantes']
   
   simulacao [label = 'Simulação - Repetir Processo']
@@ -1017,18 +1180,17 @@ digraph process {
 
 ```
 
-
-## **Explicação do Fluxograma**
-1. **Início**: Define-se a semente para garantir reprodutibilidade.
-2. **Criar Dados**: Gera-se um conjunto de dados completos contendo `Idade da Mãe` e `Idade do Pai`.
+-->
+  ## **Explicação do Fluxograma**
+  1. **Início**: Dados completos como dados originais, contendo `Idade da Mãe` e `Idade do Pai`.
 3. **Loop Percentual de Missing**: Para cada percentual de valores ausentes (ex.: 20%, 40%, 60%, 80%), repete-se a simulação.
 4. **Simulação**: Para cada iteração da simulação:
-   - **Gerar Dados Faltantes**:
-     - **MCAR** (Remover aleatoriamente).
-     - **MAR** (Ordenar por idade da mãe e remover sistematicamente).
-     - **NMAR** (Ordenar por idade do pai e remover sistematicamente).
-   - **Imputação**: Aplicação de métodos de imputação para preencher os dados ausentes.
-   - **Cálculo de Métricas**: Avaliação do viés médio (`RB`) e erro quadrático médio (`RMSE`).
+  - **Gerar Dados Faltantes**:
+  - **MCAR** (Remover aleatoriamente).
+- **MAR** (Ordenar por idade da mãe e remover sistematicamente).
+- **NMAR** (Ordenar por idade do pai e remover sistematicamente).
+- **Imputação**: Aplicação de métodos de imputação para preencher os dados ausentes.
+- **Cálculo de Métricas**: Avaliação do viés médio (`RB`) e erro quadrático médio (`RMSE`).
 5. **Armazenar Resultados**: Salva-se os resultados de cada simulação em um banco de dados.
 6. **Exibir Resultados**: Geração de tabela com os valores médios de RB e RMSE.
 7. **Fim**: O processo se encerra.
@@ -1038,14 +1200,8 @@ Isso permitirá avaliar qual técnica de imputação é mais eficiente sob difer
 
 
 
-## 2. Escolha um Mecanismo Adequado para Gerar Dados
-
--   **Simulação Baseada em Modelo**:
-    -   Utilize um modelo estatístico (por exemplo, mvrnorm no R) para gerar dados com propriedades conhecidas.
-      Exemplo: Gerar dados com médias específicas (mu) e uma matriz de covariância (Sigma).
-
-
-```{r}
+<!--
+  ```{r, eval=FALSE, include=FALSE}
 library(MASS)
 library(mice)
 library(Metrics)
@@ -1142,47 +1298,48 @@ write.csv(final_results, "simulation_results.csv", row.names = FALSE)
 
 
 ```
-
-## 4. Validar Relacionamentos nos Dados
-
--   **Matriz de Correlação**:
-    -   Garantir que as correlações entre as variáveis correspondam aos relacionamentos esperados.
-
-------------------------------------------------------------------------
-
-## 5. Definir Métricas de Verdade Fundamental
-
--   Decidir o que constitui a "verdade fundamental":
-    -   Definir a média ou variância verdadeira de uma variável.
-    -   Determinar os coeficientes de regressão ou efeitos causais verdadeiros.
+-->
+  <!--
+  ## 4. Validar Relacionamentos nos Dados
+  
+  -   **Matriz de Correlação**:
+  -   Garantir que as correlações entre as variáveis correspondam aos relacionamentos esperados.
+-->
+  ------------------------------------------------------------------------
+  
+  ## 5. Definir Métricas de Verdade Fundamental
+  
+  -   Decidir o que constitui a "verdade fundamental":
+  -   Definir a média ou variância verdadeira de uma variável.
+-   Determinar os coeficientes de regressão ou efeitos causais verdadeiros.
 -   Utilizar essas métricas como base para comparações durante as avaliações.
 
 ------------------------------------------------------------------------
-
-## 6. Definir o Intervalo de Cenários Simulados
-
--   **Proporções de Dados Ausentes**:
-    -   Simular diferentes níveis de ausência de dados (ex.: 10%, 30%, 50%).
+  
+  ## 6. Definir o Intervalo de Cenários Simulados
+  
+  -   **Proporções de Dados Ausentes**:
+  -   Simular diferentes níveis de ausência de dados (ex.: 10%, 30%, 50%).
 
 -   **Padrões de Ausência de Dados**:
-    -   Testar diversos padrões de ausência (ex.: monotônico, por blocos, aleatório).
+  -   Testar diversos padrões de ausência (ex.: monotônico, por blocos, aleatório).
 
 -   **Variações no Tamanho da Amostra**:
-    -   Avaliar o desempenho em conjuntos de dados com diferentes tamanhos de amostra.
+  -   Avaliar o desempenho em conjuntos de dados com diferentes tamanhos de amostra.
 
 
 ------------------------------------------------------------------------
-
-## 7. Avaliar os Dados Gerados
-
--   **Comparar os Dados Gerados com os Dados Originais**:
-    -   Garantir que o conjunto de dados gerado se assemelhe ao original em termos de distribuição e relacionamentos.
+  
+  ## 7. Avaliar os Dados Gerados
+  
+  -   **Comparar os Dados Gerados com os Dados Originais**:
+  -   Garantir que o conjunto de dados gerado se assemelhe ao original em termos de distribuição e relacionamentos.
 -   **Validar a Simulação de Dados Ausentes**:
-    -   Confirmar que os dados ausentes induzidos estejam alinhados com as suposições (ex.: MCAR ou MAR).
-    -   Utilizar visualizações ou verificações de correlação para validar os mecanismos de ausência de dados.
+  -   Confirmar que os dados ausentes induzidos estejam alinhados com as suposições (ex.: MCAR ou MAR).
+-   Utilizar visualizações ou verificações de correlação para validar os mecanismos de ausência de dados.
 
 
-```{r}
+```{r, , eval=FALSE, include=FALSE}
 library(Metrics)
 
 # Calculate RMSE for IDADEPAI
@@ -1192,116 +1349,16 @@ print(rmse_true_imputed)
 ```
 
 ------------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
-## 8. Documentar e Reproduzir o Processo de Criação da Verdade Fundamental
-
--   Registrar todos os passos para garantir a reprodutibilidade:
-    -   Documentar o código de geração de dados e os parâmetros utilizados (ex.: médias, matriz de covariância).
-    -   Registrar os mecanismos e padrões de ausência de dados.
--   Garantir a transparência para permitir avaliações consistentes e futuras replicações.
-
-------------------------------------------------------------------------
-
-## Ferramentas e Recursos
-
--   **Pacotes em R**:
-    -   `mice`: Para introduzir e lidar com dados ausentes.
-    -   `mvtnorm` ou `MASS`: Para gerar dados normais multivariados.
--   **Diretrizes**:
-    -   Seguir as **diretrizes de relato** descritas no artigo de Oberman e Vink (Apêndice A.1).
-
-------------------------------------------------------------------------
-
-Seguir essas etapas garante que a verdade fundamental ofereça uma base robusta para avaliar metodologias de imputação de forma eficaz.
-
-
-## Exemplo simulação proposta por Gerkovink e Oberman:
-
-```{r}
-#simulate function
-simulate.mis <- function(true, mech = "MCAR", prop = .5){
-  colnames(true) <- c("Y", "X")
-  incompl <- ampute(true, 
-                    mis.var = 1, 
-                    cov.var = 2, 
-                    prop.mis = prop, 
-                    m.mech = mech)
-  imp <- mice(incompl$data, 
-              method = "norm", 
-              m = 5, 
-              maxit = 1, #missingness is monotone
-              print = FALSE)
-  return(list(imp = imp, 
-              incompl = incompl))
-} 
-
-```
-
-```{r}
-#simulation to demonstrate MCAR being (not) distinct from MAR
-require(MASS)
-require(mice)
-source("functions/Ampute.R")
-source("functions/simulate.R")
-source("functions/pool.finite.R")
-source("functions/evaluate.R")
-
-
-set.seed(12345)
-
-#generate complete data
-compl <- data.frame(mvrnorm(
-  n     = 500,
-  mu    = c(5, 10, 10),
-  Sigma = matrix(c(1, .8, .01,
-                   .8, 1, 0,
-                   .01, 0, 1),
-                 3, 3)
-))
-
-#create empty object to store simulations
-output.MCAR <- list(NA)
-output.MAR1 <- list(NA)
-output.MAR2 <- list(NA)
-
-#start simulations
-nsim = 1000
-pb <- txtProgressBar(min = 0, max = nsim, style = 3)
-for (i in 1:nsim) {
-  output.MCAR[[i]] <-
-    simulate.mis(compl[,-3], "MCAR", .5) #exclude tp conform to 2 dims
-  output.MAR1[[i]] <-
-    simulate.mis(compl[,-3], "MARright", .5) #high correlation
-  output.MAR2[[i]] <-
-    simulate.mis(compl[,-2], "MARright", .5) #low correlation
-  setTxtProgressBar(pb, i)
-}
-close(pb)
-
-#start evaluations
-eval.MCAR <- evaluate(object = output.MCAR, population = compl[, 1])
-eval.MAR1 <- evaluate(object = output.MAR1, population = compl[, 1])
-eval.MAR2 <- evaluate(object = output.MAR2, population = compl[, 1])
-
-#store it all
-save.image("1. Simulate_MCARvMAR.RData")
-
-```
+  
+  ## 8. Documentar e Reproduzir o Processo de Criação da Verdade Fundamental
+  
+  - Registrar todos os passos para garantir a reprodutibilidade:
+  - Documentar o código de geração de dados e os parâmetros utilizados (ex.: médias, matriz de covariância).
+- Registrar os mecanismos e padrões de ausência de dados.
+- Garantir a transparência para permitir avaliações consistentes e futuras replicações.
 
 
 
-# Simula MAR 
 
-```{r}
-simulated_data <- ampute(Parana, prop = 0.3, mech = "MAR")
 
-```
 
-# Visualiza padrões de missing em dados simulados
-
-```{r}
-md.pattern(simulated_data$amp)
-
-```
