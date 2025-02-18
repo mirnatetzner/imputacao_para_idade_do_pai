@@ -48,27 +48,32 @@ glimpse(Parana)
 
 #------------------
 Parana_select <- Parana %>%
-  select(IDADEMAE, IDADEPAI, missing, Ano, RACACORMAE, HORANASC, PARTO, CODMUNRES, CODESTAB, LOCNASC, 
-         ESCMAE,ESCMAEAGR1,CODOCUPMAE,DTNASC,HORANASC,DIFDATA,ESTCIVMAE, DTNASCMAE, munResTipo, munResNome, 
+  select(IDADEMAE, IDADEPAI, missing, Ano, RACACORMAE, HORANASC, PARTO, CODMUNRES, 
+         CODESTAB, LOCNASC, ESCMAE,DTNASC,HORANASC,DIFDATA,ESTCIVMAE,  munResTipo, munResNome, 
          TPFUNCRESP, DTDECLARAC, PARTO) %>%
                  filter(Ano == 2022)
 glimpse(Parana_select)
+rm(Sul, Parana)
 
 # Preparar os dados
 
 df <- Parana_select
 
-vis_miss(df)  # Visualização gráfica dos NAs
-
+df_sample <- df %>% slice_sample(n = 1000)  # Pega uma amostra de 1000 linhas
+vis_miss(df_sample) # Visualização gráfica dos NAs
+rm(df_sample)
 
 # Definir o limite de NAs permitidos (10% do total de linhas)
-limite_na <- 0.10 * nrow(df)
+# limite_na <- 0.01 * nrow(df)
 
 # Identificar colunas que excedem esse limite, mas mantendo "idade_do_pai"
-colunas_para_remover <- names(df)[colSums(is.na(df)) > limite_na & names(df) != "IDADEPAI"]
-
+# colunas_para_remover <- names(df)[colSums(is.na(df)) > limite_na & names(df) != "IDADEPAI"]
+# dim(df)
 # Remover as colunas identificadas
-df <- df[, !(names(df) %in% colunas_para_remover)]
+# df <- df[, !(names(df) %in% colunas_para_remover)]
+
+### mudei de ideia pq poderia gerar muita diferença entre os estados, das colunas selecionadas
+
 
 # Verificar o resultado
 str(df)
@@ -76,9 +81,45 @@ str(df)
 # seleciona apenas os casos completos (em que não há NAs em todas as variáveis)
 df <- df[complete.cases(df), ]
 
-vis_miss(df)  # Visualização gráfica dos NAs
 
-# Agora a base apresenta está com todos os casos completos. Essa será a população de referência para os dados imputados. 
+df <- df %>%
+  select(-c(Ano)) %>% 
+  mutate(
+    HORANASC = as.character(HORANASC), 
+    periodo = case_when(
+      as.numeric(substr(HORANASC, 1, 2)) >= 0 & as.numeric(substr(HORANASC, 1, 2)) <= 5 ~ "Madrugada",
+      as.numeric(substr(HORANASC, 1, 2)) >= 6 & as.numeric(substr(HORANASC, 1, 2)) <= 11 ~ "Manhã",
+      as.numeric(substr(HORANASC, 1, 2)) >= 12 & as.numeric(substr(HORANASC, 1, 2)) <= 17 ~ "Tarde",
+      as.numeric(substr(HORANASC, 1, 2)) >= 18 & as.numeric(substr(HORANASC, 1, 2)) <= 23 ~ "Noite",
+      TRUE ~ "Desconhecido"
+    )
+  ) %>% 
+  mutate(
+    IDADEMAE = as.integer(IDADEMAE),
+    IDADEPAI = as.integer(IDADEPAI),
+    missing = missing != 0,
+    HORANASC = as.factor(HORANASC),
+    PARTO = as.factor(PARTO),
+    LOCNASC = as.factor(LOCNASC),
+    ESCMAE = as.factor(ESCMAE),
+    ESTCIVMAE = as.factor(ESTCIVMAE),
+    munResTipo = as.factor(munResTipo),
+    munResNome = as.factor(munResNome), 
+    CODMUNRES = as.factor(CODMUNRES),
+    CODESTAB = as.factor(CODESTAB),
+    DIFDATA =  as.integer(DIFDATA),
+    DTNASC = as.Date(DTNASC),
+    DTDECLARAC = as.Date(DTDECLARAC),
+    RACACORMAE = as.factor(RACACORMAE),
+    TPFUNCRESP = as.factor(TPFUNCRESP)
+  )
+
+str(df)
+rm(Parana_select)
+gc()
+# Agora a base apresenta está com todos os casos completos. 
+# Essa será a população de referência para os dados imputados. 
+
 
 # calculando a média das idades dos pais, o parâmetro de interesse
 parametro_populacional_media = mean(df$IDADEPAI)   
@@ -87,7 +128,6 @@ parametro_populacional_media = mean(df$IDADEPAI)
 desvio_padrao_parametro_populacional_media  = sd(df$IDADEPAI) 
 
 
-library(data.table)
 
 # Função para criar cenários de ausência de dados
 simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "MCAR") {
@@ -151,9 +191,27 @@ calcular_metricas <- function(verdadeiro, imputado) {
 avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 10) {
   resultado <- list()
   
+  # Registrar o início do processo
+  tempo_inicio <- Sys.time()
+  
+  total_iteracoes <- length(proporcoes_missing) * length(mecanismos_missing) * N
+  iteracao_atual <- 0
+  
   for (prop_missing in proporcoes_missing) {
     for (mecanismo in mecanismos_missing) {
       for (iter in 1:N) {
+        iteracao_atual <- iteracao_atual + 1
+        
+        # Exibir progresso
+        tempo_atual <- Sys.time()
+        tempo_decorrido <- difftime(tempo_atual, tempo_inicio, units = "secs")
+        tempo_estimado_restante <- (tempo_decorrido / iteracao_atual) * (total_iteracoes - iteracao_atual)
+        
+        progresso <- round((iteracao_atual / total_iteracoes) * 100, 2)
+        tempo_estimado_restante_minutos <- round(tempo_estimado_restante / 60, 2)
+        
+        cat(sprintf("Progresso: %.2f%% - Tempo estimado restante: %.2f minutos\n", progresso, tempo_estimado_restante_minutos))
+        
         set.seed(iter)  # Garante que cada repetição tenha um sorteio fixo, mas diferente
         
         # Gerar base com dados ausentes
@@ -169,17 +227,17 @@ avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 1
         df_cc <- df_missing[complete.cases(df_missing)]
         metricas_lista$casos_completos <- calcular_metricas(verdadeiro, df_cc$IDADEPAI)
         
-        ## 2. Imputação por Predictive Mean Matching (PMM) - Menos exigente
+        ## 2. Imputação por Predictive Mean Matching (PMM)
         imp_pmm <- mice(df_missing, method = "pmm", m = 5, maxit = 5, seed = 123)
         imputado_pmm <- complete(imp_pmm)$IDADEPAI
         metricas_lista$pmm <- calcular_metricas(verdadeiro, imputado_pmm)
         
-        ## 3. Imputação por regressão linear (norm.predict) - Muito leve
+        ## 3. Imputação por regressão linear (norm.predict)
         imp_reg <- mice(df_missing, method = "norm.predict", m = 5, maxit = 5, seed = 123)
         imputado_reg <- complete(imp_reg)$IDADEPAI
         metricas_lista$regressao <- calcular_metricas(verdadeiro, imputado_reg)
         
-        # Armazena os resultados e remove objetos intermediários
+        # Armazenar os resultados
         resultado[[paste0("prop", prop_missing, "_", mecanismo, "_iter", iter)]] <- rbindlist(metricas_lista, idcol = "metodo")
         rm(df_missing, df_cc, imp_pmm, imputado_pmm, imp_reg, imputado_reg)
         gc() # Liberar memória
@@ -195,7 +253,7 @@ proporcoes_missing <- c(0.1, 0.2, 0.3)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
 
 # Executar avaliação com N repetições por cenário
-resultado <- avaliar_imputacoes(populacao_completa, proporcoes_missing, mecanismos_missing, N = 10)
+resultado <- avaliar_imputacoes(populacao_completa, proporcoes_missing, mecanismos_missing, N = 2)
 
 # Visualizar resultados
 print(resultado)
