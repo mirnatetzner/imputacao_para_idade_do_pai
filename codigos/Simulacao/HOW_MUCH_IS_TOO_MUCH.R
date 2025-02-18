@@ -25,68 +25,40 @@
     # MAE
     # MAPE
 
-
-# --------------------------------------------
-
+# ---------------
 library(data.table)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(readxl)
 library(truncnorm)
-library(readxl)
 library(naniar)
 library(mice)
 
-
+# Carregar dados
 load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
 
 Parana = Sul %>% 
-filter(Sul$munResUf == "Paraná")
+  filter(Sul$munResUf == "Paraná")
 dim(Parana)
 glimpse(Parana)
 
-#------------------
+# Preparar os dados
 Parana_select <- Parana %>%
   select(IDADEMAE, IDADEPAI, missing, Ano, RACACORMAE, HORANASC, PARTO, CODMUNRES, 
-         CODESTAB, LOCNASC, ESCMAE,DTNASC,HORANASC,DIFDATA,ESTCIVMAE,  munResTipo, munResNome, 
+         CODESTAB, ESCMAE,DTNASC,HORANASC,ESTCIVMAE,                  #DIFDATA
          TPFUNCRESP, DTDECLARAC, PARTO) %>%
-                 filter(Ano == 2022)
+  filter(Ano == 2022)
 glimpse(Parana_select)
 rm(Sul, Parana)
 
-# Preparar os dados
-
+# Limpeza e transformação de dados
 df <- Parana_select
-
-df_sample <- df %>% slice_sample(n = 1000)  # Pega uma amostra de 1000 linhas
-vis_miss(df_sample) # Visualização gráfica dos NAs
-rm(df_sample)
-
-# Definir o limite de NAs permitidos (10% do total de linhas)
-# limite_na <- 0.01 * nrow(df)
-
-# Identificar colunas que excedem esse limite, mas mantendo "idade_do_pai"
-# colunas_para_remover <- names(df)[colSums(is.na(df)) > limite_na & names(df) != "IDADEPAI"]
-# dim(df)
-# Remover as colunas identificadas
-# df <- df[, !(names(df) %in% colunas_para_remover)]
-
-### mudei de ideia pq poderia gerar muita diferença entre os estados, das colunas selecionadas
-
-
-# Verificar o resultado
-str(df)
-
-# seleciona apenas os casos completos (em que não há NAs em todas as variáveis)
-df <- df[complete.cases(df), ]
-
-
 df <- df %>%
   select(-c(Ano)) %>% 
   mutate(
     HORANASC = as.character(HORANASC), 
-    periodo = case_when(
+    periodo_do_dia = case_when(
       as.numeric(substr(HORANASC, 1, 2)) >= 0 & as.numeric(substr(HORANASC, 1, 2)) <= 5 ~ "Madrugada",
       as.numeric(substr(HORANASC, 1, 2)) >= 6 & as.numeric(substr(HORANASC, 1, 2)) <= 11 ~ "Manhã",
       as.numeric(substr(HORANASC, 1, 2)) >= 12 & as.numeric(substr(HORANASC, 1, 2)) <= 17 ~ "Tarde",
@@ -98,102 +70,61 @@ df <- df %>%
     IDADEMAE = as.integer(IDADEMAE),
     IDADEPAI = as.integer(IDADEPAI),
     missing = missing != 0,
-    HORANASC = as.factor(HORANASC),
     PARTO = as.factor(PARTO),
-    LOCNASC = as.factor(LOCNASC),
     ESCMAE = as.factor(ESCMAE),
     ESTCIVMAE = as.factor(ESTCIVMAE),
-    munResTipo = as.factor(munResTipo),
-    munResNome = as.factor(munResNome), 
     CODMUNRES = as.factor(CODMUNRES),
     CODESTAB = as.factor(CODESTAB),
-    DIFDATA =  as.integer(DIFDATA),
     DTNASC = as.Date(DTNASC),
     DTDECLARAC = as.Date(DTDECLARAC),
     RACACORMAE = as.factor(RACACORMAE),
     TPFUNCRESP = as.factor(TPFUNCRESP)
-  )
+  ) %>% 
+  select(-HORANASC)
 
-str(df)
-rm(Parana_select)
-gc()
-# Agora a base apresenta está com todos os casos completos. 
-# Essa será a população de referência para os dados imputados. 
+# População completa
+populacao_completa <- as.data.table(df)
 
-
-# calculando a média das idades dos pais, o parâmetro de interesse
-parametro_populacional_media = mean(df$IDADEPAI)   
-
-# calculando o desvio padrão das idades dos pais
-desvio_padrao_parametro_populacional_media  = sd(df$IDADEPAI) 
-
-
+# Parâmetro de interesse (média da idade do pai)
+parametro_populacional_media = mean(df$IDADEPAI, na.rm = TRUE)
 
 # Função para criar cenários de ausência de dados
 simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "MCAR") {
-  
-  # Copiar a base original
   dt_simulado <- copy(dt)
-  
-  # Número total de linhas
   n <- nrow(dt_simulado)
-  
-  # Número de valores ausentes desejados
   n_missing <- floor(proporcao_missing * n)
-
-  if (mecanismo_missing == "MCAR") {
-    # MCAR: Escolhe aleatoriamente as linhas para tornar IDADEPAI ausente
-    missing_positions <- sample(1:n, n_missing)
-    
-  } else if (mecanismo_missing == "MAR") {
-    # MAR: Probabilidade de ausência aumenta conforme IDADEMAE diminui
-    # Feito através de um score probabilístico usando a regressão logística
-
-    dt_simulado[, prob_missing := 1 / (1 + exp(0.3 * (IDADEMAE - mean(IDADEMAE, na.rm = TRUE))))]
-    
-    # Sorteamos os valores ausentes com base nas probabilidades
-    missing_positions <- sample(1:n, n_missing, prob = dt_simulado$prob_missing)
-    
-    # Removemos a variável auxiliar
-    dt_simulado[, prob_missing := NULL]
   
-  } else if (mecanismo_missing == "MNAR") {
-    # MNAR: Maior chance de ausência para IDADEPAI < 30
-    dt_simulado[, prob_missing := ifelse(IDADEPAI < 30, 0.8, 0.2)]
-    
+  if (mecanismo_missing == "MCAR") {
+    missing_positions <- sample(1:n, n_missing)
+  } else if (mecanismo_missing == "MAR") {
+    dt_simulado[, prob_missing := 1 / (1 + exp(0.3 * (IDADEMAE - mean(IDADEMAE, na.rm = TRUE))))]
     missing_positions <- sample(1:n, n_missing, prob = dt_simulado$prob_missing)
-    
+    dt_simulado[, prob_missing := NULL]
+  } else if (mecanismo_missing == "MNAR") {
+    dt_simulado[, prob_missing := ifelse(IDADEPAI < 30, 0.8, 0.2)]
+    missing_positions <- sample(1:n, n_missing, prob = dt_simulado$prob_missing)
     dt_simulado[, prob_missing := NULL]
   }
   
-  # Aplicar os valores ausentes nas posições selecionadas
   dt_simulado[missing_positions, IDADEPAI := NA]
-  
   return(dt_simulado)
 }
 
-# Definir a base original como data.table
-populacao_completa <- as.data.table(df)
-
-
 # Função para calcular métricas de avaliação
-calcular_metricas <- function(verdadeiro, imputado) {
-  rmse <- sqrt(mean((verdadeiro - imputado)^2, na.rm = TRUE))
-  rb <- mean(imputado, na.rm = TRUE) / mean(verdadeiro) - 1
-  pb <- mean(imputado - verdadeiro, na.rm = TRUE) / sd(verdadeiro)
-  mae <- mean(abs(verdadeiro - imputado), na.rm = TRUE)
-  mape <- mean(abs((verdadeiro - imputado) / verdadeiro), na.rm = TRUE) * 100
+calcular_metricas_media <- function(media_verdadeira, media_imputada) {
+  rmse <- sqrt((media_imputada - media_verdadeira)^2)
+  rb <- media_imputada / media_verdadeira - 1
+  pb <- (media_imputada - media_verdadeira) / sd(populacao_completa$IDADEPAI)
+  mae <- abs(media_imputada - media_verdadeira)
+  mape <- abs((media_imputada - media_verdadeira) / media_verdadeira) * 100
   
   return(data.table(RMSE = rmse, RB = rb, PB = pb, MAE = mae, MAPE = mape))
 }
 
-# Função principal que itera sobre diferentes cenários e repetições
+# Função principal para avaliar imputações
 avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 10) {
   resultado <- list()
-  
-  # Registrar o início do processo
   tempo_inicio <- Sys.time()
-  
   total_iteracoes <- length(proporcoes_missing) * length(mecanismos_missing) * N
   iteracao_atual <- 0
   
@@ -201,8 +132,6 @@ avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 1
     for (mecanismo in mecanismos_missing) {
       for (iter in 1:N) {
         iteracao_atual <- iteracao_atual + 1
-        
-        # Exibir progresso
         tempo_atual <- Sys.time()
         tempo_decorrido <- difftime(tempo_atual, tempo_inicio, units = "secs")
         tempo_estimado_restante <- (tempo_decorrido / iteracao_atual) * (total_iteracoes - iteracao_atual)
@@ -212,35 +141,30 @@ avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 1
         
         cat(sprintf("Progresso: %.2f%% - Tempo estimado restante: %.2f minutos\n", progresso, tempo_estimado_restante_minutos))
         
-        set.seed(iter)  # Garante que cada repetição tenha um sorteio fixo, mas diferente
+        set.seed(iter)
         
         # Gerar base com dados ausentes
         df_missing <- simular_ausencia(df, proporcao_missing = prop_missing, mecanismo_missing = mecanismo)
         
-        # Separar valores verdadeiros para comparação
-        verdadeiro <- df_missing$IDADEPAI[!is.na(df$IDADEPAI)]
+        # Calcular as médias para comparação
+        media_imputada <- mean(df_missing$IDADEPAI, na.rm = TRUE)
         
-        # Lista para armazenar métricas
+        # Calcular métricas
         metricas_lista <- list()
         
-        ## 1. Análise de casos completos
+        # Análise de casos completos
         df_cc <- df_missing[complete.cases(df_missing)]
-        metricas_lista$casos_completos <- calcular_metricas(verdadeiro, df_cc$IDADEPAI)
+        metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE))
         
-        ## 2. Imputação por Predictive Mean Matching (PMM)
+        # Imputação por Predictive Mean Matching (PMM)
         imp_pmm <- mice(df_missing, method = "pmm", m = 5, maxit = 5, seed = 123)
         imputado_pmm <- complete(imp_pmm)$IDADEPAI
-        metricas_lista$pmm <- calcular_metricas(verdadeiro, imputado_pmm)
+        metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, mean(imputado_pmm, na.rm = TRUE))
         
-        ## 3. Imputação por regressão linear (norm.predict)
-        imp_reg <- mice(df_missing, method = "norm.predict", m = 5, maxit = 5, seed = 123)
-        imputado_reg <- complete(imp_reg)$IDADEPAI
-        metricas_lista$regressao <- calcular_metricas(verdadeiro, imputado_reg)
-        
-        # Armazenar os resultados
+        # Armazenar resultados
         resultado[[paste0("prop", prop_missing, "_", mecanismo, "_iter", iter)]] <- rbindlist(metricas_lista, idcol = "metodo")
-        rm(df_missing, df_cc, imp_pmm, imputado_pmm, imp_reg, imputado_reg)
-        gc() # Liberar memória
+        rm(df_missing, df_cc, imp_pmm, imputado_pmm)
+        gc() 
       }
     }
   }
@@ -248,46 +172,38 @@ avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 1
   return(rbindlist(resultado, idcol = "cenario"))
 }
 
-# Definição dos cenários
+# Definir os cenários
 proporcoes_missing <- c(0.1, 0.2, 0.3)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
 
-# Executar avaliação com N repetições por cenário
+# Executar a avaliação com N repetições por cenário
 resultado <- avaliar_imputacoes(populacao_completa, proporcoes_missing, mecanismos_missing, N = 2)
 
-# Visualizar resultados
+# Visualizar os resultados
 print(resultado)
 
-
-
-library(data.table)
+# Visualização das métricas
 library(kableExtra)
 
-# Criar tabela formatada
 resultado[, .(RMSE = mean(RMSE), RB = mean(RB), PB = mean(PB), MAE = mean(MAE), MAPE = mean(MAPE)), 
           by = .(cenario, metodo)] %>%
   kable(digits = 3, format = "html") %>%
   kable_styling(full_width = FALSE)
 
-
 library(ggplot2)
-
 ggplot(resultado, aes(x = metodo, y = RMSE, fill = metodo)) +
   geom_boxplot() +
-  facet_wrap(~cenario) +  # Um gráfico por cenário
+  facet_wrap(~cenario) +
   theme_minimal() +
   labs(title = "Comparação de RMSE entre métodos", x = "Método", y = "RMSE")
 
+# Heatmap das métricas
 library(reshape2)
-
-# Transformar os dados para formato longo
 melted <- melt(resultado, id.vars = c("cenario", "metodo"), measure.vars = c("RMSE", "RB", "PB", "MAE", "MAPE"))
 
-# Criar o heatmap (Heatmap (Comparação Global de Desempenho))
 ggplot(melted, aes(x = metodo, y = cenario, fill = value)) +
   geom_tile() +
   facet_wrap(~variable) +
   scale_fill_gradient(low = "white", high = "red") +
   theme_minimal() +
   labs(title = "Heatmap das Métricas de Imputação", fill = "Valor")
-
