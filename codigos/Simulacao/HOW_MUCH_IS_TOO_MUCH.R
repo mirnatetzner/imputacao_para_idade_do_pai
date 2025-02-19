@@ -82,8 +82,10 @@ df <- df %>%
   ) %>% 
   select(-HORANASC)
 
-# População completa
-populacao_completa <- as.data.table(df)
+# testando menos variaveis, pra ver se roda:
+
+# populacao_completa = populacao_completa %>% 
+#   select(IDADEPAI,IDADEMAE,TPFUNCRESP, CODMUNRES)
 
 # Parâmetro de interesse (média da idade do pai)
 parametro_populacional_media = mean(df$IDADEPAI, na.rm = TRUE)
@@ -125,7 +127,7 @@ calcular_metricas_media <- function(media_verdadeira, media_imputada) {
 avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 10) {
   resultado <- list()
   tempo_inicio <- Sys.time()
-  total_iteracoes <- length(proporcoes_missing) * length(mecanismos_missing) * N
+  total_iteracoes <- length(proporcoes_missing) * length(mecanismos_missing) * N  
   iteracao_atual <- 0
   
   for (prop_missing in proporcoes_missing) {
@@ -147,7 +149,7 @@ avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 1
         df_missing <- simular_ausencia(df, proporcao_missing = prop_missing, mecanismo_missing = mecanismo)
         
         # Calcular as médias para comparação
-        media_imputada <- mean(df_missing$IDADEPAI, na.rm = TRUE)
+        # media_imputada <- mean(df_missing$IDADEPAI, na.rm = TRUE) 
         
         # Calcular métricas
         metricas_lista <- list()
@@ -157,7 +159,8 @@ avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 1
         metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE))
         
         # Imputação por Predictive Mean Matching (PMM)
-        imp_pmm <- mice(df_missing, method = "pmm", m = 5, maxit = 5, seed = 123)
+        imp_pmm <- mice(df_missing, method = "pmm", m = 2, maxit = 2, seed = 123)
+        # imp_pmm <- mice(df_missing, method = "pmm", m = 5, maxit = 5, seed = 123)
         imputado_pmm <- complete(imp_pmm)$IDADEPAI
         metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, mean(imputado_pmm, na.rm = TRUE))
         
@@ -175,6 +178,9 @@ avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 1
 # Definir os cenários
 proporcoes_missing <- c(0.1, 0.2, 0.3)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
+
+# População completa
+populacao_completa <- as.data.table(df)
 
 # Executar a avaliação com N repetições por cenário
 resultado <- avaliar_imputacoes(populacao_completa, proporcoes_missing, mecanismos_missing, N = 2)
@@ -207,3 +213,10 @@ ggplot(melted, aes(x = metodo, y = cenario, fill = value)) +
   scale_fill_gradient(low = "white", high = "red") +
   theme_minimal() +
   labs(title = "Heatmap das Métricas de Imputação", fill = "Valor")
+
+# desabilitar hibernacao linux:
+# sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
+# reabilitar hibernacao linux:
+# sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
