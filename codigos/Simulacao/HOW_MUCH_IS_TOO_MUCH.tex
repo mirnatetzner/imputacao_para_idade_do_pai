@@ -1,14 +1,22 @@
 \documentclass{article}
-\usepackage{amsmath, amssymb, graphicx}
+\usepackage{graphicx,amsmath, amssymb} % Required for inserting images
+
+\usepackage{pdflscape} % Para tabelas na horizontal (landscape)
+\usepackage{longtable} % Para tabelas longas
+\usepackage{booktabs}  % Para tabelas mais elegantes
+\usepackage{rotating}
+
+\title{How much is too much}
+\author{Mirna Tetzner}
+\date{February 2025}
 
 \begin{document}
 
-\title{Modelagem da Probabilidade de Ausência Baseada na Idade da Mãe}
-\author{Mirna}
-\date{}
 \maketitle
 
-\section{Fundamentação Estatística: Probabilidade de Ausência}
+\section{Modelagem da Probabilidade de Ausência Baseada na Idade da Mãe}
+
+\subsection{Fundamentação Estatística: Probabilidade de Ausência}
 
 O objetivo é modelar a probabilidade condicional de ausência da variável \texttt{IDADEPAI} com base na \texttt{IDADEMAE}. Isso significa que, à medida que a idade da mãe diminui, a probabilidade de ausência do dado aumenta.
 
@@ -151,8 +159,6 @@ Os métodos utilizados para preencher os valores ausentes incluem:
 \begin{itemize}
     \item \textbf{Casos completos:} Apenas os registros sem valores ausentes são utilizados na análise.
     \item \textbf{Imputação por Predictive Mean Matching (PMM):} Método baseado em vizinhos mais próximos que preserva a distribuição original.
-    \item \textbf{Imputação por Árvores de Decisão (CART):} Utiliza árvores de regressão para prever valores ausentes.
-    \item \textbf{Imputação por Random Forest:} Utiliza florestas aleatórias para prever valores ausentes.
 \end{itemize}
 
 \section{Métricas de Avaliação}
@@ -197,5 +203,20 @@ Expressa o erro absoluto médio como uma porcentagem dos valores verdadeiros:
 \section{Conclusão}
 
 Através das simulações, analisamos o impacto de diferentes mecanismos de ausência de dados e métodos de imputação. A escolha do método de imputação ideal depende do mecanismo subjacente de ausência e do objetivo da análise. Em geral, métodos baseados em machine learning, como Random Forest, tendem a apresentar menor viés e erro quadrático médio.
+
+
+
+\subsection{Resultado Paraná 2022 CCA e MI (PMM)} 
+
+Com base na análise dos erros associados às imputações nos cenários com \textbf{30\% de missing}, podemos concluir que a confiabilidade dos resultados depende fortemente do mecanismo de dados ausentes. Para dados \textbf{MCAR} (\textit{Missing Completely at Random}), onde a ausência ocorre de forma aleatória, o erro nos casos completos já é muito pequeno, indicando que a imputação pode não ser essencial. No entanto, a imputação pelo método \textbf{PMM} (\textit{Predictive Mean Matching}) ainda apresenta um erro relativamente alto (RMSE $0.276$, MAPE $0.881$), sugerindo que pode não ser a melhor abordagem nesse caso.
+
+Para o mecanismo \textbf{MAR} (\textit{Missing At Random}), onde os dados ausentes dependem de outras variáveis observadas, a análise de casos completos gera um viés significativo, refletido em um RMSE elevado ($1.202$) e um erro percentual considerável (MAPE $3.835$). A imputação com PMM reduz drasticamente esses erros (RMSE $0.243$, MAPE $0.776$), tornando os resultados mais próximos do verdadeiro parâmetro populacional. Assim, no cenário MAR, a imputação ainda é confiável e melhora significativamente a qualidade das estimativas.
+
+Já no caso \textbf{MNAR} (\textit{Missing Not at Random}), onde os valores ausentes dependem do próprio valor da variável analisada, o viés nos casos completos é ainda mais acentuado, com RMSE de $2.289$ e MAPE de $7.307$, o que indica que a análise sem imputação levaria a conclusões altamente distorcidas. A imputação com PMM reduz o erro, mas ainda mantém um RMSE relativamente alto ($0.858$) e um erro percentual considerável (MAPE $2.739$), o que sugere que os resultados podem não ser suficientemente confiáveis sem a aplicação de métodos mais robustos, como imputação baseada em \textit{Random Forest}.
+
+Portanto, para cenários com \textbf{30\% de missing}, a imputação ainda pode ser considerada \textbf{confiável para MCAR e MAR}, pois os erros permanecem dentro de limites aceitáveis para muitas aplicações. No entanto, para MNAR, a incerteza permanece alta, o que exige cautela na interpretação dos resultados e possivelmente o uso de técnicas mais avançadas. Se o objetivo for obter um erro menor que $1\%$, esses cenários podem não ser suficientemente confiáveis, mas se um erro de até $5\%$ for aceitável, os resultados para MCAR e MAR ainda são úteis.
+
+
+
 
 \end{document}
