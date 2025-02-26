@@ -368,3 +368,19 @@ ggplot(melted, aes(x = metodo, y = cenario, fill = value)) +
 # sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
 
+
+resultados_cenarios$mecanismo <- sub(".*Mecanismo:\\s*", "", resultados_cenarios$descricao_cenario)
+
+
+# Arredondar os valores para 3 casas decimais
+resultados_cenarios[, c("RMSE", "RB", "MAE", "MAPE")] <- round(resultados_cenarios[, c("RMSE", "RB", "MAE", "MAPE")], 3)
+
+# Substituir ponto por vírgula para notação decimal brasileira
+resultados_cenarios[, c("RMSE", "RB", "MAE", "MAPE")] <- apply(resultados_cenarios[, c("RMSE", "RB", "MAE", "MAPE")], 2, function(x) gsub("\\.", ",", as.character(x)))
+
+# Exibir os resultados formatados
+print(resultados_cenarios)
+
+write.csv(resultados_cenarios, "resultados_formatados.csv")
+save("resultado_parallel.RData", resultado_parallel
+     )
