@@ -87,27 +87,89 @@ df <- df %>%
   ) %>% 
   select(-HORANASC)
 
+
 # testando menos variaveis, pra ver se roda:
 
 populacao_completa = df %>%
-  select(IDADEPAI,IDADEMAE,TPFUNCRESP, CODMUNRES)
+  select(IDADEPAI,IDADEMAE)
+
+populacao_completa = setDT(populacao_completa)
 
 # Parâmetro de interesse (média da idade do pai)
-parametro_populacional_media = mean(df$IDADEPAI, na.rm = TRUE)
+parametro_populacional_media = mean(populacao_completa$IDADEPAI, na.rm = TRUE)
+
+# estatísticas resumidas
+summary(populacao_completa[, .(IDADEMAE, IDADEPAI)])
+
+
+# distribuição das idades
+
+# Histograma da Idade da Mãe
+ggplot(populacao_completa, aes(x = IDADEMAE)) +
+  geom_histogram(binwidth = 1, fill = "lightblue", color = "black") +
+  labs(title = "Distribuição da Idade da Mãe", x = "Idade da Mãe", y = "Frequência")
+
+# Histograma da Idade do Pai
+ggplot(populacao_completa, aes(x = IDADEPAI)) +
+  geom_histogram(binwidth = 1, fill = "lightgreen", color = "black") +
+  labs(title = "Distribuição da Idade do Pai", x = "Idade do Pai", y = "Frequência")
+
+# Visualização da Relação (gráfico de dispersão)
+ggplot(populacao_completa, aes(x = IDADEMAE, y = IDADEPAI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +  # Linha de tendência
+  labs(title = "Relação entre Idade da Mãe e Idade do Pai",
+       x = "Idade da Mãe",
+       y = "Idade do Pai")
+
+
+# Análise de correlação 
+correlacao <- cor(populacao_completa$IDADEMAE, populacao_completa$IDADEPAI, use = "complete.obs")
+print(correlacao)
+
+df =  setDT(df)
+modelo = lm(missing ~ ESTCIVMAE,  data = df )  #ESCMAE
+
+
+modelo <- lm(IDADEPAI ~ IDADEMAE, data = populacao_completa)
+summary(modelo)
+
+df_complet <- df %>% 
+  filter(!is.na(IDADEPAI))
+
+
+# Tabela de frequência
+tabela_frequencia <- table(df_complet$IDADEMAE, df_complet$IDADEPAI)
+
+
+# Teste qui-quadrado
+teste_chi2 <- chisq.test(tabela_frequencia)
+
+# Número total de observações
+n <- sum(tabela_frequencia)
+
+# Número de categorias nas variáveis
+k <- nrow(tabela_frequencia)  # Número de categorias em ESTCIVMAE
+r <- ncol(tabela_frequencia)  # Número de categorias em missing
+
+# Cálculo do coeficiente de Cramér's V
+cramer_v <- sqrt(teste_chi2$statistic / (n * min(k - 1, r - 1)))
+
+# Resultado
+print(cramer_v)
 
 
 
 
 
-
-simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "MCAR") {
+simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "MCAR") {  # default
   dt_simulado <- copy(dt)
   setDT(dt_simulado)  # Garantir que é um data.table
-  n <- nrow(dt_simulado)
-  n_missing <- floor(proporcao_missing * n)
+  n <- nrow(dt_simulado)     # conta numero de linhas
+  n_missing <- floor(proporcao_missing * n)   # calcula numero de linhas que serao retiradas, arredondando para baixo   
   
   if (mecanismo_missing == "MCAR") {
-    missing_positions <- sample(1:n, n_missing)
+    missing_positions <- sample(1:n, n_missing)  # se o input da funcao for mecanismo_missing=MCAR, vai selecionar em todo o conjunto de dados aleatoriamente, as posicoes para retirar (produzir o dado faltante)
   } else if (mecanismo_missing == "MAR") {
     dt_simulado[, prob_missing := 1 / (1 + exp(0.3 * (IDADEMAE - mean(IDADEMAE, na.rm = TRUE))))]
     
