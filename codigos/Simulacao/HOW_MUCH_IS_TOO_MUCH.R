@@ -87,13 +87,21 @@ df <- df %>%
   ) %>% 
   select(-HORANASC)
 
+populacao_completa = setDT(df)
+
+meth <- make.method(populacao_completa)
+pred <- make.predictorMatrix(populacao_completa)
+plot_pred(pred, method = meth, square = FALSE)
+
+pred <- quickpred(populacao_completa, mincor = 0.3)
+plot_pred(pred, method = meth, square = FALSE)
+
 
 # testando menos variaveis, pra ver se roda:
 
 populacao_completa = df %>%
   select(IDADEPAI,IDADEMAE)
 
-populacao_completa = setDT(populacao_completa)
 
 # Parâmetro de interesse (média da idade do pai)
 parametro_populacional_media = mean(populacao_completa$IDADEPAI, na.rm = TRUE)
