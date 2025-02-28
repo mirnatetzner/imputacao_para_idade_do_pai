@@ -35,6 +35,7 @@ library(readxl)
 library(truncnorm)
 library(naniar)
 library(mice)
+library(ggmice)
 
 # Carregar dados
 # linux
@@ -93,7 +94,7 @@ meth <- make.method(populacao_completa)
 pred <- make.predictorMatrix(populacao_completa)
 plot_pred(pred, method = meth, square = FALSE)
 
-pred <- quickpred(populacao_completa, mincor = 0.3)
+pred <- quickpred(populacao_completa, mincor = 0.15)
 plot_pred(pred, method = meth, square = FALSE)
 
 

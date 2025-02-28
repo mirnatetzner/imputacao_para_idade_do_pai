@@ -1,0 +1,4 @@
+🔹 Choosing the Best Model
+Linear Regression: Works well if relationships are linear.
+Random Forest Regressor: Better for nonlinear relationships.
+k-NN Imputer: If no clear relationships exist.
