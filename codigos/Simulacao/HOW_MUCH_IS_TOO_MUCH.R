@@ -36,6 +36,7 @@ library(truncnorm)
 library(naniar)
 library(mice)
 library(ggmice)
+options(OutDec = ",", scipen=999)
 
 # Carregar dados
 # linux
@@ -47,7 +48,6 @@ load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData")
 Parana = Sul %>% 
   filter(Sul$munResUf == "Paraná")
 dim(Parana)
-glimpse(Parana)
 
 # Preparar os dados
 Parana_select <- Parana %>%
@@ -55,8 +55,8 @@ Parana_select <- Parana %>%
          CODESTAB, ESCMAE,ESTCIVMAE,    #DIFDATA, DTNASC
          TPFUNCRESP
          ) %>%
-  filter(Ano == 2022)
-glimpse(Parana_select)
+  filter(Ano == 2022)%>%
+  select(-Ano)
 
 # Limpeza e transformação de dados
 populacao_completa = Parana_select
@@ -64,10 +64,10 @@ populacao_completa <- populacao_completa %>%
   mutate(
     IDADEMAE = as.integer(IDADEMAE),
     IDADEPAI = as.integer(IDADEPAI),
-    Ano = as.integer(Ano),
-    missing != 0,
+    #Ano = as.integer(Ano),
+    missing =  (missing != 0),
     PARTO = as.factor(PARTO),
-    ESCMAE = as.factor(ESCMAE),
+    ESCMAE = as.ordered(ESCMAE),# cadegorica ordinal
     ESTCIVMAE = as.factor(ESTCIVMAE),
     CODESTAB = as.factor(CODESTAB),
     TPFUNCRESP = as.factor(TPFUNCRESP)
@@ -76,59 +76,94 @@ populacao_completa <- populacao_completa %>%
 
 rm(Sul, Parana)
 
+# se fizer para outros anos, aqui tem que quebrar por anos
+
+
+
 #-----
 # irá retornar um vetor nomeado, onde cada elemento 
 # representa o método de imputação 
 # atribuído a uma variável do conjunto de dados.
-?mice::mice # metodos disponíveis no pacote mice
+
 meth <- make.method(populacao_completa)
+
+# metodos padrao:
+# 1) numeric data  <- pmm (predictive mean matching)
+# 2) factor data with 2 levels ((binary data)<- logreg (logistic regression imputation)
+# 3) factor data with > 2 unordered levels <- polyreg (polytomous regression imputation)
+# 4) factor data with > 2 ordered levels. <- polr (proportional odds model)
+
+
+
+# Funcao para assinalar a escala de mensuracao e o padrao associado para realizar imputacao  dentro do make.method do mice
+get_measurement_scale <- function(method) {
+  case_when(
+    method == "pmm" ~ "Continuous (Numeric)",
+    method == "logreg" ~ "Categorical (Binary)",
+    method == "polyreg" ~ "Categorical (Nominal)",
+    method == "polr" ~ "Categorical (Ordinal)",
+    method == "" ~ "Not Imputed",
+    TRUE ~ "Unknown"
+  )
+}
+
+# Create the table with variables, imputation methods, and measurement scales
+imputation_table <- tibble(
+  Variable = names(meth),
+  Imputation_Method = meth,
+  Measurement_Scale = sapply(meth, get_measurement_scale)
+)
+
+# Print the table
+print(imputation_table)
+
+
+
+# Visualizar a quantidade de dados ausentes por variável
+gg_miss_var(populacao_completa)
+# Tabela de casos com valores ausentes
+miss_case_table(populacao_completa)
+# Visualizar a posição dos dados ausentes
+vis_miss(populacao_completa,warn_large_data = FALSE)
+
 
 pred <- make.predictorMatrix(populacao_completa)
 plot_pred(pred, method = meth, square = FALSE)
 
-pred <- quickpred(populacao_completa, mincor = 0.15)
-plot_pred(pred, method = meth, square = FALSE)
+#pred <- quickpred(populacao_completa, mincor = 0.15) # seta correlacao mininma em 0.15
+#plot_pred(pred, method = meth, square = FALSE)
 
 
 # testando menos variaveis, pra ver se roda:
-
-populacao_completa = df %>%
-  select(IDADEPAI,IDADEMAE)
+#populacao_completa = df %>%
+#  select(IDADEPAI,IDADEMAE)
 
 
 # Parâmetro de interesse (média da idade do pai)
 parametro_populacional_media = mean(populacao_completa$IDADEPAI, na.rm = TRUE)
 
 # estatísticas resumidas
-summary(populacao_completa[, .(IDADEMAE, IDADEPAI)])
+summary(populacao_completa)
 
 
-# distribuição das idades
+# Modelo para Probabilidade de Ausência
+modelo_missing <- glm(missing ~ IDADEMAE + ESTCIVMAE + ESCMAE + PARTO + TPFUNCRESP + CODESTAB, data = populacao_completa, family = binomial)
+summary(modelo_missing)
 
-# Histograma da Idade da Mãe
-ggplot(populacao_completa, aes(x = IDADEMAE)) +
-  geom_histogram(binwidth = 1, fill = "lightblue", color = "black") +
-  labs(title = "Distribuição da Idade da Mãe", x = "Idade da Mãe", y = "Frequência")
+# adiciona a probabilidade predita do modelo missing como uma variável adicional ao modelo de imputação de IDADEPAI.
+# calcula a probabilidade de ausência
+df$prob_missing <- predict(modelo_missing, type = "response")
 
-# Histograma da Idade do Pai
-ggplot(populacao_completa, aes(x = IDADEPAI)) +
-  geom_histogram(binwidth = 1, fill = "lightgreen", color = "black") +
-  labs(title = "Distribuição da Idade do Pai", x = "Idade do Pai", y = "Frequência")
+# realiza imputação usando a variável prob_missing como covariável adicional
+modelo_imputacao <- mice(df, method = "pmm", predictorMatrix = make.predictorMatrix(df))
 
-# Visualização da Relação (gráfico de dispersão)
-ggplot(populacao_completa, aes(x = IDADEMAE, y = IDADEPAI)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm", se = FALSE, color = "red") +  # Linha de tendência
-  labs(title = "Relação entre Idade da Mãe e Idade do Pai",
-       x = "Idade da Mãe",
-       y = "Idade do Pai")
 
+#--------
 
 # Análise de correlação 
 correlacao <- cor(populacao_completa$IDADEMAE, populacao_completa$IDADEPAI, use = "complete.obs")
 print(correlacao)
 
-df =  setDT(df)
 modelo = lm(missing ~ ESTCIVMAE,  data = df )  #ESCMAE
 
 
@@ -137,7 +172,7 @@ summary(modelo)
 
 df_complet <- df %>% 
   filter(!is.na(IDADEPAI))
-
+#------
 
 # Tabela de frequência
 tabela_frequencia <- table(df_complet$IDADEMAE, df_complet$IDADEPAI)
