@@ -51,46 +51,38 @@ glimpse(Parana)
 
 # Preparar os dados
 Parana_select <- Parana %>%
-  select(IDADEMAE, IDADEPAI, missing, Ano, RACACORMAE, HORANASC, PARTO, CODMUNRES, 
-         CODESTAB, ESCMAE,DTNASC,HORANASC,ESTCIVMAE,                  #DIFDATA
-         TPFUNCRESP, DTDECLARAC, PARTO) %>%
+  select(IDADEMAE, IDADEPAI, missing, Ano, PARTO,  
+         CODESTAB, ESCMAE,ESTCIVMAE,    #DIFDATA, DTNASC
+         TPFUNCRESP
+         ) %>%
   filter(Ano == 2022)
 glimpse(Parana_select)
-rm(Sul, Parana)
 
 # Limpeza e transformação de dados
-df <- Parana_select
-df <- df %>%
-  select(-c(Ano)) %>% 
-  mutate(
-    HORANASC = as.character(HORANASC), 
-    periodo_do_dia = case_when(
-      as.numeric(substr(HORANASC, 1, 2)) >= 0 & as.numeric(substr(HORANASC, 1, 2)) <= 5 ~ "Madrugada",
-      as.numeric(substr(HORANASC, 1, 2)) >= 6 & as.numeric(substr(HORANASC, 1, 2)) <= 11 ~ "Manhã",
-      as.numeric(substr(HORANASC, 1, 2)) >= 12 & as.numeric(substr(HORANASC, 1, 2)) <= 17 ~ "Tarde",
-      as.numeric(substr(HORANASC, 1, 2)) >= 18 & as.numeric(substr(HORANASC, 1, 2)) <= 23 ~ "Noite",
-      TRUE ~ "Desconhecido"
-    )
-  ) %>% 
+populacao_completa = Parana_select
+populacao_completa <- populacao_completa %>% 
   mutate(
     IDADEMAE = as.integer(IDADEMAE),
     IDADEPAI = as.integer(IDADEPAI),
-    missing = missing != 0,
+    Ano = as.integer(Ano),
+    missing != 0,
     PARTO = as.factor(PARTO),
     ESCMAE = as.factor(ESCMAE),
     ESTCIVMAE = as.factor(ESTCIVMAE),
-    CODMUNRES = as.factor(CODMUNRES),
     CODESTAB = as.factor(CODESTAB),
-    DTNASC = as.Date(DTNASC),
-    DTDECLARAC = as.Date(DTDECLARAC),
-    RACACORMAE = as.factor(RACACORMAE),
     TPFUNCRESP = as.factor(TPFUNCRESP)
-  ) %>% 
-  select(-HORANASC)
+  ) %>%
+  setDT()
 
-populacao_completa = setDT(df)
+rm(Sul, Parana)
 
+#-----
+# irá retornar um vetor nomeado, onde cada elemento 
+# representa o método de imputação 
+# atribuído a uma variável do conjunto de dados.
+?mice::mice # metodos disponíveis no pacote mice
 meth <- make.method(populacao_completa)
+
 pred <- make.predictorMatrix(populacao_completa)
 plot_pred(pred, method = meth, square = FALSE)
 
