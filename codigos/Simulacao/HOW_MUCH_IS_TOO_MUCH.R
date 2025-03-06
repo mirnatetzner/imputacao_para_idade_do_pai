@@ -152,10 +152,10 @@ summary(modelo_missing)
 
 # adiciona a probabilidade predita do modelo missing como uma variável adicional ao modelo de imputação de IDADEPAI.
 # calcula a probabilidade de ausência
-df$prob_missing <- predict(modelo_missing, type = "response")
+populacao_completa$prob_missing <- predict(modelo_missing, type = "response")
 
 # realiza imputação usando a variável prob_missing como covariável adicional
-modelo_imputacao <- mice(df, method = "pmm", predictorMatrix = make.predictorMatrix(df))
+modelo_imputacao <- mice(populacao_completa, method = "pmm", predictorMatrix = make.predictorMatrix(df))
 
 
 #--------
