@@ -23,8 +23,7 @@
     # RMSE
     # RB
     # PB
-    # MAE
-    # MAPE
+  
 
 # ---------------
 library(data.table)
@@ -40,10 +39,10 @@ options(OutDec = ",", scipen=999)
 
 # Carregar dados
 # linux
-load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
+#load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
 
 # windows
-#load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData")
+load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData")
 
 Parana = Sul %>% 
   filter(Sul$munResUf == "Paraná")
@@ -52,7 +51,7 @@ dim(Parana)
 # Preparar os dados
 Parana_select <- Parana %>%
   select(IDADEMAE, IDADEPAI, missing, Ano, PARTO,  
-         CODESTAB, ESCMAE,ESTCIVMAE,    #DIFDATA, DTNASC
+          ESCMAE,ESTCIVMAE,    #DIFDATA, DTNASC,CODESTAB,
          TPFUNCRESP
          ) %>%
   filter(Ano == 2022)%>%
@@ -69,7 +68,6 @@ populacao_completa <- populacao_completa %>%
     PARTO = as.factor(PARTO),
     ESCMAE = as.ordered(ESCMAE),# cadegorica ordinal
     ESTCIVMAE = as.factor(ESTCIVMAE),
-    CODESTAB = as.factor(CODESTAB),
     TPFUNCRESP = as.factor(TPFUNCRESP)
   ) %>%
   setDT()
@@ -82,7 +80,7 @@ rm(Sul, Parana)
 
 #-----
 # irá retornar um vetor nomeado, onde cada elemento 
-# representa o método de imputação 
+# representa o método de imputação -- no pacote mice 
 # atribuído a uma variável do conjunto de dados.
 
 meth <- make.method(populacao_completa)
@@ -118,9 +116,6 @@ imputation_table <- tibble(
 print(imputation_table)
 
 
-
-# Visualizar a quantidade de dados ausentes por variável
-gg_miss_var(populacao_completa)
 # Tabela de casos com valores ausentes
 miss_case_table(populacao_completa)
 # Visualizar a posição dos dados ausentes
@@ -148,9 +143,11 @@ parametro_populacional_media = mean(populacao_completa$IDADEPAI, na.rm = TRUE)
 # estatísticas resumidas
 summary(populacao_completa)
 
+plot(dados$IDADEMAE, dados$missing, main = "Idade da Mãe vs Missing", xlab = "Idade da Mãe", ylab = "Missing", pch = 19)
+
 
 # Modelo para Probabilidade de Ausência
-modelo_missing <- glm(missing ~ IDADEMAE + ESTCIVMAE + ESCMAE + PARTO + TPFUNCRESP + CODESTAB, data = populacao_completa, family = binomial)
+modelo_missing <- glm(missing ~ IDADEMAE + ESTCIVMAE + ESCMAE + PARTO, data = populacao_completa, family = binomial)
 summary(modelo_missing)
 
 # adiciona a probabilidade predita do modelo missing como uma variável adicional ao modelo de imputação de IDADEPAI.
@@ -167,10 +164,8 @@ modelo_imputacao <- mice(populacao_completa, method = "pmm", predictorMatrix = m
 correlacao <- cor(populacao_completa$IDADEMAE, populacao_completa$IDADEPAI, use = "complete.obs")
 print(correlacao)
 
-modelo = lm(missing ~ ESTCIVMAE,  data = df )  #ESCMAE
-
-
 modelo <- lm(IDADEPAI ~ IDADEMAE, data = populacao_completa)
+
 summary(modelo)
 
 df_complet <- df %>% 
