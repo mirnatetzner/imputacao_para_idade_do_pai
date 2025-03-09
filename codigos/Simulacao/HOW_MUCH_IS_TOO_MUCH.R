@@ -115,7 +115,6 @@ imputation_table <- tibble(
 # Print the table
 print(imputation_table)
 
-
 # Tabela de casos com valores ausentes
 miss_case_table(populacao_completa)
 # Visualizar a posição dos dados ausentes
@@ -125,29 +124,97 @@ vis_miss(populacao_completa,warn_large_data = FALSE)
 pred <- make.predictorMatrix(populacao_completa)
 plot_pred(pred, method = meth, square = FALSE)
 
-#pred <- quickpred(populacao_completa, mincor = 0.15) # seta correlacao mininma em 0.15
-#plot_pred(pred, method = meth, square = FALSE)
+
+ini <- mice(populacao_completa, maxit = 0) # ver o numero de missing em cada variavel 
+ini$nmis
 
 plot_correlation = plot_corr(populacao_completa,square = FALSE, rotate = TRUE,
                              caption = TRUE)
 ggsave("plot_correlation.jpg", plot = plot_correlation, dpi = 300 )
 
+
+require(lattice)
+histogram(~IDADEMAE|missing, data=populacao_completa) # a distribuicao da idade da mae quando idade do pai eh observada e n_obs
+
+
+# Carregar o pacote parallel
+library(parallel) # para paralelizar o processo de imputacao
+
+# Imputar os dados com o método especificado
+teste <- mice(populacao_completa, method = meth, predictorMatrix = pred,  ncores = detectCores())
+glimpse(teste)
+
+# Summarize the mids object
+summary(teste)
+
+# Compare observed and imputed values for a variable
+densityplot(teste)
+
+
+# Exemplo de regressão linear sobre os dados imputados
+analysis <- with(teste, lm(IDADEPAI ~ IDADEMAE + ESCMAE+ PARTO ))  # Ajuste o modelo conforme seu caso
+
+# Pool the results to combine across imputations
+pooled_results <- pool(analysis)
+
+# Summarize the pooled results
+summary(pooled_results)
+
+# Obter os dados imputados
+imputed_data <- complete(teste, action = "long")
+
+# Plotando a distribuição das imputações de IDADEPAI
+library(ggplot2)
+ggplot(imputed_data, aes(x = IDADEPAI)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribuição das Imputações de IDADEPAI", x = "Idade do Pai", y = "Frequência")
+
+# Verificando as imputações para IDADEPAI
+imputed_data <- complete(teste, action = "long")
+head(imputed_data$IDADEPAI)
+
+
+# Adicionar a variável de iteração ao dataframe
+imputed_data$iteration <- factor(imputed_data$.imp)
+
+# Visualizar as distribuições das imputações de IDADEPAI por iteração
+library(ggplot2)
+ggplot(imputed_data, aes(x = IDADEPAI, fill = iteration)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Distribuição das Imputações de IDADEPAI por Iteração", x = "Idade do Pai", y = "Densidade")
+
+# Verificar se há NAs em IDADEPAI nas imputações
+any(is.na(imputed_data$IDADEPAI))
+
+# Calcular as estatísticas para IDADEPAI por iteração
+summary_stats <- aggregate(IDADEPAI ~ .imp, data = imputed_data, FUN = function(x) c(mean = mean(x), sd = sd(x)))
+print(summary_stats)
+
+
+
+
 # testando menos variaveis, pra ver se roda:
-#populacao_completa = df %>%
-#  select(IDADEPAI,IDADEMAE)
+populacao_completa_redu = populacao_completa %>%
+  select(IDADEPAI,IDADEMAE,ESTCIVMAE)
+meth <- make.method(populacao_completa_redu)
+# Imputar os dados com o método especificado
+teste <- mice(populacao_completa_redu, method = meth, predictorMatrix = pred,  ncores = detectCores())
+glimpse(teste)
+
+
 
 
 # Parâmetro de interesse (média da idade do pai)
-parametro_populacional_media = mean(populacao_completa$IDADEPAI, na.rm = TRUE)
+parametro_populacional_media = mean(populacao_completa_redu$IDADEPAI, na.rm = TRUE)
 
 # estatísticas resumidas
-summary(populacao_completa)
+summary(populacao_completa_redu)
 
-plot(dados$IDADEMAE, dados$missing, main = "Idade da Mãe vs Missing", xlab = "Idade da Mãe", ylab = "Missing", pch = 19)
+plot(populacao_completa_redu$IDADEMAE, populacao_completa_redu$missing, main = "Idade da Mãe vs Missing", xlab = "Idade da Mãe", ylab = "Missing", pch = 19)
 
 
 # Modelo para Probabilidade de Ausência
-modelo_missing <- glm(missing ~ IDADEMAE + ESTCIVMAE + ESCMAE + PARTO, data = populacao_completa, family = binomial)
+modelo_missing <- glm(missing ~ IDADEMAE + ESTCIVMAE, data = populacao_completa, family = binomial)
 summary(modelo_missing)
 
 # adiciona a probabilidade predita do modelo missing como uma variável adicional ao modelo de imputação de IDADEPAI.
@@ -161,37 +228,11 @@ modelo_imputacao <- mice(populacao_completa, method = "pmm", predictorMatrix = m
 #--------
 
 # Análise de correlação 
-correlacao <- cor(populacao_completa$IDADEMAE, populacao_completa$IDADEPAI, use = "complete.obs")
-print(correlacao)
+#correlacao <- cor(populacao_completa$IDADEMAE, populacao_completa$IDADEPAI, use = "complete.obs")
+#print(correlacao)
 
-modelo <- lm(IDADEPAI ~ IDADEMAE, data = populacao_completa)
-
-summary(modelo)
-
-df_complet <- df %>% 
-  filter(!is.na(IDADEPAI))
-#------
-
-# Tabela de frequência
-tabela_frequencia <- table(df_complet$IDADEMAE, df_complet$IDADEPAI)
-
-
-# Teste qui-quadrado
-teste_chi2 <- chisq.test(tabela_frequencia)
-
-# Número total de observações
-n <- sum(tabela_frequencia)
-
-# Número de categorias nas variáveis
-k <- nrow(tabela_frequencia)  # Número de categorias em ESTCIVMAE
-r <- ncol(tabela_frequencia)  # Número de categorias em missing
-
-# Cálculo do coeficiente de Cramér's V
-cramer_v <- sqrt(teste_chi2$statistic / (n * min(k - 1, r - 1)))
-
-# Resultado
-print(cramer_v)
-
+#modelo <- lm(IDADEPAI ~ IDADEMAE, data = populacao_completa)
+#summary(modelo)
 
 
 
