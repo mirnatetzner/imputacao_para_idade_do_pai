@@ -39,10 +39,10 @@ library(ggmice)
 
 # Carregar dados
 # linux
-#load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
+load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
 
 # windows
-load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData")
+#load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData")
 
 Parana = Sul %>% 
   filter(Sul$munResUf == "Paraná")
@@ -52,8 +52,8 @@ glimpse(Parana)
 # Preparar os dados
 Parana_select <- Parana %>%
   select(IDADEMAE, IDADEPAI, missing, Ano, RACACORMAE, HORANASC, PARTO, CODMUNRES, 
-         CODESTAB, ESCMAE,DTNASC,HORANASC,ESTCIVMAE,                  #DIFDATA
-         TPFUNCRESP, DTDECLARAC, PARTO) %>%
+         CODESTAB, ESCMAE,DTNASC,ESTCIVMAE,                  #DIFDATA
+         DTDECLARAC, PARTO) %>%
   filter(Ano == 2022)
 glimpse(Parana_select)
 rm(Sul, Parana)
@@ -62,16 +62,15 @@ rm(Sul, Parana)
 df <- Parana_select
 df <- df %>%
   select(-c(Ano)) %>% 
-  mutate(
-    HORANASC = as.character(HORANASC), 
-    periodo_do_dia = case_when(
-      as.numeric(substr(HORANASC, 1, 2)) >= 0 & as.numeric(substr(HORANASC, 1, 2)) <= 5 ~ "Madrugada",
-      as.numeric(substr(HORANASC, 1, 2)) >= 6 & as.numeric(substr(HORANASC, 1, 2)) <= 11 ~ "Manhã",
-      as.numeric(substr(HORANASC, 1, 2)) >= 12 & as.numeric(substr(HORANASC, 1, 2)) <= 17 ~ "Tarde",
-      as.numeric(substr(HORANASC, 1, 2)) >= 18 & as.numeric(substr(HORANASC, 1, 2)) <= 23 ~ "Noite",
-      TRUE ~ "Desconhecido"
-    )
-  ) %>% 
+  # mutate(
+  #   HORANASC = as.character(HORANASC), 
+  #   periodo_do_dia = case_when(
+  #     as.numeric(substr(HORANASC, 1, 2)) >= 0 & as.numeric(substr(HORANASC, 1, 2)) <= 5 ~ "Madrugada",
+  #     as.numeric(substr(HORANASC, 1, 2)) >= 6 & as.numeric(substr(HORANASC, 1, 2)) <= 11 ~ "Manhã",
+  #     as.numeric(substr(HORANASC, 1, 2)) >= 12 & as.numeric(substr(HORANASC, 1, 2)) <= 17 ~ "Tarde",
+  #     as.numeric(substr(HORANASC, 1, 2)) >= 18 & as.numeric(substr(HORANASC, 1, 2)) <= 23 ~ "Noite",
+  #     TRUE ~ "Desconhecido"
+  # )  ) %>% 
   mutate(
     IDADEMAE = as.integer(IDADEMAE),
     IDADEPAI = as.integer(IDADEPAI),
@@ -83,10 +82,8 @@ df <- df %>%
     CODESTAB = as.factor(CODESTAB),
     DTNASC = as.Date(DTNASC),
     DTDECLARAC = as.Date(DTDECLARAC),
-    RACACORMAE = as.factor(RACACORMAE),
-    TPFUNCRESP = as.factor(TPFUNCRESP)
-  ) %>% 
-  select(-HORANASC)
+    RACACORMAE = as.factor(RACACORMAE)
+  ) 
 
 populacao_completa = setDT(df)
 
@@ -97,6 +94,9 @@ plot_pred(pred, method = meth, square = FALSE)
 pred <- quickpred(populacao_completa, mincor = 0.15)
 plot_pred(pred, method = meth, square = FALSE)
 
+plot_correlation = plot_corr(populacao_completa,square = FALSE, rotate = TRUE,
+                             caption = TRUE)
+ggsave("plot_correlation.jpg", plot = plot_correlation, dpi = 300 )
 
 # testando menos variaveis, pra ver se roda:
 
