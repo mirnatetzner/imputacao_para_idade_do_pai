@@ -333,78 +333,185 @@ library(future.apply)
 library(data.table)
 library(mice)
 
-# Configurar paralelização
-plan(multisession, workers = parallel::detectCores() - 1)
 
-# Função ajustada para paralelização
-avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missing, N = 5) {
-  total_iteracoes <- length(proporcoes_missing) * length(mecanismos_missing) * N
+# ------
+# # Configurar paralelização
+# plan(multisession, workers = parallel::detectCores() - 1)
+# 
+# # Função ajustada para paralelização
+# avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missing, N = 5) {
+#   total_iteracoes <- length(proporcoes_missing) * length(mecanismos_missing) * N
+#   
+#   # Criar todas as combinações de parâmetros
+#   cenarios <- expand.grid(
+#     prop_missing = proporcoes_missing,
+#     mecanismo = mecanismos_missing,
+#     iter = 1:N
+#   )
+#   
+#   # Aplicar paralelização com controle de aleatoriedade
+#   
+#   resultado <- future_lapply(1:nrow(cenarios), function(i) {
+#     set.seed(cenarios$iter[i])  # Fixar a seed para reprodutibilidade
+#     
+#     # Criar base com missing data
+#     df_missing <- simular_ausencia(df, proporcao_missing = cenarios$prop_missing[i], mecanismo_missing = cenarios$mecanismo[i])
+#     
+#     # Garantir que é um data.table antes de usar :=
+#     setDT(df_missing)
+#     
+#     # Lista para armazenar as métricas de cada método
+#     metricas_lista <- list()
+#     
+#     # Criar nome do cenário
+#     cenario_str <- paste0("Missing_", cenarios$prop_missing[i], "_", cenarios$mecanismo[i])
+#     
+#     # Análise de casos completos
+#     df_cc <- df_missing[complete.cases(df_missing)]
+#     metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE),  metodo = "casos_completos")
+#     
+#     # Imputação por Predictive Mean Matching (PMM)
+#     imp_pmm <- mice(df_missing, method = meth, m = 2, maxit = 2, seed = 123)
+# 
+#    # calcula o desvio padrao medio das multiplas imputacoes para o cenario
+# 
+# 
+#               # Extrair os dados imputados
+#             imputed_data <- complete(imp_pmm, action = "long")
+# 
+#             # Calcular média e desvio padrão de IDADEPAI para cada imputação
+#             summary_stats <- aggregate(IDADEPAI ~ .imp, data = imputed_data, FUN = function(x) c(mean = mean(x), sd = sd(x)))
+# 
+#             # Ajustar para separar média e DP
+#             summary_stats <- do.call(data.frame, summary_stats)
+#             colnames(summary_stats) <- c("Imputacao", "Media", "DP")  # Renomear colunas
+# 
+#             # Obter o desvio padrão médio das imputações
+#             sd_imputado <- mean(summary_stats$DP, na.rm = TRUE)
+#             media_cenario_tratamento <-  mean(summary_stats$Media, na.rm = TRUE)
+#     
+#     imputado_pmm <- complete(imp_pmm)$IDADEPAI
+#     
+#     metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, media_cenario_tratamento, metodo = "pmm", dp_imputado = sd_imputado)
+#     
+#     # Limpeza de memória
+#     rm(df_missing, df_cc, imp_pmm, imputado_pmm)
+#     gc()
+#     
+#     # Retornar resultados com a coluna 'cenario'
+#     resultado_cenario <- rbindlist(metricas_lista, idcol = "metodo")
+#     resultado_cenario[, cenario := cenario_str]  # Adiciona a coluna
+#     
+#     return(resultado_cenario)
+#   }, future.seed = TRUE)  # Adicionado para garantir reprodutibilidade
+#   
+#   # Combinar todos os resultados
+#   return(rbindlist(resultado, idcol = "cenario"))
+# }
+
+# ------
+
+# versao com as amostragens aleatorias  
   
-  # Criar todas as combinações de parâmetros
-  cenarios <- expand.grid(
-    prop_missing = proporcoes_missing,
-    mecanismo = mecanismos_missing,
-    iter = 1:N
-  )
+  # Configurar paralelização
+  plan(multisession, workers = parallel::detectCores() - 1)
   
-  # Aplicar paralelização com controle de aleatoriedade
-  resultado <- future_lapply(1:nrow(cenarios), function(i) {
-    set.seed(cenarios$iter[i])  # Fixar a seed para reprodutibilidade
+  # Função ajustada com amostragem
+  avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missing, N = 5, repeticoes_amostragem = 5) {
     
-    # Criar base com missing data
-    df_missing <- simular_ausencia(df, proporcao_missing = cenarios$prop_missing[i], mecanismo_missing = cenarios$mecanismo[i])
-    
-    # Garantir que é um data.table antes de usar :=
-    setDT(df_missing)
-    
-    # Lista para armazenar as métricas de cada método
-    metricas_lista <- list()
-    
-    # Análise de casos completos
-    df_cc <- df_missing[complete.cases(df_missing)]
-    metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE),  metodo = "casos_completos")
-    
-    # Imputação por Predictive Mean Matching (PMM)
-    imp_pmm <- mice(df_missing, method = meth, m = 2, maxit = 2, seed = 123)
+    inicio <- Sys.time() # hora inicial, ver tempo de execucao
 
-   # calcula o desvio padrao medio das multiplas imputacoes para o cenario
-
-
-              # Extrair os dados imputados
-            imputed_data <- complete(imp_pmm, action = "long")
-
-            # Calcular média e desvio padrão de IDADEPAI para cada imputação
-            summary_stats <- aggregate(IDADEPAI ~ .imp, data = imputed_data, FUN = function(x) c(mean = mean(x), sd = sd(x)))
-
-            # Ajustar para separar média e DP
-            summary_stats <- do.call(data.frame, summary_stats)
-            colnames(summary_stats) <- c("Imputacao", "Media", "DP")  # Renomear colunas
-
-            # Obter o desvio padrão médio das imputações
-            sd_imputado <- mean(summary_stats$DP, na.rm = TRUE)
-            media_cenario_tratamento <-  mean(summary_stats$Media, na.rm = TRUE)
+    # Criar todas as combinações de parâmetros
+    cenarios <- expand.grid(
+      prop_missing = proporcoes_missing,
+      mecanismo = mecanismos_missing,
+      iter = 1:N
+    )
     
-    imputado_pmm <- complete(imp_pmm)$IDADEPAI
+    # Aplicar paralelização com controle de aleatoriedade
+    resultado <- future_lapply(1:nrow(cenarios), function(i) {
+      set.seed(cenarios$iter[i])  # Fixar a seed para reprodutibilidade
+      
+      # Criar base com missing data
+      df_missing <- simular_ausencia(df, proporcao_missing = cenarios$prop_missing[i], mecanismo_missing = cenarios$mecanismo[i])
+      
+      setDT(df_missing)  # Garantir que é um data.table
+      
+      # Lista para armazenar as métricas de cada método
+      metricas_lista <- list()
+      
+      # Análise de casos completos
+      df_cc <- df_missing[complete.cases(df_missing)]
+      metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE), metodo = "casos_completos")
+      
+      # Imputação por Predictive Mean Matching (PMM)
+      imp_pmm <- mice(df_missing, method = meth, m = 2, maxit = 2, seed = 123)
+      
+      # Extrair os dados imputados
+      imputed_data <- complete(imp_pmm, action = "long")
+      
+      # Calcular média e desvio padrão de IDADEPAI para cada imputação
+      summary_stats <- aggregate(IDADEPAI ~ .imp, data = imputed_data, FUN = function(x) c(mean = mean(x), sd = sd(x)))
+      summary_stats <- do.call(data.frame, summary_stats)
+      colnames(summary_stats) <- c("Imputacao", "Media", "DP")  # Renomear colunas
+      
+      # Calcular métricas para o método PMM
+      sd_imputado <- mean(summary_stats$DP, na.rm = TRUE)
+      media_cenario_tratamento <- mean(summary_stats$Media, na.rm = TRUE)
+      
+      metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, media_cenario_tratamento, metodo = "pmm", dp_imputado = sd_imputado)
+      
+      # Criar string identificadora do cenário
+      nome_cenario <- paste0("Missing_", cenarios$prop_missing[i], "_", cenarios$mecanismo[i])
+      
+      # Consolidar resultados antes da amostragem
+      resultado_cenario <- rbindlist(metricas_lista, idcol = "metodo")
+      resultado_cenario[, cenario := nome_cenario]  # Adicionar a coluna do cenário
+      
+      # Aplicar a amostragem dentro do loop (X vezes)
+      resultados_amostra <- vector("list", repeticoes_amostragem)
+      
+      for (j in 1:repeticoes_amostragem) {
+        # Seleciona aleatoriamente 10% dos dados do cenário
+        amostra <- resultado_cenario[sample(.N, size = ceiling(.N * 0.1)), by = cenario]
+        
+        # Recalcula métricas para essa amostra
+        metricas_amostra <- amostra[, .(
+          Media = mean(Media, na.rm = TRUE),
+          RMSE = mean(RMSE, na.rm = TRUE),
+          RB = mean(RB, na.rm = TRUE),
+          PB = mean(PB, na.rm = TRUE)
+        ), by = .(cenario, metodo)]
+        
+        # Adicionar número da repetição
+        metricas_amostra[, repeticao := j]
+        
+        # Armazena resultado da amostragem na lista
+        resultados_amostra[[j]] <- metricas_amostra
+      }
+      
+      # Combinar todas as amostragens do cenário
+      resultado_amostragem_cenario <- rbindlist(resultados_amostra)
+      
+      # Retornar resultado completo (métricas gerais + amostragem)
+      return(list(resultado_cenario = resultado_cenario, resultado_amostragem_cenario = resultado_amostragem_cenario))
+      
+    }, future.seed = TRUE)
     
-    metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, media_cenario_tratamento, metodo = "pmm", dp_imputado = sd_imputado)
+    # Separar resultados gerais e de amostragem
+    resultado_geral <- rbindlist(lapply(resultado, `[[`, "resultado_cenario"))
+    resultado_amostragem <- rbindlist(lapply(resultado, `[[`, "resultado_amostragem_cenario"))
     
-    # Limpeza de memória
-    rm(df_missing, df_cc, imp_pmm, imputado_pmm)
-    gc()
-    
-    # Retornar resultados com a coluna 'cenario'
-    resultado_cenario <- rbindlist(metricas_lista, idcol = "metodo")
-    resultado_cenario[, cenario := cenario_str]  # Adiciona a coluna
-    
-    return(resultado_cenario)
-  }, future.seed = TRUE)  # Adicionado para garantir reprodutibilidade
+     fim <- Sys.time()  # Registrar tempo final
+      tempo_total <- fim - inicio  # Calcular tempo decorrido
+      
+      cat("\nTempo total de execução:", tempo_total, "segundos\n")  # Exibir no console
+      
+
+    return(list(resultado_geral = resultado_geral, resultado_amostragem = resultado_amostragem, tempo_execucao = tempo_total))
+  }
   
-  # Combinar todos os resultados
-  return(rbindlist(resultado, idcol = "cenario"))
-}
-
-
-
+  
 # Definir os cenários
 proporcoes_missing <- c(0.1, 0.2, 0.4, 0.6, 0.8)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
@@ -414,39 +521,25 @@ populacao_completa <- as.data.table(populacao_completa)
 #rm(Parana_select)
 gc()
 
-# Executar a versão paralelizada
-resultado_parallel <- avaliar_imputacoes_parallel(populacao_completa, proporcoes_missing, mecanismos_missing, N = 1)
+# # Executar a versão paralelizada
+# resultado_parallel <- avaliar_imputacoes_parallel(populacao_completa, proporcoes_missing, mecanismos_missing, N = 1)
+# 
+# # Exibir resultados
+# View(resultado_parallel)
 
-# Exibir resultados
-View(resultado_parallel)
+resultado_parallel <- avaliar_imputacoes_parallel(populacao_completa, proporcoes_missing, mecanismos_missing, N = 1, repeticoes_amostragem = 5)
+
+# Separar resultados
+resultado_geral <- resultado_parallel$resultado_geral
+resultado_amostragem <- resultado_parallel$resultado_amostragem
+
+# Visualizar
+View(resultado_geral)
+View(resultado_amostragem)
 
 
 
-# Visualização das métricas
-library(kableExtra)
 
-resultado[, .(media_cenario_tratamento=mean(media_cenario_tratamento)) ,(RMSE = mean(RMSE), RB = mean(RB), PB = mean(PB)), 
-          by = .(cenario, metodo)] %>%
-  kable(digits = 3, format = "html") %>%
-  kable_styling(full_width = FALSE)
-
-library(ggplot2)
-ggplot(resultado, aes(x = metodo, y = RMSE, fill = metodo)) +
-  geom_boxplot() +
-  facet_wrap(~cenario) +
-  theme_minimal() +
-  labs(title = "Comparação de RMSE entre métodos", x = "Método", y = "RMSE")
-
-# Heatmap das métricas
-library(reshape2)
-melted <- melt(resultado, id.vars = c("cenario", "metodo"), measure.vars = c("RMSE", "RB", "PB", "MAE", "MAPE"))
-
-ggplot(melted, aes(x = metodo, y = cenario, fill = value)) +
-  geom_tile() +
-  facet_wrap(~variable) +
-  scale_fill_gradient(low = "white", high = "red") +
-  theme_minimal() +
-  labs(title = "Heatmap das Métricas de Imputação", fill = "Valor")
 
 # desabilitar hibernacao linux:
 # sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
@@ -460,10 +553,10 @@ resultados_cenarios$mecanismo <- sub(".*Mecanismo:\\s*", "", resultados_cenarios
 
 
 # Arredondar os valores para 3 casas decimais
-resultados_cenarios[, c("RMSE", "RB", "MAE", "MAPE")] <- round(resultados_cenarios[, c("RMSE", "RB", "MAE", "MAPE")], 3)
+resultados_cenarios[, c("RMSE", "RB")] <- round(resultados_cenarios[, c("RMSE", "RB")], 3)
 
 # Substituir ponto por vírgula para notação decimal brasileira
-resultados_cenarios[, c("RMSE", "RB", "MAE", "MAPE")] <- apply(resultados_cenarios[, c("RMSE", "RB", "MAE", "MAPE")], 2, function(x) gsub("\\.", ",", as.character(x)))
+resultados_cenarios[, c("RMSE", "RB")] <- apply(resultados_cenarios[, c("RMSE", "RB")], 2, function(x) gsub("\\.", ",", as.character(x)))
 
 # Exibir os resultados formatados
 print(resultados_cenarios)
