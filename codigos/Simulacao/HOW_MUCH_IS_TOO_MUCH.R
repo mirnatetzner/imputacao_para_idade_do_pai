@@ -362,7 +362,7 @@ avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missi
     
     # Análise de casos completos
     df_cc <- df_missing[complete.cases(df_missing)]
-    metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE))
+    metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE),  metodo = "casos_completos")
     
     # Imputação por Predictive Mean Matching (PMM)
     imp_pmm <- mice(df_missing, method = meth, m = 2, maxit = 2, seed = 123)
@@ -386,7 +386,7 @@ avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missi
     
     imputado_pmm <- complete(imp_pmm)$IDADEPAI
     
-    metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, media_cenario_tratamento)
+    metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, media_cenario_tratamento, metodo = "pmm", dp_imputado = sd_imputado)
     
     # Limpeza de memória
     rm(df_missing, df_cc, imp_pmm, imputado_pmm)
@@ -408,7 +408,7 @@ mecanismos_missing <- c("MCAR", "MAR", "MNAR")
 
 # População completa
 populacao_completa <- as.data.table(populacao_completa)
-rm(Parana_select)
+#rm(Parana_select)
 gc()
 
 # Executar a versão paralelizada
