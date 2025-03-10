@@ -164,7 +164,6 @@ summary(pooled_results)
 imputed_data <- complete(teste, action = "long")
 
 # Plotando a distribuição das imputações de IDADEPAI
-library(ggplot2)
 ggplot(imputed_data, aes(x = IDADEPAI)) +
   geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Distribuição das Imputações de IDADEPAI", x = "Idade do Pai", y = "Frequência")
@@ -177,8 +176,7 @@ head(imputed_data$IDADEPAI)
 # Adicionar a variável de iteração ao dataframe
 imputed_data$iteration <- factor(imputed_data$.imp)
 
-# Visualizar as distribuições das imputações de IDADEPAI por iteração
-library(ggplot2)
+
 ggplot(imputed_data, aes(x = IDADEPAI, fill = iteration)) +
   geom_density(alpha = 0.5) +
   labs(title = "Distribuição das Imputações de IDADEPAI por Iteração", x = "Idade do Pai", y = "Densidade")
