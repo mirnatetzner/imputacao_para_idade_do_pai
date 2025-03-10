@@ -77,23 +77,6 @@ rm(Sul, Parana)
 # se fizer para outros anos, aqui tem que quebrar por anos
 
 
-# Supondo que as datas estejam no formato Date
-Parana = Parana %>%
-  mutate(DTCADASTRO = as.Date(DTCADASTRO),
-        DTNASC = as.Date(DTNASC)) %>%
-        mutate(diferenca_dias = as.numeric(difftime(DTCADASTRO, DTNASC, units = "days")))
-        
-# Definindo os intervalos e as categorias
-# Parana$grupo_dias <- cut(Parana$diferenca_dias,
-#                          breaks = c(0, 10, 30, 50, 100, 200, 320, Inf), # Intervalos de 10, 30, 50, etc.
-#                         labels = c("Até 10 dias", "Até 30 dias", "Até 50 dias", "Até 100 dias", "Até 200 dias",  "Até 320 dias", "Mais de 320 dias"),
-#                         right = TRUE, include.lowest = TRUE)
-
-
-#  Parana$DIFDATA <- cut(as.numeric(Parana$DIFDATA),
-#                          breaks = c(0, 10, 30, 50, 100, 200, 320, Inf), # Intervalos de 10, 30, 50, etc.
-#                          labels = c("Até 10 dias", "Até 30 dias", "Até 50 dias", "Até 100 dias", "Até 200 dias",  "Até 320 dias", "Mais de 320 dias"),
-#                          right = TRUE, include.lowest = TRUE)
 
 # Função para verificar e converter variáveis para fatores
 convert_to_factors <- function(data, vars) {
@@ -234,10 +217,6 @@ library(parallel) # para paralelizar o processo de imputacao
 #----------
 
 
-
-
-
-
 # Parâmetro de interesse (média da idade do pai)
 parametro_populacional_media = mean(populacao_completa$IDADEPAI, na.rm = TRUE)
 
@@ -272,7 +251,8 @@ simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "M
         missing_positions <- 1:n_missing
         dt_simulado[missing_positions, IDADEPAI := NA]
           
-    
+    #### metodo de simular o mecanismo MAR de maneira mais suavizada
+
     # dt_simulado[, prob_missing := 1 / (1 + exp(0.3 * (IDADEMAE - mean(IDADEMAE, na.rm = TRUE))))]
     
     ### Substituir NA por 0 e normalizar
@@ -327,99 +307,23 @@ simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "M
 
 
 
-
-
-# Função para criar cenários de ausência de dados
-# simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "MCAR") {
-#   dt_simulado <- copy(dt)
-#   n <- nrow(dt_simulado)
-#   n_missing <- floor(proporcao_missing * n)
-#   
-#   if (mecanismo_missing == "MCAR") {
-#     missing_positions <- sample(1:n, n_missing)
-#   } else if (mecanismo_missing == "MAR") {
-#     dt_simulado[, prob_missing := 1 / (1 + exp(0.3 * (IDADEMAE - mean(IDADEMAE, na.rm = TRUE))))]
-#     missing_positions <- sample(1:n, n_missing, prob = dt_simulado$prob_missing)
-#     dt_simulado[, prob_missing := NULL]
-#   } else if (mecanismo_missing == "MNAR") {
-#     dt_simulado[, prob_missing := ifelse(IDADEPAI < 30, 0.8, 0.2)]
-#     missing_positions <- sample(1:n, n_missing, prob = dt_simulado$prob_missing)
-#     dt_simulado[, prob_missing := NULL]
-#   }
-#   
-#   dt_simulado[missing_positions, IDADEPAI := NA]
-#   return(dt_simulado)
-# }
-# 
 # Função para calcular métricas de avaliação
-calcular_metricas_media <- function(media_verdadeira, media_imputada) {
-  media_imputada <- media_imputada
-  rmse <- sqrt((media_imputada - media_verdadeira)^2)
-  rb <- media_imputada / media_verdadeira - 1
-  pb <- (media_imputada - media_verdadeira) / sd(populacao_completa$IDADEPAI)
-  # mae <- abs(media_imputada - media_verdadeira)
-  # mape <- abs((media_imputada - media_verdadeira) / media_verdadeira) * 100
-
-  return(data.table(Media= media_imputada,RMSE = rmse, RB = rb, PB = pb))
+calcular_metricas_media <- function(media_verdadeira, media_cenario_tratamento, metodo = "outro", dp_imputado = NULL) {
+  media_cenario_tratamento <- media_cenario_tratamento
+  rmse <- sqrt((media_cenario_tratamento - media_verdadeira)^2)
+  rb <- media_cenario_tratamento / media_verdadeira - 1
+ 
+  # Calcular PB apenas para métodos de imputação
+  if (metodo == "pmm" && !is.null(dp_imputado) && dp_imputado > 0) {
+    pb <- (media_cenario_tratamento - media_verdadeira) / dp_imputado
+  } else {
+    pb <- NA  # Evita erro em casos completos
+  }
+  
+  # Retornar tabela de métricas
+  return(data.table(Media = media_cenario_tratamento, RMSE = rmse, RB = rb, PB = pb))
 }
 
-# Função principal para avaliar imputações
-# avaliar_imputacoes <- function(df, proporcoes_missing, mecanismos_missing, N = 10) {
-#   resultado <- list()
-#   tempo_inicio <- Sys.time()
-#   total_iteracoes <- length(proporcoes_missing) * length(mecanismos_missing) * N  
-#   iteracao_atual <- 0
-#   
-#   for (prop_missing in proporcoes_missing) {
-#     for (mecanismo in mecanismos_missing) {
-#       for (iteracao in 1:N) {
-#         iteracao_atual <- iteracao_atual + 1
-#         tempo_atual <- Sys.time()
-#         tempo_decorrido <- difftime(tempo_atual, tempo_inicio, units = "secs")
-#         tempo_estimado_restante <- (tempo_decorrido / iteracao_atual) * (total_iteracoes - iteracao_atual)
-#         
-#         progresso <- round((iteracao_atual / total_iteracoes) * 100, 2)
-#         tempo_estimado_restante_minutos <- round(tempo_estimado_restante / 60, 2)
-#         
-#         cat(sprintf("Progresso: %.2f%% - Tempo estimado restante: %.2f minutos\n", progresso, tempo_estimado_restante_minutos))
-#         
-#         set.seed(iteracao)
-#         
-#         # Gerar base com dados ausentes
-#         df_missing <- simular_ausencia(df, proporcao_missing = prop_missing, mecanismo_missing = mecanismo)
-#         
-#         # Calcular as médias para comparação
-#         # media_imputada <- mean(df_missing$IDADEPAI, na.rm = TRUE) 
-#         
-#         # Calcular métricas
-#         metricas_lista <- list()
-#         
-#         # Análise de casos completos
-#         df_cc <- df_missing[complete.cases(df_missing)]
-#         metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE))
-#         
-#         # Imputação por Predictive Mean Matching (PMM)
-#         imp_pmm <- mice(df_missing, method = "pmm", m = 2, maxit = 2, seed = 123)
-#         # imp_pmm <- mice(df_missing, method = "pmm", m = 5, maxit = 5, seed = 123)
-#         imputado_pmm <- complete(imp_pmm)$IDADEPAI
-#         metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, mean(imputado_pmm, na.rm = TRUE))
-#         
-#         # Armazenar resultados
-#         resultado[[paste0("prop", prop_missing, "_", mecanismo, "_iteracao", iteracao)]] <- rbindlist(metricas_lista, idcol = "metodo")
-#         rm(df_missing, df_cc, imp_pmm, imputado_pmm)
-#         gc() 
-#       }
-#     }
-#   }
-#   
-#   return(rbindlist(resultado, idcol = "cenario"))
-# }
-
-
-
-
-# # Executar a avaliação com N repetições por cenário
-# resultado <- avaliar_imputacoes(populacao_completa, proporcoes_missing, mecanismos_missing, N = 2)
 
 
 ############## VERSAO PARALELIZADA 
@@ -462,8 +366,27 @@ avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missi
     
     # Imputação por Predictive Mean Matching (PMM)
     imp_pmm <- mice(df_missing, method = meth, m = 2, maxit = 2, seed = 123)
+
+   # calcula o desvio padrao medio das multiplas imputacoes para o cenario
+
+
+              # Extrair os dados imputados
+            imputed_data <- complete(imp_pmm, action = "long")
+
+            # Calcular média e desvio padrão de IDADEPAI para cada imputação
+            summary_stats <- aggregate(IDADEPAI ~ .imp, data = imputed_data, FUN = function(x) c(mean = mean(x), sd = sd(x)))
+
+            # Ajustar para separar média e DP
+            summary_stats <- do.call(data.frame, summary_stats)
+            colnames(summary_stats) <- c("Imputacao", "Media", "DP")  # Renomear colunas
+
+            # Obter o desvio padrão médio das imputações
+            sd_imputado <- mean(summary_stats$DP, na.rm = TRUE)
+            media_cenario_tratamento <-  mean(summary_stats$Media, na.rm = TRUE)
+    
     imputado_pmm <- complete(imp_pmm)$IDADEPAI
-    metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, mean(imputado_pmm, na.rm = TRUE))
+    
+    metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, media_cenario_tratamento)
     
     # Limpeza de memória
     rm(df_missing, df_cc, imp_pmm, imputado_pmm)
@@ -496,14 +419,10 @@ print(resultado_parallel)
 
 
 
-
-# Visualizar os resultados
-print(resultado)
-
 # Visualização das métricas
 library(kableExtra)
 
-resultado[, .(media_imputada=mean(media_imputada)) ,(RMSE = mean(RMSE), RB = mean(RB), PB = mean(PB)), 
+resultado[, .(media_cenario_tratamento=mean(media_cenario_tratamento)) ,(RMSE = mean(RMSE), RB = mean(RB), PB = mean(PB)), 
           by = .(cenario, metodo)] %>%
   kable(digits = 3, format = "html") %>%
   kable_styling(full_width = FALSE)
