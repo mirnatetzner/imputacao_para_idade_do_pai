@@ -392,8 +392,11 @@ avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missi
     rm(df_missing, df_cc, imp_pmm, imputado_pmm)
     gc()
     
-    # Retornar resultados
-    return(rbindlist(metricas_lista, idcol = "metodo"))
+    # Retornar resultados com a coluna 'cenario'
+    resultado_cenario <- rbindlist(metricas_lista, idcol = "metodo")
+    resultado_cenario[, cenario := cenario_str]  # Adiciona a coluna
+    
+    return(resultado_cenario)
   }, future.seed = TRUE)  # Adicionado para garantir reprodutibilidade
   
   # Combinar todos os resultados
@@ -415,7 +418,7 @@ gc()
 resultado_parallel <- avaliar_imputacoes_parallel(populacao_completa, proporcoes_missing, mecanismos_missing, N = 1)
 
 # Exibir resultados
-print(resultado_parallel)
+View(resultado_parallel)
 
 
 
