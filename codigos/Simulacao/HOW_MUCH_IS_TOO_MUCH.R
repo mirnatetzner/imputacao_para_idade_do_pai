@@ -65,7 +65,7 @@ populacao_completa <- populacao_completa %>%
     IDADEPAI = as.integer(IDADEPAI),
     #Ano = as.integer(Ano),
     missing =  (missing != 0),
-    PARTO = as.factor(PARTO),
+    #PARTO = as.factor(PARTO),
     ESCMAE = as.ordered(ESCMAE),# cadegorica ordinal
     ESTCIVMAE = as.factor(ESTCIVMAE),
     TPFUNCRESP = as.factor(TPFUNCRESP)
@@ -77,10 +77,73 @@ rm(Sul, Parana)
 # se fizer para outros anos, aqui tem que quebrar por anos
 
 
+# Supondo que as datas estejam no formato Date
+Parana = Parana %>%
+  mutate(DTCADASTRO = as.Date(DTCADASTRO),
+        DTNASC = as.Date(DTNASC)) %>%
+        mutate(diferenca_dias = as.numeric(difftime(DTCADASTRO, DTNASC, units = "days")))
+        
+# Definindo os intervalos e as categorias
+# Parana$grupo_dias <- cut(Parana$diferenca_dias,
+#                          breaks = c(0, 10, 30, 50, 100, 200, 320, Inf), # Intervalos de 10, 30, 50, etc.
+#                         labels = c("Até 10 dias", "Até 30 dias", "Até 50 dias", "Até 100 dias", "Até 200 dias",  "Até 320 dias", "Mais de 320 dias"),
+#                         right = TRUE, include.lowest = TRUE)
+
+
+#  Parana$DIFDATA <- cut(as.numeric(Parana$DIFDATA),
+#                          breaks = c(0, 10, 30, 50, 100, 200, 320, Inf), # Intervalos de 10, 30, 50, etc.
+#                          labels = c("Até 10 dias", "Até 30 dias", "Até 50 dias", "Até 100 dias", "Até 200 dias",  "Até 320 dias", "Mais de 320 dias"),
+#                          right = TRUE, include.lowest = TRUE)
+
+# Função para verificar e converter variáveis para fatores
+convert_to_factors <- function(data, vars) {
+  for (var in vars) {
+    if (is.factor(data[[var]]) == FALSE && length(unique(data[[var]])) > 1) {
+      data[[var]] <- factor(data[[var]])
+    } else if (length(unique(data[[var]])) == 1) {
+      message(paste("Variável", var, "tem apenas um nível e será ignorada no modelo."))
+    }
+  }
+  return(data)
+}
+
+# Lista de variáveis categóricas
+#categorical_vars <- c("ESCMAE", "ESTCIVMAE", "TPFUNCRESP", "RACACOR", "CODMUNCART", "grupo_dias","DIFDATA")
+
+# Converte as variáveis categóricas para fatores, se necessário
+Parana <- convert_to_factors(Parana, categorical_vars)
+
+# Verificando as variáveis numéricas para inclusão no modelo
+#numerical_vars <- c("IDADEMAE")
+
+# Verificando se todas as variáveis estão corretas antes de passar para o modelo
+#str(Parana)
+#Parana =Parana%>% mutate(missing =  (missing != 0))
+#table(Parana$grupo_dias)
+# Rodando o modelo de regressão logística
+#modelo <- glm(missing ~ IDADEMAE + ESCMAE + ESTCIVMAE + TPFUNCRESP + DIFDATA + RACACOR + grupo_dias,
+#              family = binomial, data = Parana)
+
+# Resumo do modelo
+# summary(modelo)
+
+
+# TESTANDO O IMPACTO DAS VARIAVEIS PRA PROBABILIDADE DE AUSENCIA
+# glm(missing ~ IDADEMAE + ESCMAE + ESTCIVMAE + TPFUNCRESP+ DIFDATA + NUMEROLOTE + RACACOR+CODMUNCART+grupo_dias, family = binomial, data = Parana)
+
+
+# VERIFICANDO MULTICOLINEARIDADE
+library(car)
+vif(glm(missing ~ IDADEMAE + ESCMAE + ESTCIVMAE + TPFUNCRESP, 
+        family = binomial, data = populacao_completa_x))
+
+
+
+#  ESCMAE, ESTCIVMAE, TPFUNCRESP, --> associadas a prop missing
+#  IDADEMAE ---> associadas a idade do pai
 
 #-----
-# irá retornar um vetor nomeado, onde cada elemento 
-# representa o método de imputação -- no pacote mice 
+# irá retornar um vetor nomeado, onde cada elemento representa o método de imputação -- no pacote mice 
 # atribuído a uma variável do conjunto de dados.
 
 meth <- make.method(populacao_completa)
@@ -128,99 +191,58 @@ plot_pred(pred, method = meth, square = FALSE)
 ini <- mice(populacao_completa, maxit = 0) # ver o numero de missing em cada variavel 
 ini$nmis
 
-plot_correlation = plot_corr(populacao_completa,square = FALSE, rotate = TRUE,
+
+plot_correlation = plot_corr(populacao_completa,label=TRUE,square = FALSE, rotate = TRUE,
                              caption = TRUE)
+plot_correlation
 ggsave("plot_correlation.jpg", plot = plot_correlation, dpi = 300 )
 
-
-require(lattice)
-histogram(~IDADEMAE|missing, data=populacao_completa) # a distribuicao da idade da mae quando idade do pai eh observada e n_obs
+#----------
+#require(lattice)
+#histogram(~IDADEMAE|missing, data=populacao_completa) # a distribuicao da idade da mae quando idade do pai eh observada e n_obs
 
 
 # Carregar o pacote parallel
 library(parallel) # para paralelizar o processo de imputacao
 
 # Imputar os dados com o método especificado
-teste <- mice(populacao_completa, method = meth, predictorMatrix = pred,  ncores = detectCores())
-glimpse(teste)
+#teste <- mice(populacao_completa, method = meth, predictorMatrix = pred,  ncores = detectCores())
+#glimpse(teste)
 
-# Summarize the mids object
-summary(teste)
+# Summarize the mids object  # OBJETO IMPUTADO DO MICE
+# summary(teste)
 
 # Compare observed and imputed values for a variable
-densityplot(teste)
-
-
-# Exemplo de regressão linear sobre os dados imputados
-analysis <- with(teste, lm(IDADEPAI ~ IDADEMAE + ESCMAE+ PARTO ))  # Ajuste o modelo conforme seu caso
-
-# Pool the results to combine across imputations
-pooled_results <- pool(analysis)
-
-# Summarize the pooled results
-summary(pooled_results)
-
-# Obter os dados imputados
-imputed_data <- complete(teste, action = "long")
-
-# Plotando a distribuição das imputações de IDADEPAI
-ggplot(imputed_data, aes(x = IDADEPAI)) +
-  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Distribuição das Imputações de IDADEPAI", x = "Idade do Pai", y = "Frequência")
-
+# densityplot(teste)
 # Verificando as imputações para IDADEPAI
-imputed_data <- complete(teste, action = "long")
-head(imputed_data$IDADEPAI)
+#imputed_data <- complete(teste, action = "long")
+#head(imputed_data$IDADEPAI)
 
 
 # Adicionar a variável de iteração ao dataframe
-imputed_data$iteration <- factor(imputed_data$.imp)
-
-
-ggplot(imputed_data, aes(x = IDADEPAI, fill = iteration)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "Distribuição das Imputações de IDADEPAI por Iteração", x = "Idade do Pai", y = "Densidade")
+# imputed_data$iteration <- factor(imputed_data$.imp)
+#ggplot(imputed_data, aes(x = IDADEPAI, fill = iteration)) +
+#  geom_density(alpha = 0.5) +
+#  labs(title = "Distribuição das Imputações de IDADEPAI por Iteração", x = "Idade do Pai", y = "Densidade")
 
 # Verificar se há NAs em IDADEPAI nas imputações
-any(is.na(imputed_data$IDADEPAI))
+#any(is.na(imputed_data$IDADEPAI))
 
 # Calcular as estatísticas para IDADEPAI por iteração
-summary_stats <- aggregate(IDADEPAI ~ .imp, data = imputed_data, FUN = function(x) c(mean = mean(x), sd = sd(x)))
-print(summary_stats)
+#summary_stats <- aggregate(IDADEPAI ~ .imp, data = imputed_data, FUN = function(x) c(mean = mean(x), sd = sd(x)))
+#print(summary_stats)
+#----------
 
 
-
-
-# testando menos variaveis, pra ver se roda:
-populacao_completa_redu = populacao_completa %>%
-  select(IDADEPAI,IDADEMAE,ESTCIVMAE)
-meth <- make.method(populacao_completa_redu)
-# Imputar os dados com o método especificado
-teste <- mice(populacao_completa_redu, method = meth, predictorMatrix = pred,  ncores = detectCores())
-glimpse(teste)
 
 
 
 
 # Parâmetro de interesse (média da idade do pai)
-parametro_populacional_media = mean(populacao_completa_redu$IDADEPAI, na.rm = TRUE)
+parametro_populacional_media = mean(populacao_completa$IDADEPAI, na.rm = TRUE)
 
 # estatísticas resumidas
-summary(populacao_completa_redu)
-
-plot(populacao_completa_redu$IDADEMAE, populacao_completa_redu$missing, main = "Idade da Mãe vs Missing", xlab = "Idade da Mãe", ylab = "Missing", pch = 19)
-
-
-# Modelo para Probabilidade de Ausência
-modelo_missing <- glm(missing ~ IDADEMAE + ESTCIVMAE, data = populacao_completa, family = binomial)
-summary(modelo_missing)
-
-# adiciona a probabilidade predita do modelo missing como uma variável adicional ao modelo de imputação de IDADEPAI.
-# calcula a probabilidade de ausência
-populacao_completa$prob_missing <- predict(modelo_missing, type = "response")
-
-# realiza imputação usando a variável prob_missing como covariável adicional
-modelo_imputacao <- mice(populacao_completa, method = "pmm", predictorMatrix = make.predictorMatrix(df))
+summary(populacao_completa)
 
 
 #--------
@@ -229,8 +251,6 @@ modelo_imputacao <- mice(populacao_completa, method = "pmm", predictorMatrix = m
 #correlacao <- cor(populacao_completa$IDADEMAE, populacao_completa$IDADEPAI, use = "complete.obs")
 #print(correlacao)
 
-#modelo <- lm(IDADEPAI ~ IDADEMAE, data = populacao_completa)
-#summary(modelo)
 
 
 
@@ -244,31 +264,40 @@ simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "M
   if (mecanismo_missing == "MCAR") {
     missing_positions <- sample(1:n, n_missing)  # se o input da funcao for mecanismo_missing=MCAR, vai selecionar em todo o conjunto de dados aleatoriamente, as posicoes para retirar (produzir o dado faltante)
   } else if (mecanismo_missing == "MAR") {
-    dt_simulado[, prob_missing := 1 / (1 + exp(0.3 * (IDADEMAE - mean(IDADEMAE, na.rm = TRUE))))]
     
-    # Substituir NA por 0 e normalizar
-    dt_simulado[, prob_missing := ifelse(is.na(prob_missing), 0, prob_missing)]
-    total_prob <- sum(dt_simulado$prob_missing, na.rm = TRUE)
+        # Ordenar pela IDADEMAE para remover dos mais jovens primeiro
+        setorder(dt_simulado, IDADEMAE)
+
+        # Criar índice das primeiras n_missing posições e definir como NA
+        missing_positions <- 1:n_missing
+        dt_simulado[missing_positions, IDADEPAI := NA]
+          
     
-    if (total_prob == 0) {
-      warning("Erro em 'simular_ausencia': todas as probabilidades são zero! Pulando este cenário.")
-      return(NULL)
-    }
+    # dt_simulado[, prob_missing := 1 / (1 + exp(0.3 * (IDADEMAE - mean(IDADEMAE, na.rm = TRUE))))]
     
-    dt_simulado[, prob_missing := prob_missing / total_prob]  
+    ### Substituir NA por 0 e normalizar
+    # dt_simulado[, prob_missing := ifelse(is.na(prob_missing), 0, prob_missing)]
+    # total_prob <- sum(dt_simulado$prob_missing, na.rm = TRUE)
     
-    missing_positions <- tryCatch({
-      sample(1:n, n_missing, prob = dt_simulado$prob_missing)
-    }, error = function(e) {
-      warning(paste("Erro ao tentar sortear valores para missing:", e$message))
-      return(NULL)
-    })
+    # if (total_prob == 0) {
+    #  warning("Erro em 'simular_ausencia': todas as probabilidades são zero! Pulando este cenário.")
+    #  return(NULL)
+    # }
     
-    dt_simulado[, prob_missing := NULL]
+    # dt_simulado[, prob_missing := prob_missing / total_prob]  
+    
+    # missing_positions <- tryCatch({
+    #  sample(1:n, n_missing, prob = dt_simulado$prob_missing)
+    # }, error = function(e) {
+    #  warning(paste("Erro ao tentar sortear valores para missing:", e$message))
+    #  return(NULL)
+    # })
+    
+    # dt_simulado[, prob_missing := NULL]
   } else if (mecanismo_missing == "MNAR") {
     dt_simulado[, prob_missing := ifelse(IDADEPAI < 30, 0.8, 0.2)]
     
-    # Substituir NA por 0 e normalizar
+    # Substitui NA por 0 e normaliza
     dt_simulado[, prob_missing := ifelse(is.na(prob_missing), 0, prob_missing)]
     total_prob <- sum(dt_simulado$prob_missing, na.rm = TRUE)
     
@@ -324,13 +353,14 @@ simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "M
 # 
 # Função para calcular métricas de avaliação
 calcular_metricas_media <- function(media_verdadeira, media_imputada) {
+  media_imputada <- media_imputada
   rmse <- sqrt((media_imputada - media_verdadeira)^2)
   rb <- media_imputada / media_verdadeira - 1
   pb <- (media_imputada - media_verdadeira) / sd(populacao_completa$IDADEPAI)
-  mae <- abs(media_imputada - media_verdadeira)
-  mape <- abs((media_imputada - media_verdadeira) / media_verdadeira) * 100
+  # mae <- abs(media_imputada - media_verdadeira)
+  # mape <- abs((media_imputada - media_verdadeira) / media_verdadeira) * 100
 
-  return(data.table(RMSE = rmse, RB = rb, PB = pb, MAE = mae, MAPE = mape))
+  return(data.table(Media= media_imputada,RMSE = rmse, RB = rb, PB = pb))
 }
 
 # Função principal para avaliar imputações
@@ -431,7 +461,7 @@ avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missi
     metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE))
     
     # Imputação por Predictive Mean Matching (PMM)
-    imp_pmm <- mice(df_missing, method = "pmm", m = 2, maxit = 2, seed = 123)
+    imp_pmm <- mice(df_missing, method = meth, m = 2, maxit = 2, seed = 123)
     imputado_pmm <- complete(imp_pmm)$IDADEPAI
     metricas_lista$pmm <- calcular_metricas_media(parametro_populacional_media, mean(imputado_pmm, na.rm = TRUE))
     
@@ -450,12 +480,12 @@ avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missi
 
 
 # Definir os cenários
-proporcoes_missing <- c(0.1, 0.2, 0.3)
+proporcoes_missing <- c(0.1, 0.2, 0.4, 0.6, 0.8)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
 
 # População completa
 populacao_completa <- as.data.table(populacao_completa)
-rm(df, Parana_select)
+rm(Parana_select)
 gc()
 
 # Executar a versão paralelizada
@@ -473,7 +503,7 @@ print(resultado)
 # Visualização das métricas
 library(kableExtra)
 
-resultado[, .(RMSE = mean(RMSE), RB = mean(RB), PB = mean(PB), MAE = mean(MAE), MAPE = mean(MAPE)), 
+resultado[, .(media_imputada=mean(media_imputada)) ,(RMSE = mean(RMSE), RB = mean(RB), PB = mean(PB)), 
           by = .(cenario, metodo)] %>%
   kable(digits = 3, format = "html") %>%
   kable_styling(full_width = FALSE)
