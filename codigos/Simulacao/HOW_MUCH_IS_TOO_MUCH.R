@@ -275,7 +275,7 @@ simular_ausencia <- function(dt, proporcao_missing = 0.1, mecanismo_missing = "M
     
     # dt_simulado[, prob_missing := NULL]
   } else if (mecanismo_missing == "MNAR") {
-    dt_simulado[, prob_missing := ifelse(IDADEPAI < 30, 0.8, 0.2)]
+    dt_simulado[, prob_missing := ifelse(IDADEPAI < 45, 0.8, 0.2)]
     
     # Substitui NA por 0 e normaliza
     dt_simulado[, prob_missing := ifelse(is.na(prob_missing), 0, prob_missing)]
@@ -417,7 +417,7 @@ library(mice)
   plan(multisession, workers = parallel::detectCores() - 1)
   
   # Função ajustada com amostragem
-  avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missing, N = 5, repeticoes_amostragem = 5) {
+  avaliar_imputacoes_parallel <- function(df, proporcoes_missing, mecanismos_missing, N = 5, repeticoes_amostragem = 10) {
     
     inicio <- Sys.time() # hora inicial, ver tempo de execucao
 
@@ -445,7 +445,7 @@ library(mice)
       metricas_lista$casos_completos <- calcular_metricas_media(parametro_populacional_media, mean(df_cc$IDADEPAI, na.rm = TRUE), metodo = "casos_completos")
       
       # Imputação por Predictive Mean Matching (PMM)
-      imp_pmm <- mice(df_missing, method = meth, m = 2, maxit = 2, seed = 123)
+      imp_pmm <- mice(df_missing, method = meth, m = 5, maxit = 5, seed = 123) #maxit -- método iterativo chamado "Fully Conditional Specification" (FCS)
       
       # Extrair os dados imputados
       imputed_data <- complete(imp_pmm, action = "long")
@@ -473,7 +473,7 @@ library(mice)
       
       for (j in 1:repeticoes_amostragem) {
         # Seleciona aleatoriamente 10% dos dados do cenário
-        amostra <- resultado_cenario[sample(.N, size = ceiling(.N * 0.1)), by = cenario]
+        amostra <- resultado_cenario[sample(.N, size = ceiling(.N * 0.1)), by = cenario, .SD]
         
         # Recalcula métricas para essa amostra
         metricas_amostra <- amostra[, .(
@@ -483,7 +483,7 @@ library(mice)
           PB = mean(PB, na.rm = TRUE)
         ), by = .(cenario, metodo)]
         
-        # Adicionar número da repetição
+        # Adiciona número da repetição
         metricas_amostra[, repeticao := j]
         
         # Armazena resultado da amostragem na lista
@@ -527,7 +527,7 @@ gc()
 # # Exibir resultados
 # View(resultado_parallel)
 
-resultado_parallel <- avaliar_imputacoes_parallel(populacao_completa, proporcoes_missing, mecanismos_missing, N = 1, repeticoes_amostragem = 5)
+resultado_parallel <- avaliar_imputacoes_parallel(populacao_completa, proporcoes_missing, mecanismos_missing, N = 1, repeticoes_amostragem = 10)
 
 # Separar resultados
 resultado_geral <- resultado_parallel$resultado_geral
@@ -536,6 +536,30 @@ resultado_amostragem <- resultado_parallel$resultado_amostragem
 # Visualizar
 View(resultado_geral)
 View(resultado_amostragem)
+
+# verificar Warnings, 
+# separar as colunas de prop e mecanismo, 
+# deixar o objeto mais limpo
+
+
+# Carregar o pacote necessário
+library(openxlsx)
+
+# Criar um workbook
+wb <- createWorkbook()
+
+# Criar duas folhas e adicionar os dados
+addWorksheet(wb, "Folha 1")
+writeData(wb, "Folha 1", resultado_geral)
+
+addWorksheet(wb, "Folha 2")
+writeData(wb, "Folha 2", resultado_amostragem)
+
+# Salvar o arquivo
+saveWorkbook(wb, "planilha_resultados.xlsx", overwrite = TRUE)
+
+# Mensagem de confirmação
+cat("Arquivo 'planilha_resultados.xlsx' salvo com sucesso!")
 
 
 

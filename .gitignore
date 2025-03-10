@@ -1,0 +1,45 @@
+# Arquivos e pastas do R
+*.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Arquivos e pastas do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# Arquivos de logs e temporários
+*.log
+*.out
+*.tmp
+.DS_Store
+
+# Configurações do sistema operacional e editores
+.idea/
+.vscode/
+*.swp
+
+# Arquivos gerados por pacotes
+node_modules/
+dist/
+build/
+
+# Arquivos do Excel gerados
+*.xlsx
+*.xls
+
+# Arquivos de saída
+/output/
+*.csv
+*.tsv
+*.json
+*.svg
+
+# Chaves e senhas (se aplicável)
+*.pem
+*.key
+.env
