@@ -197,23 +197,9 @@ library(parallel) # para paralelizar o processo de imputacao
 # Parâmetro de interesse (média da idade do pai)
 parametro_populacional_media = mean(populacao_completa$IDADEPAI, na.rm = TRUE)
 parametro_populacional_media
+
 # estatísticas resumidas
 summary(populacao_completa)
-
-
-#--------
-
-# Análise de correlação 
-#correlacao <- cor(populacao_completa$IDADEMAE, populacao_completa$IDADEPAI, use = "complete.obs")
-#print(correlacao)
-
-
-
-
-
-
-
-
 
 
 
@@ -410,7 +396,7 @@ populacao_completa <- as.data.table(populacao_completa)
 gc()
 
 
-resultado_parallel <- avaliar_imputacoes_parallel(populacao_completa, proporcoes_missing, mecanismos_missing, N = 1)
+resultado_parallel <- avaliar_imputacoes_parallel(populacao_completa, proporcoes_missing, mecanismos_missing, N = 50)
 
 # Separar resultados
 resultado_geral <- resultado_parallel$resultado_geral
