@@ -43,3 +43,31 @@ build/
 *.pem
 *.key
 .env
+
+
+# Arquivos compilados do LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+
+# Arquivos temporários
+*.nav
+*.snm
+*.vrb
+*.xdv
+
+# Arquivos de backup e compilação
+*.bak
+*.dvi
+*.ps
+*.pdf
