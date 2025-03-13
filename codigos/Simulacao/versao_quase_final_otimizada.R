@@ -6,8 +6,21 @@ library(openxlsx)
 library(knitr)
 options(OutDec = ",", scipen=999)
 
+
+
+# desabilitar hibernacao linux:
+# sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
+# reabilitar hibernacao linux:
+# sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
 # Carregar dados
-Sul = load("E:/2-nao_subi_git20241101/dados_2012-2022/Norte.RData")
+# linux
+load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
+
+# windows
+
+#load("E:/2-nao_subi_git20241101/dados_2012-2022/Sul.RData")
 
 
 Parana = Sul %>% 
