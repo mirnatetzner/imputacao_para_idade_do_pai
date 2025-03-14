@@ -1,0 +1,8 @@
+Variável	Método
+IDADEMAE	
+IDADEPAI	pmm
+missing	
+PARTO	pmm
+ESCMAE	pmm
+ESTCIVMAE	pmm
+TPFUNCRESP	pmm

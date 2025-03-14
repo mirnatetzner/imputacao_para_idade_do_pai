@@ -33,7 +33,7 @@ rm(Sul, Parana)
 gc()
 
 # Limpeza e transformação
-dados_completos <- df_select[, .(
+df_select <- df_select[, .(
   IDADEMAE = as.integer(IDADEMAE),
   IDADEPAI = as.integer(IDADEPAI),
   missing = missing != 0,
@@ -42,8 +42,10 @@ dados_completos <- df_select[, .(
   TPFUNCRESP = as.factor(TPFUNCRESP)
 )]
 
+rm(dados_completos)
+gc()
 # Definir método de imputação
-meth <- make.method(dados_completos)
+meth <- make.method(df_select)
 
 # Criar tabela dos métodos aplicados
 metodos_tabela <- data.frame(Variável = names(meth), Método = meth)
@@ -83,7 +85,7 @@ avaliar_metricas <- function(media_real, media_estim, dp_estim) {
 }
 
 # Avaliação paralela com tryCatch para salvar resultados parciais
-avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 50) {
+avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 5) {
   plan(multisession, workers = parallel::detectCores() - 1)
   cenarios <- expand.grid(proporcao = proporcoes, mecanismo = mecanismos, iter = 1:N)
   
@@ -131,7 +133,7 @@ avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 50) {
 # Executar avaliações
 proporcoes_missing <- c(0.1, 0.2, 0.4, 0.6, 0.8)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
-resultado_final <- avaliar_imputacoes_parallel(dados_completos, proporcoes_missing, mecanismos_missing, N = 50)
+resultado_final <- avaliar_imputacoes_parallel(df_select, proporcoes_missing, mecanismos_missing, N = 5)
 
 # Salvar resultados finais em Excel
 wb <- createWorkbook()
