@@ -85,9 +85,9 @@ avaliar_metricas <- function(media_real, media_estim, dp_estim) {
 }
 
 # Avaliação paralela com tryCatch para salvar resultados parciais
-avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 5) {
+avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 1) {
   plan(multisession, workers = parallel::detectCores() - 1)
-  cenarios <- expand.grid(proporcao = proporcoes, mecanismo = mecanismos, iter = 1:N)
+  cenarios <- expand.grid(proporcao = proporcoes, mecanismo = mecanismos, iter = 1:N) # cria df com todas as combinacoes possiveis
   
   # Criar uma lista para armazenar os resultados parciais
   resultado_parcial <- list()
@@ -99,29 +99,62 @@ avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 5) {
       metricas_lista <- list()
       
       # Casos completos
-      df_cc <- df_missing[complete.cases(df_missing)]
-      metricas_lista$casos_completos <- avaliar_metricas(mean(df$IDADEPAI, na.rm = TRUE), mean(df_cc$IDADEPAI, na.rm = TRUE), NULL)
+      df_cc <- df_missing[complete.cases(df_missing), ]
+      media_cc <- mean(df_cc$IDADEPAI, na.rm = TRUE)
+      metricas_lista$casos_completos <- avaliar_metricas(mean(df$IDADEPAI, na.rm = TRUE), media_cc, NULL)
       
       # Imputação
-      imp_pmm <- mice(df_missing, method = meth, m = 5, maxit = 5, seed = 123)
+      imp_pmm <- mice(df_missing, method = meth, m = 5, maxit = 5, seed = 123) # m=5 versões do dataset imputando os valores ausentes de forma ligeiramente diferente em cada uma e MAXIT=5 significa que, em cada um dos 5 datasets, os valores ausentes são imputados 5 vezes usando um modelo iterativo do mice de acordo com o metodo definido em METH.
       imputed_data <- complete(imp_pmm, action = "long")
+      
+      # Cálculo das métricas de imputação
       media_estim <- mean(imputed_data$IDADEPAI, na.rm = TRUE)
       dp_estim <- sd(imputed_data$IDADEPAI, na.rm = TRUE)
       metricas_lista$pmm <- avaliar_metricas(mean(df$IDADEPAI, na.rm = TRUE), media_estim, dp_estim)
       
-      # Registrar o resultado
-      resultado_iteracao <- rbindlist(metricas_lista, idcol = "metodo")
+      
+      # Criar um dataframe com as informações do cenário e métricas
+      resultado_iteracao <- data.frame(
+        proporcao = cenarios$proporcao[i],
+        mecanismo = cenarios$mecanismo[i],
+        metodo = c("casos_completos", "pmm"),
+        media_estimada = c(media_cc, media_estim),
+        dp_estimado = c(NA, dp_estim),
+        erro = NA  # Nenhum erro ocorreu
+      )
       
       # Salvar resultados parciais após cada iteração
       resultado_parcial[[paste0("Iteracao_", i)]] <<- resultado_iteracao
       saveRDS(resultado_parcial, "resultados_parciais.rds")
       
+      message(paste0("Iteração ", i, " concluída com sucesso."))
+      
       return(resultado_iteracao)
       
     }, error = function(e) {
-      # Registrar erro e continuar
-      message(paste0("Erro na iteração ", i, ": ", e$message))
-      return(NULL)
+      # Mensagem de erro detalhada
+      erro_msg <- e$message
+      
+      # Capturar a pilha de chamadas (para entender onde o erro ocorreu)
+      erro_trace <- paste(capture.output(traceback()), collapse = " | ")
+      
+      # Criar um dataframe para registrar o erro junto com o cenário
+      erro_df <- data.frame(
+        proporcao = cenarios$proporcao[i],
+        mecanismo = cenarios$mecanismo[i],
+        metodo = "ERRO",
+        media_estimada = NA,
+        dp_estimado = NA,
+        erro = paste0(erro_msg, " | Trace: ", erro_trace)
+      )
+      
+      # Salvar erro nos resultados parciais
+      resultado_parcial[[paste0("Iteracao_", i)]] <<- erro_df
+      saveRDS(resultado_parcial, "resultados_parciais.rds")
+      
+      message(paste0("Erro na iteração ", i, ": ", erro_msg))
+      
+      return(erro_df)  # Retorna o dataframe com o erro
     })
   }, future.seed = TRUE)
   
@@ -131,9 +164,9 @@ avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 5) {
 }
 
 # Executar avaliações
-proporcoes_missing <- c(0.1, 0.2, 0.4, 0.6, 0.8)
+proporcoes_missing <- c( 0.6, 0.8) #0.1, 0.2, 0.4,
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
-resultado_final <- avaliar_imputacoes_parallel(df_select, proporcoes_missing, mecanismos_missing, N = 5)
+resultado_final <- avaliar_imputacoes_parallel(df_select, proporcoes_missing, mecanismos_missing, N = 1)
 
 # Salvar resultados finais em Excel
 wb <- createWorkbook()
