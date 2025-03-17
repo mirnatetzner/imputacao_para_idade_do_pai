@@ -44,7 +44,8 @@ df_select <- df_select[, .(
 
 rm(dados_completos)
 gc()
-# Definir método de imputação
+
+
 meth <- make.method(df_select)
 
 # Criar tabela dos métodos aplicados
@@ -70,8 +71,8 @@ simular_ausencia <- function(dt, proporcao, mecanismo) {
     setorder(dt_simulado, IDADEMAE)
     dt_simulado[1:n_missing, IDADEPAI := NA]
   } else if (mecanismo == "MNAR") {
-    prob_missing <- ifelse(IDADEPAI < 50, 0.8, 0.2)
-    dt_simulado[sample(.N, n_missing, prob = prob_missing), IDADEPAI := NA]
+    setorder(dt_simulado, IDADEPAI)
+    dt_simulado[1:n_missing, IDADEPAI := NA]
   }
   return(dt_simulado)
 }
@@ -84,116 +85,149 @@ avaliar_metricas <- function(media_real, media_estim, dp_estim) {
   return(data.table(Media = media_estim, RMSE = rmse, RB = rb, PB = pb))
 }
 
-# Avaliação paralela com tryCatch para salvar resultados parciais
+
+
+
+library(openxlsx)
+library(dplyr)
+library(mice)
+library(future.apply)
+library(data.table)
+
+
+
 avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 1) {
-  plan(multisession, workers = parallel::detectCores() - 1)
-  cenarios <- expand.grid(proporcao = proporcoes, mecanismo = mecanismos, iter = 1:N) # cria df com todas as combinacoes possiveis
+  on.exit(plan(sequential), add = TRUE)  # Garante que volta ao modo normal depois
+  plan(multisession, workers = 4)  # Ajuste o número de workers conforme necessário
+  cenarios <- expand.grid(proporcao = proporcoes, mecanismo = mecanismos, iter = 1:N)
   
-  # Criar uma lista para armazenar os resultados parciais
   resultado_parcial <- list()
+  parametros_pmm <- list()  # Lista para armazenar parâmetros do PMM
   
   resultado <- future_lapply(1:nrow(cenarios), function(i) {
     tryCatch({
       set.seed(cenarios$iter[i])
       df_missing <- simular_ausencia(df, cenarios$proporcao[i], cenarios$mecanismo[i])
+      media_original <- mean(df$IDADEPAI, na.rm = TRUE)
       metricas_lista <- list()
       
       # Casos completos
       df_cc <- df_missing[complete.cases(df_missing), ]
       media_cc <- mean(df_cc$IDADEPAI, na.rm = TRUE)
-      metricas_lista$casos_completos <- avaliar_metricas(mean(df$IDADEPAI, na.rm = TRUE), media_cc, NULL)
+      metricas_lista$casos_completos <- avaliar_metricas(media_original, media_cc, NULL)
       
-      # Imputação
-      imp_pmm <- mice(df_missing, method = meth, m = 5, maxit = 5, seed = 123) # m=5 versões do dataset imputando os valores ausentes de forma ligeiramente diferente em cada uma e MAXIT=5 significa que, em cada um dos 5 datasets, os valores ausentes são imputados 5 vezes usando um modelo iterativo do mice de acordo com o metodo definido em METH.
+      # Single imputation median MCAR
+      mediana_idade_pai <- median(df$IDADEPAI, na.rm = TRUE)
+      MCAR_mediana_SINGLE_IMP <- df_missing %>%
+        mutate(IDADEPAI = ifelse(is.na(IDADEPAI), mediana_idade_pai, IDADEPAI))
+      media_mcar <- mean(MCAR_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
+      dp_mcar <- sd(MCAR_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
+      metricas_lista$mcar_mediana <- avaliar_metricas(media_original, media_mcar, dp_mcar)
+      
+      # Single imputation median MAR
+      mediana_por_ano_mae <- df %>%
+        group_by(IDADEMAE) %>%
+        summarise(mediana_idade_pai = median(IDADEPAI, na.rm = TRUE))
+      MAR_idademae_mediana_SINGLE_IMP <- df_missing %>%
+        left_join(mediana_por_ano_mae, by = "IDADEMAE") %>%
+        mutate(IDADEPAI = ifelse(is.na(IDADEPAI), mediana_idade_pai, IDADEPAI)) %>%
+        select(-mediana_idade_pai)
+      media_mar <- mean(MAR_idademae_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
+      dp_mar <- sd(MAR_idademae_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
+      metricas_lista$mar_mediana <- avaliar_metricas(media_original, media_mar, dp_mar)
+      
+      # Imputação com mice (PMM)
+      imp_pmm <- mice(df_missing, method = "pmm", m = 2, maxit = 2, seed = 123)
       imputed_data <- complete(imp_pmm, action = "long")
-      
-      # Cálculo das métricas de imputação
       media_estim <- mean(imputed_data$IDADEPAI, na.rm = TRUE)
       dp_estim <- sd(imputed_data$IDADEPAI, na.rm = TRUE)
-      metricas_lista$pmm <- avaliar_metricas(mean(df$IDADEPAI, na.rm = TRUE), media_estim, dp_estim)
+      metricas_lista$pmm <- avaliar_metricas(media_original, media_estim, dp_estim)
       
+      # Armazenar parâmetros do PMM
+      parametros_pmm <- list(
+        metodo = "pmm",
+        m = imp_pmm$m,
+        maxit = imp_pmm$maxit,
+        seed = 123
+      )
       
-      # Criar um dataframe com as informações do cenário e métricas
+      # Criar dataframe com resultados
       resultado_iteracao <- data.frame(
         proporcao = cenarios$proporcao[i],
         mecanismo = cenarios$mecanismo[i],
-        metodo = c("casos_completos", "pmm"),
-        media_estimada = c(media_cc, media_estim),
-        dp_estimado = c(NA, dp_estim),
-        erro = NA  # Nenhum erro ocorreu
+        metodo = c("casos_completos", "mcar_mediana", "mar_mediana", "pmm"),
+        media_original = media_original,
+        media_estimada = c(media_cc, media_mcar, media_mar, media_estim),
+        RMSE = c(metricas_lista$casos_completos$RMSE,
+                 metricas_lista$mcar_mediana$RMSE,
+                 metricas_lista$mar_mediana$RMSE,
+                 metricas_lista$pmm$RMSE),
+        RB = c(metricas_lista$casos_completos$RB,
+               metricas_lista$mcar_mediana$RB,
+               metricas_lista$mar_mediana$RB,
+               metricas_lista$pmm$RB),
+        PB = c(metricas_lista$casos_completos$PB,
+               metricas_lista$mcar_mediana$PB,
+               metricas_lista$mar_mediana$PB,
+               metricas_lista$pmm$PB),
+        dp_estimado = c(NA, NA, NA, dp_estim)
       )
       
-      # Salvar resultados parciais após cada iteração
-      resultado_parcial[[paste0("Iteracao_", i)]] <<- resultado_iteracao
-      saveRDS(resultado_parcial, "resultados_parciais.rds")
-      
       message(paste0("Iteração ", i, " concluída com sucesso."))
-      
       return(resultado_iteracao)
       
     }, error = function(e) {
-      # Mensagem de erro detalhada
-      erro_msg <- e$message
-      
-      # Capturar a pilha de chamadas (para entender onde o erro ocorreu)
-      erro_trace <- paste(capture.output(traceback()), collapse = " | ")
-      
-      # Criar um dataframe para registrar o erro junto com o cenário
       erro_df <- data.frame(
         proporcao = cenarios$proporcao[i],
         mecanismo = cenarios$mecanismo[i],
         metodo = "ERRO",
+        media_original = NA,
         media_estimada = NA,
         dp_estimado = NA,
-        erro = paste0(erro_msg, " | Trace: ", erro_trace)
+        erro = e$message
       )
       
-      # Salvar erro nos resultados parciais
-      resultado_parcial[[paste0("Iteracao_", i)]] <<- erro_df
-      saveRDS(resultado_parcial, "resultados_parciais.rds")
-      
-      message(paste0("Erro na iteração ", i, ": ", erro_msg))
-      
-      return(erro_df)  # Retorna o dataframe com o erro
+      message(paste0("Erro na iteração ", i, ": ", e$message))
+      return(erro_df)
     })
   }, future.seed = TRUE)
   
-  # Remover entradas nulas (falhas) e consolidar resultados finais
   resultado <- rbindlist(resultado[!sapply(resultado, is.null)])
-  return(resultado)
+  return(list(resultado = resultado, parametros_pmm = parametros_pmm))
 }
 
-# Executar avaliações
-proporcoes_missing <- c( 0.6, 0.8) #0.1, 0.2, 0.4,
+# Definir as proporções e mecanismos de missing
+proporcoes_missing <- c(0.6)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
-resultado_final <- avaliar_imputacoes_parallel(df_select, proporcoes_missing, mecanismos_missing, N = 1)
 
-# Salvar resultados finais em Excel
+# Executar imputação SEM AMOSTRAGEM
+resultados <- avaliar_imputacoes_parallel(df_select, proporcoes_missing, mecanismos_missing, N = 1)
+
+# Separar os resultados por método de imputação
+resultado_final <- resultados$resultado
+parametros_pmm <- resultados$parametros_pmm
+resultados_por_metodo <- split(resultado_final, resultado_final$metodo)
+
+
+# Criar um nome de arquivo com data e hora
+data_hora <- format(Sys.time(), "%Y-%m-%d_%H-%M")
+nome_arquivo <- paste0("resultados_imputacao_", data_hora, ".xlsx")
+
+# Criar um workbook do Excel
 wb <- createWorkbook()
-addWorksheet(wb, "Resultados")
-writeData(wb, "Resultados", resultado_final)
-saveWorkbook(wb, "resultados_imputacao.xlsx", overwrite = TRUE)
 
-# Mensagem final indicando que a execução foi concluída
-message("Processo concluído! Resultados salvos em 'resultados_imputacao.xlsx' e 'resultados_parciais.rds'.")
+# Adicionar cada conjunto de resultados a uma aba separada
+for (metodo in names(resultados_por_metodo)) {
+  addWorksheet(wb, metodo)
+  writeData(wb, metodo, resultados_por_metodo[[metodo]])
+}
 
+# Adicionar aba com parâmetros do PMM
+# addWorksheet(wb, "Parametros_PMM")
+# parametros_pmm_df <- do.call(rbind, lapply(parametros_pmm, function(x) as.data.frame(x)))
+# writeData(wb, "Parametros_PMM", parametros_pmm_df)
 
+# Salvar o arquivo Excel
+saveWorkbook(wb, nome_arquivo, overwrite = TRUE)
 
-# Calcular a frequência acumulada
-df_acumulado <- df %>%
-  count(IDADEPAI) %>%  # Contar quantas vezes cada idade aparece
-  arrange(IDADEPAI) %>%  # Ordenar por idade
-  mutate(frequencia_acumulada = cumsum(n) / sum(n))  # Calcular a frequência acumulada
-
-# Criar o gráfico de frequência acumulada
-ggplot(df_acumulado, aes(x = IDADEPAI, y = frequencia_acumulada)) +
-  geom_line(color = "blue", size = 1) +  # Linha da curva
-  geom_point(color = "red", size = 2) +  # Pontos nos valores acumulados
-  labs(title = "Gráfico de Frequência Acumulada da Idade do Pai",
-       x = "Idade do Pai",
-       y = "Frequência Acumulada") +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +  # Mostrar em percentual
-  theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5))  # Centralizar o título
-
-
+message(paste("Processo concluído! Resultados salvos em:", nome_arquivo))
