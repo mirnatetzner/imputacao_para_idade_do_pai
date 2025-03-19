@@ -78,14 +78,20 @@ simular_ausencia <- function(dt, proporcao, mecanismo) {
 }
 
 # Calcular métricas
-avaliar_metricas <- function(media_real, media_estim, dp_estim) {
+avaliar_metricas <- function(media_real, media_estim) {
   rmse <- sqrt((media_estim - media_real)^2)
-  rb <- media_estim / media_real - 1
-  pb <- if (!is.null(dp_estim) && dp_estim > 0) (media_estim - media_real) / dp_estim else NA
+  rb <- media_estim - media_real
+  pb <- 100 * abs((media_estim - media_real)/ media_real)
   return(data.table(Media = media_estim, RMSE = rmse, RB = rb, PB = pb))
 }
 
+# apenas para mi, precisa de multiplas imputacoes para ter Intervalo de confianca
 
+# metricas_mi <- function(){
+#   aw <- rowMeans(res[,, "97.5 %"] - res[,, "2.5 %"])
+#   cr <-rowMeans(res[,, "2.5 %"] < true & true < res[,, "97.5 %"]) 
+#   dp_estim <- dp_estim
+# }
 
 
 library(openxlsx)
@@ -114,15 +120,24 @@ avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 1) {
       # Casos completos
       df_cc <- df_missing[complete.cases(df_missing), ]
       media_cc <- mean(df_cc$IDADEPAI, na.rm = TRUE)
-      metricas_lista$casos_completos <- avaliar_metricas(media_original, media_cc, NULL)
+      metricas_lista$casos_completos <- avaliar_metricas(media_original, media_cc)
+      
+      # Single imputation media MCAR
+      media_idade_pai <- mean(df$IDADEPAI, na.rm = TRUE)
+      MCAR_media_SINGLE_IMP <- df_missing %>%
+        mutate(IDADEPAI = ifelse(is.na(IDADEPAI), media_idade_pai, IDADEPAI))
+      media_mcar_media <- mean(MCAR_media_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
+      #dp_mcar_media <- sd(MCAR_media_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
+      metricas_lista$mcar_media <- avaliar_metricas(media_original, media_mcar_media)
+      
       
       # Single imputation median MCAR
       mediana_idade_pai <- median(df$IDADEPAI, na.rm = TRUE)
       MCAR_mediana_SINGLE_IMP <- df_missing %>%
         mutate(IDADEPAI = ifelse(is.na(IDADEPAI), mediana_idade_pai, IDADEPAI))
       media_mcar <- mean(MCAR_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
-      dp_mcar <- sd(MCAR_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
-      metricas_lista$mcar_mediana <- avaliar_metricas(media_original, media_mcar, dp_mcar)
+      #dp_mcar <- sd(MCAR_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
+      metricas_lista$mcar_mediana <- avaliar_metricas(media_original, media_mcar)
       
       # Single imputation median MAR
       mediana_por_ano_mae <- df %>%
@@ -133,45 +148,52 @@ avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 1) {
         mutate(IDADEPAI = ifelse(is.na(IDADEPAI), mediana_idade_pai, IDADEPAI)) %>%
         select(-mediana_idade_pai)
       media_mar <- mean(MAR_idademae_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
-      dp_mar <- sd(MAR_idademae_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
-      metricas_lista$mar_mediana <- avaliar_metricas(media_original, media_mar, dp_mar)
+      #dp_mar <- sd(MAR_idademae_mediana_SINGLE_IMP$IDADEPAI, na.rm = TRUE)
+      metricas_lista$mar_mediana <- avaliar_metricas(media_original, media_mar)
       
       # Imputação com mice (PMM)
-      imp_pmm <- mice(df_missing, method = "pmm", m = 2, maxit = 2, seed = 123)
-      imputed_data <- complete(imp_pmm, action = "long")
-      media_estim <- mean(imputed_data$IDADEPAI, na.rm = TRUE)
-      dp_estim <- sd(imputed_data$IDADEPAI, na.rm = TRUE)
-      metricas_lista$pmm <- avaliar_metricas(media_original, media_estim, dp_estim)
-      
-      # Armazenar parâmetros do PMM
-      parametros_pmm <- list(
-        metodo = "pmm",
-        m = imp_pmm$m,
-        maxit = imp_pmm$maxit,
-        seed = 123
-      )
+      # imp_pmm <- mice(df_missing, method = "pmm", m = 2, maxit = 2, seed = 123)
+      # imputed_data <- complete(imp_pmm, action = "long")
+      # media_estim <- mean(imputed_data$IDADEPAI, na.rm = TRUE)
+      # #dp_estim <- sd(imputed_data$IDADEPAI, na.rm = TRUE)
+      # metricas_lista$pmm <- avaliar_metricas(media_original, media_estim, dp_estim)
+      # 
+      # # Armazenar parâmetros do PMM
+      # parametros_pmm <- list(
+      #   metodo = "pmm",
+      #   m = imp_pmm$m,
+      #   maxit = imp_pmm$maxit,
+      #   seed = 123
+      # )
       
       # Criar dataframe com resultados
       resultado_iteracao <- data.frame(
         proporcao = cenarios$proporcao[i],
         mecanismo = cenarios$mecanismo[i],
-        metodo = c("casos_completos", "mcar_mediana", "mar_mediana", "pmm"),
+        metodo = c("casos_completos", "mcar_media","mcar_mediana", "mar_mediana"), # "pmm"
         media_original = media_original,
-        media_estimada = c(media_cc, media_mcar, media_mar, media_estim),
+        media_estimada = c(media_cc,media_mcar_media, media_mcar, media_mar),
         RMSE = c(metricas_lista$casos_completos$RMSE,
+                 metricas_lista$mcar_media$RMSE,
                  metricas_lista$mcar_mediana$RMSE,
-                 metricas_lista$mar_mediana$RMSE,
-                 metricas_lista$pmm$RMSE),
+                 metricas_lista$mar_mediana$RMSE
+                 #,metricas_lista$pmm$RMSE
+                 ),
         RB = c(metricas_lista$casos_completos$RB,
+               metricas_lista$mcar_media$RB,
                metricas_lista$mcar_mediana$RB,
-               metricas_lista$mar_mediana$RB,
-               metricas_lista$pmm$RB),
+               metricas_lista$mar_mediana$RB
+               #,metricas_lista$pmm$RB
+               ),
         PB = c(metricas_lista$casos_completos$PB,
+               metricas_lista$mcar_media$PB,
                metricas_lista$mcar_mediana$PB,
-               metricas_lista$mar_mediana$PB,
-               metricas_lista$pmm$PB),
-        dp_estimado = c(NA, NA, NA, dp_estim)
-      )
+               metricas_lista$mar_mediana$PB
+               #,metricas_lista$pmm$PB
+               )
+        #,dp_estimado = c(NA, NA, NA, dp_estim)
+      
+        )
       
       message(paste0("Iteração ", i, " concluída com sucesso."))
       return(resultado_iteracao)
@@ -183,7 +205,7 @@ avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 1) {
         metodo = "ERRO",
         media_original = NA,
         media_estimada = NA,
-        dp_estimado = NA,
+        #dp_estimado = NA,
         erro = e$message
       )
       
@@ -197,7 +219,7 @@ avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 1) {
 }
 
 # Definir as proporções e mecanismos de missing
-proporcoes_missing <- c(0.6)
+proporcoes_missing <- c(0.2, 0.4, 0.6, 0.8)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
 
 # Executar imputação SEM AMOSTRAGEM
