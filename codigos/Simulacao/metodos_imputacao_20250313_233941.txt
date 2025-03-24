@@ -1,7 +1,0 @@
-Variável	Método
-IDADEMAE	
-IDADEPAI	pmm
-missing	
-ESCMAE	polr
-ESTCIVMAE	polyreg
-TPFUNCRESP	polyreg

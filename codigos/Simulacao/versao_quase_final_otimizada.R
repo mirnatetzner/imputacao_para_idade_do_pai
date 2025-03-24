@@ -4,6 +4,7 @@ library(mice)
 library(future.apply)
 library(openxlsx)
 library(knitr)
+library(naniar)
 options(OutDec = ",", scipen=999)
 
 
@@ -45,20 +46,23 @@ df_select <- df_select[, .(
 rm(dados_completos)
 gc()
 
-
-meth <- make.method(df_select)
-
-# Criar tabela dos métodos aplicados
-metodos_tabela <- data.frame(Variável = names(meth), Método = meth)
-
-# Gerar nome do arquivo com data e hora
-nome_arquivo <- paste0("metodos_imputacao_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
-
-# Salvar a tabela
-write.table(metodos_tabela, file = nome_arquivo, sep = "\t", row.names = FALSE, quote = FALSE)
-
-# Exibir a tabela com kable
-kable(metodos_tabela, format = "latex", booktabs = TRUE)
+df_select  = na.omit(df_select)
+dim(df_select)
+miss_var_summary(df_select)
+# 
+# meth <- make.method(df_select)
+# 
+# # Criar tabela dos métodos aplicados
+# metodos_tabela <- data.frame(Variável = names(meth), Método = meth)
+# 
+# # Gerar nome do arquivo com data e hora
+# nome_arquivo <- paste0("metodos_imputacao_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
+# 
+# # Salvar a tabela
+# write.table(metodos_tabela, file = nome_arquivo, sep = "\t", row.names = FALSE, quote = FALSE)
+# 
+# # Exibir a tabela com kable
+# kable(metodos_tabela, format = "latex", booktabs = TRUE)
 
 # Simulação de dados ausentes
 simular_ausencia <- function(dt, proporcao, mecanismo) {
@@ -102,7 +106,7 @@ library(data.table)
 
 
 
-avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 1) {
+avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 5) {
   on.exit(plan(sequential), add = TRUE)  # Garante que volta ao modo normal depois
   plan(multisession, workers = 4)  # Ajuste o número de workers conforme necessário
   cenarios <- expand.grid(proporcao = proporcoes, mecanismo = mecanismos, iter = 1:N)
@@ -223,12 +227,26 @@ proporcoes_missing <- c(0.2, 0.4, 0.6, 0.8)
 mecanismos_missing <- c("MCAR", "MAR", "MNAR")
 
 # Executar imputação SEM AMOSTRAGEM
-resultados <- avaliar_imputacoes_parallel(df_select, proporcoes_missing, mecanismos_missing, N = 1)
+resultados <- avaliar_imputacoes_parallel(df_select, proporcoes_missing, mecanismos_missing, N = 5)
 
 # Separar os resultados por método de imputação
 resultado_final <- resultados$resultado
+
+# arredondar casas decimais
+resultado_final [] <- lapply(resultado_final , function(x) if(is.numeric(x)) round(x, 2) else x)
+
+
 parametros_pmm <- resultados$parametros_pmm
 resultados_por_metodo <- split(resultado_final, resultado_final$metodo)
+
+
+
+resultados_por_metodo <- lapply(resultados_por_metodo, function(dt) {
+  setorder(dt, mecanismo)
+  setnames(dt, c("proporcao","mecanismo", "metodo","media_original","media_estimada","RMSE","RB","PB"), c("Percentual de dado faltante", "Mecanismo","Método","media_original","Média estimada","Raiz do erro quadrático médio","Viés bruto", "Viés percentual" ))
+  dt[, `Percentual de dado faltante` := paste0(100 * `Percentual de dado faltante`, "%")]
+  return(dt)
+})
 
 
 # Criar um nome de arquivo com data e hora
@@ -239,9 +257,9 @@ nome_arquivo <- paste0("resultados_imputacao_", data_hora, ".xlsx")
 wb <- createWorkbook()
 
 # Adicionar cada conjunto de resultados a uma aba separada
-for (metodo in names(resultados_por_metodo)) {
-  addWorksheet(wb, metodo)
-  writeData(wb, metodo, resultados_por_metodo[[metodo]])
+for ( `Método` in names(resultados_por_metodo)) {
+  addWorksheet(wb, `Método`)
+  writeData(wb, `Método`, resultados_por_metodo[[`Método`]])
 }
 
 # Adicionar aba com parâmetros do PMM
