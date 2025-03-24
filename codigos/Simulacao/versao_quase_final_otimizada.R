@@ -8,13 +8,6 @@ library(naniar)
 options(OutDec = ",", scipen=999)
 
 
-
-# desabilitar hibernacao linux:
-# sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
-
-# reabilitar hibernacao linux:
-# sudo systemctl unmask sleep.target suspend.target hibernate.target hybrid-sleep.target
-
 # Carregar dados
 # linux
 load("/media/mramos/MIRNA TETZ/2-nao_subi_git20241101/dados_2012-2022/Sul.RData", envir = parent.frame(), verbose = FALSE)
@@ -29,7 +22,7 @@ Parana = Sul %>%
 dim(Parana)
 
 setDT(Parana)
-df_select <- Parana[Ano == 2022, .(IDADEMAE, IDADEPAI, missing, PARTO, ESCMAE, ESTCIVMAE, TPFUNCRESP)]
+df_select <- Parana[Ano == 2022, .(IDADEMAE, IDADEPAI, missing, PARTO, ESTCIVMAE, ESCMAE2010, TPFUNCRESP)]
 rm(Sul, Parana)
 gc()
 
@@ -37,8 +30,8 @@ gc()
 df_select <- df_select[, .(
   IDADEMAE = as.integer(IDADEMAE),
   IDADEPAI = as.integer(IDADEPAI),
-  missing = missing != 0,
-  ESCMAE = as.ordered(ESCMAE),
+  #missing = missing != 0,
+  ESCMAE2010 = as.ordered(ESCMAE2010),
   ESTCIVMAE = as.factor(ESTCIVMAE),
   TPFUNCRESP = as.factor(TPFUNCRESP)
 )]
@@ -219,7 +212,21 @@ avaliar_imputacoes_parallel <- function(df, proporcoes, mecanismos, N = 5) {
   }, future.seed = TRUE)
   
   resultado <- rbindlist(resultado[!sapply(resultado, is.null)])
-  return(list(resultado = resultado, parametros_pmm = parametros_pmm))
+  
+  # ** Calcular média das métricas**
+  
+  resultado_final <- resultado %>%
+    group_by(proporcao, mecanismo, metodo) %>%
+    summarise(
+      media_original = mean(media_original, na.rm = TRUE),
+      media_estimada = mean(media_estimada, na.rm = TRUE),
+      RMSE = mean(RMSE, na.rm = TRUE),
+      RB = mean(RB, na.rm = TRUE),
+      PB = mean(PB, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  return(list(resultado = resultado_final, parametros_pmm = parametros_pmm))
 }
 
 # Definir as proporções e mecanismos de missing
@@ -228,6 +235,9 @@ mecanismos_missing <- c("MCAR", "MAR", "MNAR")
 
 # Executar imputação SEM AMOSTRAGEM
 resultados <- avaliar_imputacoes_parallel(df_select, proporcoes_missing, mecanismos_missing, N = 5)
+
+
+
 
 # Separar os resultados por método de imputação
 resultado_final <- resultados$resultado
@@ -238,7 +248,8 @@ resultado_final [] <- lapply(resultado_final , function(x) if(is.numeric(x)) rou
 
 parametros_pmm <- resultados$parametros_pmm
 resultados_por_metodo <- split(resultado_final, resultado_final$metodo)
-
+# Converter cada elemento da lista para um data.table
+resultados_por_metodo <- lapply(resultados_por_metodo, as.data.table)
 
 
 resultados_por_metodo <- lapply(resultados_por_metodo, function(dt) {
