@@ -1,7 +1,6 @@
 # Carregar pacotes necessários
 #install.packages(c("mice", "truncnorm", "boot")) # Instale se necessário
 library(mice)
-library(truncnorm)
 library(boot)
 library(truncnorm)
 library(dplyr)
