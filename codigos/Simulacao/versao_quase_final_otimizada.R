@@ -6,6 +6,9 @@ library(openxlsx)
 library(knitr)
 library(naniar)
 options(OutDec = ",", scipen=999)
+library(tictoc)  # para medir o tempo de execução
+library(boot)
+#library(truncnorm)
 
 
 # Carregar dados
@@ -22,9 +25,12 @@ Parana = Sul %>%
 dim(Parana)
 
 setDT(Parana)
-df_select <- Parana[Ano == 2022, .(IDADEMAE, IDADEPAI, missing, PARTO, ESTCIVMAE, ESCMAE2010, TPFUNCRESP)]
+df_select <- Parana[Ano == 2022, .(IDADEMAE, IDADEPAI, missing, PARTO, ESTCIVMAE, ESCMAE2010, TPFUNCRESP)]  # HORANASC, CODOCUPMAE, CODESTAB, DTNASC, DTDECLARAC
+
 rm(Sul, Parana)
 gc()
+
+#DIFDIAS_NASC_DECLA = (DTNASC - DTDECLARAC)
 
 # Limpeza e transformação
 df_select <- df_select[, .(
@@ -42,26 +48,19 @@ gc()
 df_select  = na.omit(df_select)
 dim(df_select)
 miss_var_summary(df_select)
-# 
-# meth <- make.method(df_select)
-# 
-# # Criar tabela dos métodos aplicados
-# metodos_tabela <- data.frame(Variável = names(meth), Método = meth)
-# 
-# # Gerar nome do arquivo com data e hora
-# nome_arquivo <- paste0("metodos_imputacao_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
-# 
-# # Salvar a tabela
-# write.table(metodos_tabela, file = nome_arquivo, sep = "\t", row.names = FALSE, quote = FALSE)
-# 
-# # Exibir a tabela com kable
-# kable(metodos_tabela, format = "latex", booktabs = TRUE)
+
+# FUNÇÃO PARA CRIAR AMOSTRA DE MESMO TAMANHO
+create.data <- function(n, df) {
+  N <- nrow(df)
+  dados <- df[sample(1:N, n, replace = TRUE), ]
+  return(dados)
+}
+
 
 # Simulação de dados ausentes
 simular_ausencia <- function(dt, proporcao, mecanismo) {
   n_missing <- floor(proporcao * nrow(dt))
   dt_simulado <- copy(dt)
-  
   if (mecanismo == "MCAR") {
     dt_simulado[sample(.N, n_missing), IDADEPAI := NA]
   } else if (mecanismo == "MAR") {
@@ -74,9 +73,11 @@ simular_ausencia <- function(dt, proporcao, mecanismo) {
   return(dt_simulado)
 }
 
+
+
 # Calcular métricas
 avaliar_metricas <- function(media_real, media_estim) {
-  rmse <- sqrt((media_estim - media_real)^2)
+  rmse <- sqrt(mean((media_estim - media_real)^2))
   rb <- media_estim - media_real
   pb <- 100 * abs((media_estim - media_real)/ media_real)
   return(data.table(Media = media_estim, RMSE = rmse, RB = rb, PB = pb))
