@@ -1,0 +1,115 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Imputação da idade do pai - caso de estudo Paraná
+
+Pacotes e configurações necessárias
+Há época, foi preciso instalar a ver 4.2 do Rtools para proceder com a instalacao dos pacotes fora do CRAN:
+- windows: https://cran.r-project.org/bin/windows/Rtools/rtools42/rtools.html
+
+- origem:
+https://github.com/danicat/read.dbc
+https://github.com/rfsaldanha/microdatasus
+```{r}
+devtools::install_github("danicat/read.dbc")
+remotes::install_github("rfsaldanha/microdatasus")
+```
+
+Pacotes necessários:
+```{r}
+
+```
+
+## Buscando dados:
+conseguindo os dados e salvando o df:
+ - extracao
+Faz requisição ao ftp datasus das variáveis selecionadas
+```{r}
+
+UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO")
+
+for (UF in UFs) {
+  nome <- paste0("Dados_",UF)
+  name=assign(nome, fetch_datasus(year_start = 2012, year_end = 2022, uf = UF, information_system = "SINASC", vars = c("IDADEMAE", "IDADEPAI", "PARTO", "ESCMAE","ESTCIVMAE","DTRECEBIM", "DTNASC","CODESTAB","TPFUNCRESP","RACACORMAE")))
+  save(name,file=paste0(UF, ".Rdata"))
+  rm(name)
+}
+```
+
+
+Faz processamento dos dados: 
+
+A função \code{processes_sinasc()} processa variáveis do SINASC retornadas pela função \code{fetch_datasus()}, atribuindo legendas para variáveis categóricas, incluindo valores NA.
+Fontes:
+[process_sinasc.R](https://github.com/rfsaldanha/microdatasus/blob/master/man/process_sinasc.Rd)
+e [process_sinasc.R](https://github.com/rfsaldanha/microdatasus/blob/master/R/process_sinasc.R)
+Altera a idade do pai desta forma:
+```{r,eval=FALSE, warning=FALSE, message=FALSE}
+  # IDADEPAI
+  if("IDADEPAI" %in% variables_names){
+    data <- data %>%
+      dplyr::mutate(IDADEPAI = dplyr::case_match(
+        .data$IDADEPAI,
+        "0" ~ NA,
+        "99" ~ NA,
+        .default = .data$IDADEPAI
+      )) %>%
+      dplyr::mutate(IDADEPAI = as.numeric(.data$IDADEPAI))
+  }
+```
+
+Itera sobre cada sigla de estado para processar e salvar dfs
+```{r, eval=FALSE, warning=FALSE, message=FALSE}
+
+Brasil_processed <- list()
+
+for (uf in UFs) {
+
+  # Aplica a função process_sinasc ao data frame carregado
+  uf_processed <- process_sinasc(get(paste0("Dados_",uf)), municipality_data = TRUE)
+
+  # Armazena o data frame processado na lista Brasil_processed
+  Brasil_processed[[uf]] <- uf_processed
+
+  # Remove o data frame temporário para liberar memória
+  rm(list = uf)
+}
+
+names(Brasil_processed$AC)
+
+```
+
+Separa os dados por região para poder ficar mais leve de carregar no ambiente
+```{r}
+
+# Usar lapply para adicionar a coluna de região
+Brasil_processed <- lapply(Brasil_processed, function(df) {
+  df %>%
+    mutate(Regiao_de_registro_do_nascimento = substr(CODMUNNASC, 1, 1))
+})
+
+# Inicializar a lista 'regioes'
+regioes <- list()
+
+# Agrupar os dados em uma lista por região
+for (regiao in unique(unlist(lapply(Brasil_processed, function(df) df$Regiao_de_registro_do_nascimento)))) {
+  regioes[[regiao]] <- bind_rows(
+    lapply(Brasil_processed, function(df) {
+      df %>% filter(Regiao_de_registro_do_nascimento == regiao)
+    })
+  )
+}
+
+# Salvar cada região como um novo objeto na sessão do R
+list2env(regioes, envir = .GlobalEnv)
+```
+
+
+## Preparando dados: 
+
+```{r}
+
+```
+
