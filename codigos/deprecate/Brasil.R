@@ -258,7 +258,7 @@ mae_e_pai_test <- mae_e_pai %>%
   )
 
 
-#intercep = gg_miss_upset(Brasil_select2022)
+#intercep = gg_miss_upset(Brasil_select2022rstud)
 
 
 # Capturar o gráfico do padrao de missing -- O ULTIMO PLOTADO
