@@ -28,9 +28,7 @@ node_modules/
 dist/
 build/
 
-# Arquivos do Excel gerados
-*.xlsx
-*.xls
+
 
 # Arquivos de saída
 /output/
