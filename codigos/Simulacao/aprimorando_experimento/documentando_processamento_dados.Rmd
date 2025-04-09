@@ -10,15 +10,15 @@ Há época, foi preciso instalar a ver 4.2 do Rtools para proceder com a instala
 - windows: https://cran.r-project.org/bin/windows/Rtools/rtools42/rtools.html
 
 - origem:
-https://github.com/danicat/read.dbc
-https://github.com/rfsaldanha/microdatasus
+(read.dbc)[https://github.com/danicat/read.dbc]
+(microdatasus)[https://github.com/rfsaldanha/microdatasus]
 ```{r}
-devtools::install_github("danicat/read.dbc")
-remotes::install_github("rfsaldanha/microdatasus")
+# devtools::install_github("danicat/read.dbc")
+# remotes::install_github("rfsaldanha/microdatasus")
 ```
 
 Carrega pacotes necessários:
-```{r}
+```{r,warning=FALSE,message=FALSE}
 library(microdatasus)
 library(dplyr)
 require(tidyverse)
@@ -33,6 +33,9 @@ library(naniar)
 library(future.apply)
 library(data.table)
 library(boot)
+library(logger)
+library(future)
+library(writexl)
 
 options(scipen = 999, 
         OutDec = ",")
@@ -44,7 +47,9 @@ conseguindo os dados e salvando o df:
 Faz requisição ao ftp datasus das variáveis selecionadas
 ```{r, warning=FALSE, message=FALSE }
 
-UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO")
+#UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO")
+
+UFs = c("PR")
 
 for (UF in UFs) {
   nome <- UF
@@ -57,7 +62,7 @@ for (UF in UFs) {
   #rm(list = nome)
 }
 
-
+sum(is.na(PR$IDADEPAI))
 ```
 **NAs na idade do pai do PR em 2022 antes de ser processado:  45.948**
 
@@ -92,7 +97,7 @@ for (uf in UFs) {
   
 }
 
-
+sum(is.na(PR$IDADEPAI))
 ```
 
 **NAs na idade do pai do PR em 2022 depois de ser processado:  46.003**
@@ -141,9 +146,6 @@ for (uf in UFs) {
            IDADEPAI = as.numeric(IDADEPAI),
            Ano = year(as.Date(DTNASC)), # Extrai o ano de nascimento
       missing = ifelse(is.na(IDADEPAI), 1, 0)) |>  # Marcado dos valores ausentes para idade do pai
-    filter(
-    (IDADEMAE >= 15 & IDADEMAE < 50),
-    (IDADEPAI >= 15 & IDADEPAI < 60)) %>%
      mutate(
     # Filtra valores inválidos ou transforma em NA
     HORANASC = ifelse(
@@ -177,8 +179,8 @@ for (uf in UFs) {
   temp <- get(uf) %>%
     mutate( 
             HORANASC_seconds = as.numeric(as_hms(HORANASC)),
-            HORANASC_no_dia = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE),
-            Diferenca_nasc_dn = DTDECLARAC - DTNASC) %>%
+            HORANASC_turno = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE),
+            Diferenca_nasc_dn = as.integer(DTDECLARAC - DTNASC)) %>%
     mutate(
             ESCMAE2010 =as.ordered(ESCMAE2010),
             ESTCIVMAE = as.factor(ESTCIVMAE),
@@ -186,14 +188,14 @@ for (uf in UFs) {
             TPFUNCRESP = as.factor(TPFUNCRESP),
             CODESTAB = as.factor(CODESTAB),
             RACACORMAE = as.factor(RACACORMAE)
-        ) |> 
+        )|> 
     select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`))
 
 
 assign(uf, temp)
 }  
 
-
+glimpse(PR)
 ```
 
 
@@ -263,8 +265,10 @@ miss_var_summary(df_select)
 Remove linhas com valores faltantes:
 Dimensões dos dados após a retirada das linhas
 ```{r}
-df_select  = na.omit(df_select)
-dim(df_select)
+amostracompleta  = na.omit(df_select)
+dim(amostracompleta)
+rm(df_select)
+setDT(amostracompleta)
 ```
 
 
@@ -282,21 +286,38 @@ monitor_memory <- function(phase) {
 }
 ```
 
-
-
-
-
+Reproduz mecanismos de ausência:
 ```{r}
-# Define a função para a imputação
+simular_ausencia <- function(dt, proporcao, mecanismo) {
+  n_missing <- floor(proporcao * nrow(dt))
+  dt_simulado <- copy(dt)
+  if (mecanismo == "MCAR") {
+    dt_simulado[sample(.N, n_missing), IDADEPAI := NA]
+  } else if (mecanismo == "MAR") {
+    setorder(dt_simulado, IDADEMAE)# ordena os dados de forma crescente pela idade da mae
+    dt_simulado[1:n_missing, IDADEPAI := NA]#remove os valores da IDADEPAI onde idade da mae são mais baixos (aplica os NA nas primeiras linhas)
+  } else if (mecanismo == "MNAR") {
+    setorder(dt_simulado, IDADEPAI) # ordena os dados de forma crescente 
+    dt_simulado[1:n_missing, IDADEPAI := NA] #remove os valores mais baixos de IDADEPAI (aplica os NA nas primeiras linhas)
+  }
+  return(dt_simulado)
+}
+
+```
+
+
+Define a função para a imputação
+```{r}
+
 imputar_valores <- function(df, metodo) {
   imput <- df
-  if (metodo == "media") {
+  if (metodo == "media_simples") {
     media <- mean(df$IDADEPAI, na.rm = TRUE)
     imput$IDADEPAI[is.na(imput$IDADEPAI)] <- media
-  } else if (metodo == "mediana") {
+  } else if (metodo == "mediana_simples") {
     mediana <- median(df$IDADEPAI, na.rm = TRUE)
     imput$IDADEPAI[is.na(imput$IDADEPAI)] <- mediana
-  } else if (metodo == "condicional") {
+  } else if (metodo == "mediana_condicional") {
     imput <- imput %>%
       group_by(IDADEMAE) %>%
       mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
@@ -305,67 +326,151 @@ imputar_valores <- function(df, metodo) {
   return(imput)
 }
 
-# Define a função para calcular as métricas
-calcular_metricas <- function(original, imputado) {
-  rmse <- sqrt(mean((original - imputado)^2, na.rm = TRUE))
-  rb <- 100 * (mean(imputado, na.rm = TRUE) - mean(original, na.rm = TRUE)) / mean(original, na.rm = TRUE)
-  pb <- 100 * (mean(imputado, na.rm = TRUE) - mean(original, na.rm = TRUE)) / sd(original, na.rm = TRUE)
-  return(list(RMSE = rmse, RB = rb, PB = pb))
-}
+```
 
-# Função para extrair decis
+
+
+
+Função para extrair decis
+```{r}
+
 extrair_decis <- function(x) {
   quantis <- quantile(x, probs = seq(0.1, 0.9, by = 0.1), na.rm = TRUE)
   names(quantis) <- paste0("dec_", seq(10, 90, by = 10))
   return(as.list(quantis))
 }
 
-# Simulações paralelas
-# Define o número de simulações
-nsim <- 100
+```
+
+
+Simulações 
+
+```{r}
+
+
+# Definir o número de simulações
+nsim <- 500
 
 # Define as proporções de dados ausentes a serem testadas
 proporcoes <- c(0.2, 0.4, 0.6, 0.8)
 
-# Rode as simulações para cada proporção
+# Defina os mecanismos de ausência a serem simulados
+mecanismos <- c("MCAR", "MAR", "MNAR")
+
+# Defina o seed para garantir que os números aleatórios sejam consistentes
+set.seed(123)
+
+# Roda a função com lapply (sem paralelismo)
 resultados_todos <- lapply(proporcoes, function(prop) {
   cat("Executando para proporção:", prop, "\n")
-
-  resultados_completos <- future_lapply(1:nsim, function(i) {
-    set.seed(i)
-
-    # Bootstrap da amostra
-    amostra <- amostracompleta[sample(nrow(amostracompleta), replace = TRUE), ]
-
-    # Inserção de dados ausentes com a proporção especificada
-    amostra_miss <- mecanismo_mcar(amostra, prop_miss = prop)
-
-    resultados_metodos <- lapply(c("media", "mediana", "condicional"), function(metodo) {
-      imputado <- imputar_valores(amostra_miss, metodo)
-
-      metricas <- calcular_metricas(amostra$IDADEPAI, imputado$IDADEPAI)
-      decis_orig <- extrair_decis(amostra$IDADEPAI)
-      decis_imput <- extrair_decis(imputado$IDADEPAI)
-
-      dados <- c(
-        metodo = metodo,
-        do.call(c, metricas),
-        original_media = mean(amostra$IDADEPAI, na.rm = TRUE),
-        original_mediana = median(amostra$IDADEPAI, na.rm = TRUE),
-        original_dp = sd(amostra$IDADEPAI, na.rm = TRUE),
-        imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
-        imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
-        imputado_dp = sd(imputado$IDADEPAI, na.rm = TRUE),
-        unlist(decis_orig),
-        unlist(decis_imput)
-      )
-      return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
+  
+  resultados_completos <- lapply(mecanismos, function(mecanismo) {
+    cat("Mecanismo:", mecanismo, "\n")
+    
+    # Executa para cada simulação
+    resultados_simulacao <- lapply(1:nsim, function(i) {
+      set.seed(i)
+      
+      # Gerar amostra e simular ausência de dados
+      
+      amostra <- amostracompleta[sample(nrow(amostracompleta), replace = TRUE), ]
+      amostra_miss <- simular_ausencia(amostra, prop, mecanismo)
+      
+      # Rodar todos os métodos de imputação
+      resultados_metodos <- lapply(c("media", "mediana", "condicional"), function(metodo) {
+        imputado <- imputar_valores(amostra_miss, metodo)
+        
+        # Calcular as métricas
+        #metricas <- calcular_metricas(amostra$IDADEPAI, imputado$IDADEPAI)
+        
+        # Extrair quantis (decis)
+        decis_orig <- extrair_decis(amostra$IDADEPAI)
+        decis_imput <- extrair_decis(imputado$IDADEPAI)
+        
+        # Montar os dados finais para essa simulação
+        dados <- c(
+          proporcao = prop,
+          mecanismo = mecanismo,
+          repeticao = i,
+          metodo = metodo,
+          #do.call(c, metricas),
+          original_media = mean(amostra$IDADEPAI, na.rm = TRUE),
+          original_mediana = median(amostra$IDADEPAI, na.rm = TRUE),
+          original_dp = sd(amostra$IDADEPAI, na.rm = TRUE),
+          imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
+          imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
+          imputado_dp = sd(imputado$IDADEPAI, na.rm = TRUE),
+          unlist(decis_orig),
+          unlist(decis_imput)
+        )
+        return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
+      })
+      
+      # Retornar resultados dos métodos de imputação para esta simulação
+      return(do.call(rbind, resultados_metodos))
     })
-
-    do.call(rbind, resultados_metodos)
-  }) %>% bind_rows() %>% mutate(proporcao = prop)
-
-  return(resultados_completos)
+    
+    # Combinar os resultados de todas as simulações para este mecanismo
+    return(bind_rows(resultados_simulacao))
+  })
+  
+  # Combina os resultados de todos os mecanismos para esta proporção
+  return(bind_rows(resultados_completos))
 }) %>% bind_rows()
 
+# Exibir resultados finais
+head(resultados_todos)
+
 ```
+```{r}
+head(resultados_todos)
+```
+
+
+
+
+Define a função para calcular as métricas
+```{r}
+calcular_metricas <- function(original, imputado) {
+  rmse <- sqrt(mean((imputado- original)^2, na.rm = TRUE))
+  rb <-  mean(imputado, na.rm = TRUE)- mean(original, na.rm = TRUE)
+  pb <- 100 * abs(mean(imputado, na.rm = TRUE) - mean(original, na.rm = TRUE)/ mean(original, na.rm = TRUE))
+  return(list(RMSE = rmse, RB = rb, PB = pb))
+}
+
+```
+
+
+ Processar os dados e calcular as métricas para cada grupo
+```{r}
+
+metricas_resultado <- resultados_todos %>%
+  group_by(proporcao, mecanismo, `metodo de imputação`) %>%
+  # Calcular as métricas para os vetores completos de 'Média original' e 'Média imputada' em todas as repetições
+  summarise(
+    # Convertendo para numérico e mantendo todos os valores
+    Media_original = as.numeric(gsub(",", ".", `Média original`)),
+    Media_imputada = as.numeric(gsub(",", ".", `Média imputada`)),
+    # Calcular as métricas para todas as repetições dentro do cenário
+    metricas = list(calcular_metricas(Media_original, Media_imputada)),
+    .groups = "drop"  # Para não manter o agrupamento após a agregação
+  )  |> 
+  # Expandir as métricas em colunas individuais
+  mutate(
+    RMSE = sapply(metricas, function(x) x$RMSE),
+    RB = sapply(metricas, function(x) x$RB),
+    PB = sapply(metricas, function(x) x$PB)
+  )  |> 
+  select(proporcao, mecanismo, `metodo de imputação`, RMSE, RB, PB) |>  
+   distinct(proporcao, mecanismo, `metodo de imputação`, RMSE, RB, PB)
+# Exibir o resultado final
+print(metricas_resultado)
+
+```
+
+```{r}
+write_xlsx(metricas_resultado, "metricas_resultado.xlsx")
+write_xlsx(resultados_todos, "resultados_todos.xlsx")
+save(resultados_todos, file ="resultados_todos.RData")
+```
+
