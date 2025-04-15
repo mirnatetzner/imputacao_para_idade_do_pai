@@ -210,14 +210,13 @@ library(purrr)   # Para aplicar funções de forma funcional (map)
 library(broom)   # Para extrair estatísticas de modelos de regressão
 
 # Criar um modelo GLM para prever a ausência (missing) de IDADEPAI baseado em IDADEMAE por Ano
-pai_mae_glm <- Parana |> 
-  select(IDADEPAI, IDADEMAE, missing, Ano) |>  # Selecionar apenas as variáveis relevantes
+pai_mae_glm <- PR |> 
   group_by(Ano) |>  # Agrupar os dados por Ano
   nest() |>  # Transformar os dados de cada ano em uma lista separada (um "mini data frame" por ano)
   
   mutate(
     # Criar um modelo GLM (regressão logística) para cada Ano
-    glm_model = map(data, ~glm(missing ~ IDADEMAE, 
+    glm_model = map(data, ~glm(missing ~ IDADEMAE+ESTCIVMAE+TPFUNCRESP, 
                                family = binomial, data = .x)), 
     
     # Extrair os coeficientes do modelo de cada ano usando a função `tidy()` do pacote `broom`
@@ -288,18 +287,56 @@ monitor_memory <- function(phase) {
 
 Reproduz mecanismos de ausência:
 ```{r}
+# simular_ausencia <- function(dt, proporcao, mecanismo) {
+#   n_missing <- floor(proporcao * nrow(dt))
+#   dt_simulado <- copy(dt)
+#   if (mecanismo == "MCAR") {
+#     dt_simulado[sample(.N, n_missing), IDADEPAI := NA]
+#   } else if (mecanismo == "MAR") {
+#     setorder(dt_simulado, IDADEMAE)# ordena os dados de forma crescente pela idade da mae
+#     dt_simulado[1:n_missing, IDADEPAI := NA]#remove os valores da IDADEPAI onde idade da mae são mais baixos (aplica os NA nas primeiras linhas)
+#   } else if (mecanismo == "MNAR") {
+#     setorder(dt_simulado, IDADEPAI) # ordena os dados de forma crescente 
+#     dt_simulado[1:n_missing, IDADEPAI := NA] #remove os valores mais baixos de IDADEPAI (aplica os NA nas primeiras linhas)
+#   }
+#   return(dt_simulado)
+# }
+
+
+# Função para simular os dados ausentes
 simular_ausencia <- function(dt, proporcao, mecanismo) {
-  n_missing <- floor(proporcao * nrow(dt))
   dt_simulado <- copy(dt)
+  
+  # Define a quantidade de dados ausentes
+  n_missing <- floor(proporcao * nrow(dt_simulado))
+ 
+  
   if (mecanismo == "MCAR") {
-    dt_simulado[sample(.N, n_missing), IDADEPAI := NA]
+    dt_simulado$IDADEPAI <- ampute(dt_simulado$IDADEPAI, prop = proporcao)$x  
+    
   } else if (mecanismo == "MAR") {
-    setorder(dt_simulado, IDADEMAE)# ordena os dados de forma crescente pela idade da mae
-    dt_simulado[1:n_missing, IDADEPAI := NA]#remove os valores da IDADEPAI onde idade da mae são mais baixos (aplica os NA nas primeiras linhas)
+  amputed_mar <- ampute(
+  dt_simulado,
+  prop = proporcao,
+  patterns = c(1,0, 1, 1), # Apenas Idade_Pai ficará faltando
+  mech = mecanismo,             
+  weights = c(1, 0, 0, 0),   # Idade_Mae influencia o missing
+  type = c("LEFT")
+  )
+
+    
   } else if (mecanismo == "MNAR") {
-    setorder(dt_simulado, IDADEPAI) # ordena os dados de forma crescente 
-    dt_simulado[1:n_missing, IDADEPAI := NA] #remove os valores mais baixos de IDADEPAI (aplica os NA nas primeiras linhas)
+  amputed_mnar <- ampute(
+  dt_simulado,
+  prop = proporcao,
+  patterns = c(1,0, 1, 1), # Apenas Idade_Pai ficará faltando
+  mech = mecanismo,            
+  weights = c(0, 1, 0, 0), # A própria Idade_Pai influencia o missing
+  type = c("LEFT")
+)
+
   }
+  
   return(dt_simulado)
 }
 
@@ -472,5 +509,43 @@ print(metricas_resultado)
 write_xlsx(metricas_resultado, "metricas_resultado.xlsx")
 write_xlsx(resultados_todos, "resultados_todos.xlsx")
 save(resultados_todos, file ="resultados_todos.RData")
+```
+'desvio padrão estimado'- da estimativa bootstrap
+medida de acurácia-> usada para dar um intevalo de confiança para o parâmetro desconehecido
+segundo: 
+@article{efron1986bootstrap,
+  title={Bootstrap methods for standard errors, confidence intervals, and other measures of statistical accuracy},
+  author={Efron, Bradley and Tibshirani, Robert},
+  journal={Statistical science},
+  pages={54--75},
+  year={1986},
+  publisher={JSTOR}
+}
+
+$$
+\hat{\sigma}_B = \left( \frac{\sum_{b=1}^{B} (\hat{\theta}^*(b) - \hat{\theta}^*(\cdot))^2}{B-1} \right)^\frac{1}{2}
+$$
+Neste cálculo, $\( \hat{\theta}^*(b) \)$ representa a estatística calculada para a $\( b \)-ésima$ amostra bootstrap, e $\( \hat{\theta}^*(\cdot) \)$ é a média das estatísticas de todas as amostras bootstrap.
+$B$ é o número total de amostras
+
+
+```{r}
+resultados_todos$`Média imputada` <- gsub(",", ".", resultados_todos$`Média imputada`)
+resultados_todos$`Média imputada` = as.numeric(resultados_todos$`Média imputada`)
+ 
+desvio_padrao_estimado_media = resultados_todos |> 
+  group_by(proporcao, mecanismo,`metodo de imputação`) |> 
+  summarise(
+    # Calculando a média das estatísticas de bootstrap
+media_bootstrap = mean(`Média imputada`, na.rm = TRUE),
+# Calculando o desvio padrão das estatísticas de bootstrap (de acordo com a fórmula bootstrap)
+desvio_padrao_media_bootstrap = sqrt(sum((`Média imputada` - media_bootstrap)^2, na.rm = TRUE) / (n() - 1)),
+  .groups = "drop" 
+  )
+
+
+# Exibir os resultados
+print(desvio_padrao_estimado_media)
+
 ```
 
