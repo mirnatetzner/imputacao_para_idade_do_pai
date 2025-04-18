@@ -38,7 +38,7 @@ library(boot)
 library(logger)
 library(future)
 library(writexl)
-
+library(Amelia)
 options(scipen = 999, 
         OutDec = ",")
 ```
@@ -64,6 +64,7 @@ for (UF in UFs) {
   #rm(list = nome)
 }
 
+
 sum(is.na(PR$IDADEPAI))
 ```
 **NAs na idade do pai do PR em 2022 antes de ser processado:  45.948**
@@ -76,17 +77,17 @@ Fontes:
 e [process_sinasc.R](https://github.com/rfsaldanha/microdatasus/blob/master/R/process_sinasc.R)
 Altera a idade do pai desta forma:
 ```{r,eval=FALSE, warning=FALSE, message=FALSE}
-  # IDADEPAI
-  if("IDADEPAI" %in% variables_names){
-    data <- data %>%
-      dplyr::mutate(IDADEPAI = dplyr::case_match(
-        .data$IDADEPAI,
-        "0" ~ NA,
-        "99" ~ NA,
-        .default = .data$IDADEPAI
-      )) %>%
-      dplyr::mutate(IDADEPAI = as.numeric(.data$IDADEPAI))
-  }
+  # # IDADEPAI
+  # if("IDADEPAI" %in% variables_names){
+  #   data <- data %>%
+  #     dplyr::mutate(IDADEPAI = dplyr::case_match(
+  #       .data$IDADEPAI,
+  #       "0" ~ NA,
+  #       "99" ~ NA,
+  #       .default = .data$IDADEPAI
+  #     )) %>%
+  #     dplyr::mutate(IDADEPAI = as.numeric(.data$IDADEPAI))
+  # }
 ```
 
 Itera sobre cada estado para processar dados
@@ -109,29 +110,29 @@ Avaliando a documentação. Esse trecho visualiza a sessão da DN onde estão pr
 
 ```{r, eval=FALSE}
 
-library(here)
-
-# Obter o caminho para o diretório raiz do projeto
-root_path <- here()
-
-# Exemplo de usar o diretório raiz para acessar um arquivo ou pasta
-file_path <- here("manuais/Estrutura_SINASC_para_CD.xlsx")
-print(file_path)
-
-
-Estrutura_SINASC <- read_xlsx(file_path)
-#View(Estrutura_SINASC_para_CD)
-ver = Estrutura_SINASC %>% 
-  filter(`Sessão da DN`== "VII -\r\nPreenchimento") %>% 
-  print()
+# library(here)
+# 
+# # Obter o caminho para o diretório raiz do projeto
+# root_path <- here()
+# 
+# # Exemplo de usar o diretório raiz para acessar um arquivo ou pasta
+# file_path <- here("manuais/Estrutura_SINASC_para_CD.xlsx")
+# print(file_path)
+# 
+# 
+# Estrutura_SINASC <- read_xlsx(file_path)
+# #View(Estrutura_SINASC_para_CD)
+# ver = Estrutura_SINASC %>% 
+#   filter(`Sessão da DN`== "VII -\r\nPreenchimento") %>% 
+#   print()
 
 
 ```
 
 ```{r, eval=FALSE}
-ver = Estrutura_SINASC %>% 
-  filter(`Nome do campo no DBF`== "DTDECLARAC") %>% 
-  print()
+# ver = Estrutura_SINASC %>% 
+#   filter(`Nome do campo no DBF`== "DTDECLARAC") %>% 
+#   print()
 
 ```
 
@@ -198,45 +199,20 @@ assign(uf, temp)
 }  
 
 glimpse(PR)
+
+
+```
+
+
+```{r}
 media_dc_original = mean(PR$IDADEPAI, na.rm = TRUE)
+
+
+# continuous variable
+ggmice(PR, aes(IDADEMAE)) +
+  geom_density() +
+  facet_wrap(~ factor(!is.na(IDADEPAI), labels = c("Idade pai observada", "Idade pai ausente")))
 ```
-
-
-
-### Calcula a probabilidade da idade do pai ser ausente de acordo com a idade da mae (e outros preditores):
-
-#### Regressão Logística
-```{r, eval=FALSE, include=FALSE}
-# Carregar os pacotes necessários
-library(tidyr)   # Para manipulação de dados aninhados (nest, unnest)
-library(purrr)   # Para aplicar funções de forma funcional (map)
-library(broom)   # Para extrair estatísticas de modelos de regressão
-
-# Criar um modelo GLM para prever a ausência (missing) de IDADEPAI baseado em IDADEMAE por Ano
-pai_mae_glm <- PR |> 
-  group_by(Ano) |>  # Agrupar os dados por Ano
-  nest() |>  # Transformar os dados de cada ano em uma lista separada (um "mini data frame" por ano)
-  
-  mutate(
-    # Criar um modelo GLM (regressão logística) para cada Ano
-    glm_model = map(data, ~glm(missing ~ IDADEMAE+ESTCIVMAE+TPFUNCRESP, 
-                               family = binomial, data = .x)), 
-    
-    # Extrair os coeficientes do modelo de cada ano usando a função `tidy()` do pacote `broom`
-    glm_summary = map(glm_model, tidy)
-  ) |> 
-
-  # Selecionar apenas o Ano e o resumo do modelo (coeficientes)
-  select(Ano, glm_summary) |> 
-
-  # Expandir os coeficientes para que cada linha represente um coeficiente do modelo de cada ano
-  unnest(glm_summary)
-
-# Exibir os resultados
-print(pai_mae_glm)
-
-```
-
 
 
 #-----------------
@@ -268,9 +244,12 @@ Remove linhas com valores faltantes:
 Dimensões dos dados após a retirada das linhas
 ```{r, eval=FALSE}
 amostracompleta  = na.omit(df_select)
+amostracompleta = amostracompleta |> 
+  select(IDADEMAE, IDADEPAI, ESTCIVMAE, TPFUNCRESP, HORANASC_turno)
+
 dim(amostracompleta)
 rm(df_select)
-setDT(amostracompleta)
+#setDT(amostracompleta)
 
 ```
 
@@ -289,68 +268,79 @@ monitor_memory <- function(phase) {
 }
 ```
 
-Reproduz mecanismos de ausência:
+## Reproduz mecanismos de ausência:
+
+Generating MAR data is more complicated than generating MCAR data in two ways.  First, the missing data rules for MAR data are more complicated than those for MCAR  data. The missing data rules for MAR data can be organized into several categories: 1)  single cutoff method; 2) multiple cutoff method; 3) percentile method; 4) logistic regression  method. The most commonly used MAR missing data rule in psychological research is the  single cutoff method (e.g., Allison, 2000; Enders, 2004; Musil, Warner, Yobas, & Jones,  2002; Yuan & Bentler, 2000; Yuan & Savalei, 2014). Second, researchers can vary the  strength and shape of the dependency between the missing data indicator and the missing  data predictor. The strength of the dependency can be weak or strong; the shape of the  dependency can be linear or curvilinear. The dependency commonly used in simulation  studies is strong and linear (e.g., Yuan & Savalei, 2014; Yuan, Tong, & Zhang, 2015). In  addition, like MCAR data, MAR data can vary in the number and type of missing data  patterns, with the univariate pattern being the most commonly studied pattern (e.g.,  Enders, 2001b, 2010; Jia & Wu, 2019; Yuan & Bentler, 2000).  ref: 10.31234/osf.io/rq6yb
+
 ```{r, eval=FALSE}
-# simular_ausencia <- function(dt, proporcao, mecanismo) {
-#   n_missing <- floor(proporcao * nrow(dt))
-#   dt_simulado <- copy(dt)
-#   if (mecanismo == "MCAR") {
-#     dt_simulado[sample(.N, n_missing), IDADEPAI := NA]
-#   } else if (mecanismo == "MAR") {
-#     setorder(dt_simulado, IDADEMAE)# ordena os dados de forma crescente pela idade da mae
-#     dt_simulado[1:n_missing, IDADEPAI := NA]#remove os valores da IDADEPAI onde idade da mae são mais baixos (aplica os NA nas primeiras linhas)
-#   } else if (mecanismo == "MNAR") {
-#     setorder(dt_simulado, IDADEPAI) # ordena os dados de forma crescente 
-#     dt_simulado[1:n_missing, IDADEPAI := NA] #remove os valores mais baixos de IDADEPAI (aplica os NA nas primeiras linhas)
-#   }
-#   return(dt_simulado)
-# }
 
 
 # Função para simular os dados ausentes
 simular_ausencia <- function(dt, proporcao, mecanismo) {
-  dt_simulado <- copy(dt)
+  # Verifica se dt é um data.table e converte para data.frame
+  if (inherits(dt, "data.table")) {
+    dt_simulado <- as.data.frame(dt)  # Converte explicitamente para data.frame
+  } else if (inherits(dt, "data.frame")) {
+    dt_simulado <- dt  # Já é um data.frame
+  } else {
+    stop("A entrada deve ser um data.frame ou data.table.")
+  }
+
+  # Define a quantidade de dados ausentes
+  n_missing <- floor(proporcao * nrow(dt_simulado))
+  
   
   # Define a quantidade de dados ausentes
   n_missing <- floor(proporcao * nrow(dt_simulado))
- 
   
   if (mecanismo == "MCAR") {
-    dt_simulado$IDADEPAI <- ampute(dt_simulado$IDADEPAI, prop = proporcao)$x  
+    # No mecanismo MCAR, os dados ausentes são aleatórios
+    
+      amputed_mcar <- ampute(
+      dt_simulado,
+      prop = proporcao,
+      patterns = c(1,0, 1, 1,1),  # Apenas IDADEPAI ficará faltando
+      mech = "MCAR",               
+    )
+    dt_simulado <- amputed_mcar$amp  # Atualiza dt_simulado com os dados amputados
+    
     
   } else if (mecanismo == "MAR") {
-  amputed_mar <- ampute(
-  dt_simulado,
-  prop = proporcao,
-  patterns = c(1,0, 1, 1), # Apenas Idade_Pai ficará faltando
-  mech = mecanismo,             
-  weights = c(1, 0, 0, 0),   # Idade_Mae influencia o missing
-  type = c("LEFT")
-  )
-
+    # No mecanismo MAR, a ausência é influenciada pela variável IDADEMAE
+    amputed_mar <- ampute(
+      dt_simulado,
+      prop = proporcao,
+      patterns = c(1,0, 1, 1,1),  # Apenas IDADEPAI ficará faltando
+      mech = "MAR",               
+      weights = c(1, 0, 0, 0, 0),  # IDADEMAE influencia o missing
+      type = c("LEFT")
+    )
+    dt_simulado <- amputed_mar$amp  # Atualiza dt_simulado com os dados amputados
     
   } else if (mecanismo == "MNAR") {
-  amputed_mnar <- ampute(
-  dt_simulado,
-  prop = proporcao,
-  patterns = c(1,0, 1, 1), # Apenas Idade_Pai ficará faltando
-  mech = mecanismo,            
-  weights = c(0, 1, 0, 0), # A própria Idade_Pai influencia o missing
-  type = c("LEFT")
-)
-
+    # No mecanismo MNAR, a ausência é influenciada pela própria variável IDADEPAI
+    amputed_mnar <- ampute(
+      dt_simulado,
+      prop = proporcao,
+      patterns = c(1,0, 1, 1,1),  # Apenas IDADEPAI ficará faltando
+      mech = "MNAR",               
+      weights = c(0, 1, 0, 0, 0),  # A variável IDADEPAI influencia o missing
+      type = c("LEFT")
+    )
+    dt_simulado <- amputed_mnar$amp  # Atualiza dt_simulado com os dados amputados
   }
   
-  return(dt_simulado)
+  return(dt_simulado)  # Retorna os dados com os valores ausentes simulados
 }
+
 
 ```
 
 
 Define a função para a imputação
 ```{r, eval=FALSE}
-
 imputar_valores <- function(df, metodo) {
+    print(paste("Método de imputação:", metodo)) 
   imput <- df
   if (metodo == "media_simples") {
     media <- mean(df$IDADEPAI, na.rm = TRUE)
@@ -358,11 +348,28 @@ imputar_valores <- function(df, metodo) {
   } else if (metodo == "mediana_simples") {
     mediana <- median(df$IDADEPAI, na.rm = TRUE)
     imput$IDADEPAI[is.na(imput$IDADEPAI)] <- mediana
-  } else if (metodo == "mediana_condicional") {
+  } else if (metodo == "mediana_condicional_IDADEMAE") {
     imput <- imput %>%
       group_by(IDADEMAE) %>%
       mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
       ungroup()
+  } else if (metodo == "mediana_condicional_IDADEMAE_e_ESTCIV") {
+    imput <- imput %>%
+      group_by(IDADEMAE, ESTCIVMAE) %>%
+      mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
+      ungroup()
+  } else if (metodo == "mediana_condicional_IDADEMAE_e_funcao_resp") {
+    imput <- imput %>%
+      group_by(IDADEMAE, TPFUNCRESP) %>%
+      mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
+      ungroup()
+  } else if (metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno") {
+    imput <- imput %>%
+      group_by(IDADEMAE, HORANASC_turno) %>%
+      mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
+      ungroup()
+  } else {
+    stop("Método de imputação desconhecido")
   }
   return(imput)
 }
@@ -417,55 +424,43 @@ resultados_todos <- lapply(proporcoes, function(prop) {
       amostra <- amostracompleta[sample(nrow(amostracompleta), replace = TRUE), ]
       amostra_miss <- simular_ausencia(amostra, prop, mecanismo)
       
-      # Rodar todos os métodos de imputação
-      resultados_metodos <- lapply(c("media", "mediana", "condicional"), function(metodo) {
+       # Rodar todos os métodos de imputação
+            resultados_metodos <- lapply(c("media_simples", "mediana_simples", "mediana_condicional_IDADEMAE","mediana_condicional_IDADEMAE_e_ESTCIV","mediana_condicional_IDADEMAE_e_funcao_resp","mediana_condicional_IDADEMAE_e_HORANASC_turno"), function(metodo) {
         imputado <- imputar_valores(amostra_miss, metodo)
         
-        # Calcular as métricas
-        #metricas <- calcular_metricas(amostra$IDADEPAI, imputado$IDADEPAI)
         
         # Extrair quantis (decis)
         decis_orig <- extrair_decis(amostra$IDADEPAI)
         decis_imput <- extrair_decis(imputado$IDADEPAI)
         
-        # Montar os dados finais para essa simulação
+     # Montar os dados finais para essa simulação
         dados <- c(
           proporcao = prop,
           mecanismo = mecanismo,
           repeticao = i,
           metodo = metodo,
-          #do.call(c, metricas),
-          original_media = mean(amostra$IDADEPAI, na.rm = TRUE),
-          original_mediana = median(amostra$IDADEPAI, na.rm = TRUE),
-          original_dp = sd(amostra$IDADEPAI, na.rm = TRUE),
           imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
           imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
-          imputado_dp = sd(imputado$IDADEPAI, na.rm = TRUE),
           unlist(decis_orig),
           unlist(decis_imput)
         )
         return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
       })
       
-      # Retornar resultados dos métodos de imputação para esta simulação
       return(do.call(rbind, resultados_metodos))
     })
     
-    # Combinar os resultados de todas as simulações para este mecanismo
     return(bind_rows(resultados_simulacao))
   })
   
-  # Combina os resultados de todos os mecanismos para esta proporção
   return(bind_rows(resultados_completos))
 }) %>% bind_rows()
 
-# Exibir resultados finais
-head(resultados_todos)
 
 ```
 
 ```{r}
-load("D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/resultados_todos.RData")
+load("D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/20250418resultados_todos.RData")
 head(resultados_todos)
 ```
 
@@ -474,12 +469,12 @@ head(resultados_todos)
 
 Define a função para calcular as métricas
 ```{r,eval=FALSE}
-calcular_metricas <- function(original, imputado) {
-  rmse <- sqrt(mean((imputado- original)^2, na.rm = TRUE))
-  rb <-  mean(imputado, na.rm = TRUE)- mean(original, na.rm = TRUE)
-  pb <- 100 * abs(mean(imputado, na.rm = TRUE) - mean(original, na.rm = TRUE)/ mean(original, na.rm = TRUE))
-  return(list(RMSE = rmse, RB = rb, PB = pb))
-}
+# calcular_metricas <- function(original, imputado) {
+#   rmse <- sqrt(mean((imputado- original)^2, na.rm = TRUE))
+#   rb <-  mean(imputado, na.rm = TRUE)- mean(original, na.rm = TRUE)
+#   pb <- 100 * abs(mean(imputado, na.rm = TRUE) - mean(original, na.rm = TRUE)/ mean(original, na.rm = TRUE))
+#   return(list(RMSE = rmse, RB = rb, PB = pb))
+# }
 
 ```
 
