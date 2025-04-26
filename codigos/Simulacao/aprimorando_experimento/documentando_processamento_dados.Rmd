@@ -408,7 +408,7 @@ mecanismos <- c("MCAR", "MAR", "MNAR")
 # Defina o seed para garantir que os números aleatórios sejam consistentes
 set.seed(123)
 
-# Roda a função com lapply (sem paralelismo)
+# Roda a função com lapply 
 resultados_todos <- lapply(proporcoes, function(prop) {
   cat("Executando para proporção:", prop, "\n")
   
@@ -460,7 +460,7 @@ resultados_todos <- lapply(proporcoes, function(prop) {
 ```
 
 ```{r}
-load("D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/20250418resultados_todos.RData")
+
 head(resultados_todos)
 ```
 
@@ -469,10 +469,10 @@ head(resultados_todos)
 
 Define a função para calcular as métricas
 ```{r,eval=FALSE}
-# calcular_metricas <- function(original, imputado) {
-#   rmse <- sqrt(mean((imputado- original)^2, na.rm = TRUE))
-#   rb <-  mean(imputado, na.rm = TRUE)- mean(original, na.rm = TRUE)
-#   pb <- 100 * abs(mean(imputado, na.rm = TRUE) - mean(original, na.rm = TRUE)/ mean(original, na.rm = TRUE))
+# calcular_metricas <- function(original, imputado, imputado_vetor) {
+#   rmse <- sqrt(mean(imputado_vetor - original)^2) # ainda em dúvida sobre essa metrica
+#   rb <-  imputado - original
+#   pb <- 100 * abs((imputado - original)/ original)
 #   return(list(RMSE = rmse, RB = rb, PB = pb))
 # }
 
@@ -483,15 +483,12 @@ Define a função para calcular as métricas
 ```{r,eval=FALSE}
 
 metricas_resultado <- resultados_todos %>%
-  group_by(proporcao, mecanismo, `metodo de imputação`) %>%
-  # Calcular as métricas para os vetores completos de 'Média original' e 'Média imputada' em todas as repetições
+  group_by(proporcao, mecanismo, metodo) %>%
+  mutate(
+    imputado_media = as.numeric(gsub(",", ".", `imputado_media`))) %>% 
   summarise(
-    # Convertendo para numérico e mantendo todos os valores
-    Media_original = as.numeric(gsub(",", ".", `Média original`)),
-    Media_imputada = as.numeric(gsub(",", ".", `Média imputada`)),
-    # Calcular as métricas para todas as repetições dentro do cenário
-    metricas = list(calcular_metricas(Media_original, Media_imputada)),
-    .groups = "drop"  # Para não manter o agrupamento após a agregação
+    metricas = list(calcular_metricas(media_dc_original, mean(imputado_media),imputado_media)),
+    .groups = "drop"  
   )  |> 
   # Expandir as métricas em colunas individuais
   mutate(
@@ -499,9 +496,9 @@ metricas_resultado <- resultados_todos %>%
     RB = sapply(metricas, function(x) x$RB),
     PB = sapply(metricas, function(x) x$PB)
   )  |> 
-  select(proporcao, mecanismo, `metodo de imputação`, RMSE, RB, PB) |>  
-   distinct(proporcao, mecanismo, `metodo de imputação`, RMSE, RB, PB)
-# Exibir o resultado final
+  select(proporcao, mecanismo, metodo, RMSE, RB, PB) |>  
+   distinct(proporcao, mecanismo, metodo, RMSE, RB, PB)
+
 print(metricas_resultado)
 
 ```
@@ -514,7 +511,7 @@ save(resultados_todos, file ="resultados_todos.RData")
 
 ## 'desvio padrão estimado', da estimativa bootstrap
 
-medida de acurácia-> usada para dar um intevalo de confiança para o parâmetro desconehecido
+medida de acurácia-> usada para dar um intevalo de confiança para o parâmetro desconhecido
 segundo: 
 @article{efron1986bootstrap,
   title={Bootstrap methods for standard errors, confidence intervals, and other measures of statistical accuracy},
