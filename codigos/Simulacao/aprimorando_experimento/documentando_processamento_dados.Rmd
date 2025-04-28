@@ -15,6 +15,10 @@ Há época, foi preciso instalar a ver 4.2 do Rtools para proceder com a instala
 (read.dbc)[https://github.com/danicat/read.dbc]
 (microdatasus)[https://github.com/rfsaldanha/microdatasus]
 ```{r,eval=FALSE}
+# install.packages("devtools")
+# install.packages("remotes")
+library(remotes)
+library(devtools)
 # devtools::install_github("danicat/read.dbc")
 # remotes::install_github("rfsaldanha/microdatasus")
 ```
@@ -236,7 +240,39 @@ dim(df_select)
 ```
 Resumo de variáveis com dados faltantes:
 ```{r, eval=FALSE}
-miss_var_summary(df_select)
+df_select = df_select|> 
+    select(IDADEMAE, IDADEPAI, ESTCIVMAE, TPFUNCRESP, HORANASC_turno)
+
+mis = miss_var_summary(df_select)
+
+library(dplyr)
+library(kableExtra)
+
+# Criando o data frame
+mis <- data.frame(
+  Variável = c("Idade do Pai", "Função do responsável pelo preenchimento", "Estado civil da mãe", "Turno do nascimento", "Idade da mãe"),
+  N_Faltantes = c(46003, 2115, 908, 52, 0),
+  Pct_Faltantes = c(32.7, 1.50, 0.646, 0.037, 0)
+)
+
+# Gerando a tabela com kable
+latex_table <- mis |>
+  mutate(Pct_Faltantes = format(Pct_Faltantes, nsmall = 2, decimal.mark = ",")) |>
+  kable(
+    format = "latex",
+    caption = "Resumo de Dados Faltantes",
+    col.names = c("Variável", "Total de observações faltantes", "Percentual de observações faltantes"),
+    align = c("l", "r", "r"),
+    digits = c(0, 0, 2),
+    linesep = "" # Remover as linhas de separação padrão
+  )
+
+# Remover as formatações extras, como \cellcolor ou \hline
+latex_table <- gsub("\\\\cellcolor\\{.*?\\}", "", latex_table)  # Remover qualquer comando \cellcolor
+
+# Exportar para um arquivo .tex
+writeLines(latex_table, "parana_tabela_resumo_faltantes.tex")
+
 ```
 
 
@@ -244,6 +280,7 @@ Remove linhas com valores faltantes:
 Dimensões dos dados após a retirada das linhas
 ```{r, eval=FALSE}
 amostracompleta  = na.omit(df_select)
+
 amostracompleta = amostracompleta |> 
   select(IDADEMAE, IDADEPAI, ESTCIVMAE, TPFUNCRESP, HORANASC_turno)
 
