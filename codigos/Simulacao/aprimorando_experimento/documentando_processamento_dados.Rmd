@@ -3,17 +3,21 @@ title: "R Notebook"
 output:
   html_document:
     df_print: paged
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 # Imputação da idade do pai - caso de estudo Paraná
 
-Pacotes e configurações necessárias
-Há época, foi preciso instalar a ver 4.2 do Rtools para proceder com a instalacao dos pacotes fora do CRAN:
-- windows: https://cran.r-project.org/bin/windows/Rtools/rtools42/rtools.html
+Pacotes e configurações necessárias Há época, foi preciso instalar a ver
+4.2 do Rtools para proceder com a instalacao dos pacotes fora do CRAN: -
+windows:
+<https://cran.r-project.org/bin/windows/Rtools/rtools42/rtools.html>
 
-- origem:
-(read.dbc)[https://github.com/danicat/read.dbc]
-(microdatasus)[https://github.com/rfsaldanha/microdatasus]
+-   origem: (read.dbc)[<https://github.com/danicat/read.dbc>]
+    (microdatasus)[<https://github.com/rfsaldanha/microdatasus>]
+
 ```{r,eval=FALSE}
 # install.packages("devtools")
 # install.packages("remotes")
@@ -24,11 +28,9 @@ library(devtools)
 ```
 
 Carrega pacotes necessários:
+
 ```{r,warning=FALSE,message=FALSE}
 library(microdatasus)
-library(dplyr)
-require(tidyverse)
-library(ggplot2)
 library(mice)
 library(stringr)
 library(ggmice)
@@ -39,8 +41,9 @@ library(naniar)
 library(future.apply)
 library(data.table)
 library(boot)
-library(logger)
-library(future)
+library(dplyr)
+require(tidyverse)
+library(ggplot2)
 library(writexl)
 library(Amelia)
 options(scipen = 999, 
@@ -48,9 +51,10 @@ options(scipen = 999,
 ```
 
 ## Buscando dados:
-conseguindo os dados e salvando o df:
- - Extração
-Faz requisição ao ftp datasus das variáveis selecionadas
+
+conseguindo os dados e salvando o df: - Extração Faz requisição ao ftp
+datasus das variáveis selecionadas
+
 ```{r, warning=FALSE, message=FALSE }
 
 #UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO")
@@ -71,30 +75,35 @@ for (UF in UFs) {
 
 sum(is.na(PR$IDADEPAI))
 ```
-**NAs na idade do pai do PR em 2022 antes de ser processado:  45.948**
 
-Faz processamento dos dados: 
+**NAs na idade do pai do PR em 2022 antes de ser processado: 45.948**
 
-A função \code{processes_sinasc()} processa variáveis do SINASC retornadas pela função \code{fetch_datasus()}, atribuindo legendas para variáveis categóricas, incluindo valores NA.
-Fontes:
+Faz processamento dos dados:
+
+A função \code{processes_sinasc()} processa variáveis do SINASC
+retornadas pela função \code{fetch_datasus()}, atribuindo legendas para
+variáveis categóricas, incluindo valores NA. Fontes:
 [process_sinasc.R](https://github.com/rfsaldanha/microdatasus/blob/master/man/process_sinasc.Rd)
-e [process_sinasc.R](https://github.com/rfsaldanha/microdatasus/blob/master/R/process_sinasc.R)
+e
+[process_sinasc.R](https://github.com/rfsaldanha/microdatasus/blob/master/R/process_sinasc.R)
 Altera a idade do pai desta forma:
+
 ```{r,eval=FALSE, warning=FALSE, message=FALSE}
-  # # IDADEPAI
-  # if("IDADEPAI" %in% variables_names){
-  #   data <- data %>%
-  #     dplyr::mutate(IDADEPAI = dplyr::case_match(
-  #       .data$IDADEPAI,
-  #       "0" ~ NA,
-  #       "99" ~ NA,
-  #       .default = .data$IDADEPAI
-  #     )) %>%
-  #     dplyr::mutate(IDADEPAI = as.numeric(.data$IDADEPAI))
-  # }
+   # IDADEPAI
+ if("IDADEPAI" %in% variables_names){
+     data <- data %>%
+       dplyr::mutate(IDADEPAI = dplyr::case_match(
+         .data$IDADEPAI,
+         "0" ~ NA,
+         "99" ~ NA,
+         .default = .data$IDADEPAI
+       )) %>%
+       dplyr::mutate(IDADEPAI = as.numeric(.data$IDADEPAI))
+   }
 ```
 
 Itera sobre cada estado para processar dados
+
 ```{r, warning=FALSE, message=FALSE}
 
 for (uf in UFs) {
@@ -107,10 +116,10 @@ for (uf in UFs) {
 sum(is.na(PR$IDADEPAI))
 ```
 
-**NAs na idade do pai do PR em 2022 depois de ser processado:  46.003**
+**NAs na idade do pai do PR em 2022 depois de ser processado: 46.003**
 
-
-Avaliando a documentação. Esse trecho visualiza a sessão da DN onde estão presentes as categorias associadas ao preenchimento da DN:
+Avaliando a documentação. Esse trecho visualiza a sessão da DN onde
+estão presentes as categorias associadas ao preenchimento da DN:
 
 ```{r, eval=FALSE}
 
@@ -140,10 +149,10 @@ Avaliando a documentação. Esse trecho visualiza a sessão da DN onde estão pr
 
 ```
 
-
-## Preparando dados: 
+## Preparando dados:
 
 Cortando para o intervalo de referência do período repodrodutivo
+
 ```{r}
 
 
@@ -177,8 +186,8 @@ assign(uf, temp)
 }
 ```
 
-
 Atribui os respectivos tipos das variáveis:
+
 ```{r,  include=FALSE}
 # Converter HORANASC em segundos do dia
 
@@ -207,22 +216,10 @@ glimpse(PR)
 
 ```
 
-
-```{r}
-media_dc_original = mean(PR$IDADEPAI, na.rm = TRUE)
-
-
-# continuous variable
-ggmice(PR, aes(IDADEMAE)) +
-  geom_density() +
-  facet_wrap(~ factor(!is.na(IDADEPAI), labels = c("Idade pai observada", "Idade pai ausente")))
-```
-
-
-#-----------------
-# Simulação
+## Simulação
 
 Limpar da memória o que puder se excluído:
+
 ```{r, eval=FALSE}
 
 rm(list = setdiff(ls(), "PR")) # declarar o que quiser manter
@@ -235,10 +232,13 @@ gc()
 ```
 
 Dimensões dos dados
+
 ```{r, eval=FALSE}
 dim(df_select)
 ```
+
 Resumo de variáveis com dados faltantes:
+
 ```{r, eval=FALSE}
 df_select = df_select|> 
     select(IDADEMAE, IDADEPAI, ESTCIVMAE, TPFUNCRESP, HORANASC_turno)
@@ -275,9 +275,9 @@ writeLines(latex_table, "parana_tabela_resumo_faltantes.tex")
 
 ```
 
+Remove linhas com valores faltantes: Dimensões dos dados após a retirada
+das linhas
 
-Remove linhas com valores faltantes:
-Dimensões dos dados após a retirada das linhas
 ```{r, eval=FALSE}
 amostracompleta  = na.omit(df_select)
 
@@ -290,24 +290,26 @@ rm(df_select)
 
 ```
 
-
-Inicia arquivo para salvar informações do uso de memória:
-```{r, eval=FALSE}
-log_dir <- "logs"
-if (!dir.exists(log_dir)) dir.create(log_dir)
-log_appender(appender_file(file.path(log_dir, "memory_monitor.log")))
-
-
-monitor_memory <- function(phase) {
-  mem <- pryr::mem_used()
-  log_info("{phase} - Memória usada: {format(mem, big.mark='.', decimal.mark=',')} bytes")
-  return(mem)
-}
-```
-
 ## Reproduz mecanismos de ausência:
 
-Generating MAR data is more complicated than generating MCAR data in two ways.  First, the missing data rules for MAR data are more complicated than those for MCAR  data. The missing data rules for MAR data can be organized into several categories: 1)  single cutoff method; 2) multiple cutoff method; 3) percentile method; 4) logistic regression  method. The most commonly used MAR missing data rule in psychological research is the  single cutoff method (e.g., Allison, 2000; Enders, 2004; Musil, Warner, Yobas, & Jones,  2002; Yuan & Bentler, 2000; Yuan & Savalei, 2014). Second, researchers can vary the  strength and shape of the dependency between the missing data indicator and the missing  data predictor. The strength of the dependency can be weak or strong; the shape of the  dependency can be linear or curvilinear. The dependency commonly used in simulation  studies is strong and linear (e.g., Yuan & Savalei, 2014; Yuan, Tong, & Zhang, 2015). In  addition, like MCAR data, MAR data can vary in the number and type of missing data  patterns, with the univariate pattern being the most commonly studied pattern (e.g.,  Enders, 2001b, 2010; Jia & Wu, 2019; Yuan & Bentler, 2000).  ref: 10.31234/osf.io/rq6yb
+Generating MAR data is more complicated than generating MCAR data in two
+ways. First, the missing data rules for MAR data are more complicated
+than those for MCAR data. The missing data rules for MAR data can be
+organized into several categories: 1) single cutoff method; 2) multiple
+cutoff method; 3) percentile method; 4) logistic regression method. The
+most commonly used MAR missing data rule in psychological research is
+the single cutoff method (e.g., Allison, 2000; Enders, 2004; Musil,
+Warner, Yobas, & Jones, 2002; Yuan & Bentler, 2000; Yuan & Savalei,
+2014). Second, researchers can vary the strength and shape of the
+dependency between the missing data indicator and the missing data
+predictor. The strength of the dependency can be weak or strong; the
+shape of the dependency can be linear or curvilinear. The dependency
+commonly used in simulation studies is strong and linear (e.g., Yuan &
+Savalei, 2014; Yuan, Tong, & Zhang, 2015). In addition, like MCAR data,
+MAR data can vary in the number and type of missing data patterns, with
+the univariate pattern being the most commonly studied pattern (e.g.,
+Enders, 2001b, 2010; Jia & Wu, 2019; Yuan & Bentler, 2000). ref:
+10.31234/osf.io/rq6yb
 
 ```{r, eval=FALSE}
 
@@ -373,24 +375,61 @@ simular_ausencia <- function(dt, proporcao, mecanismo) {
 
 ```
 
-
 Define a função para a imputação
+
+```{r}
+library(mice)
+
+# Suponha que você já tenha o imp
+imp <- mice(amostracompleta, print = FALSE)
+
+# 1. predictorMatrix mae
+predictorMatrix_mae <- imp$predictorMatrix
+predictorMatrix_mae[,] <- 0
+predictorMatrix_mae["IDADEPAI", "IDADEMAE"] <- 1
+
+# 2. predictorMatrix todos
+predictorMatrix_todos <- imp$predictorMatrix
+predictorMatrix_todos[,] <- 0
+predictorMatrix_todos["IDADEPAI", "IDADEMAE"] <- 1
+predictorMatrix_todos["IDADEPAI", "ESTCIVMAE"] <- 1
+predictorMatrix_todos["IDADEPAI", "TPFUNCRESP"] <- 1
+predictorMatrix_todos["IDADEPAI", "HORANASC_turno"] <- 1
+
+# 3. Agora juntar as duas em uma lista
+lista_predictorMatrix <- list(
+  regressao_mae = predictorMatrix_mae,
+  regressao_todos = predictorMatrix_todos
+)
+
+```
+
 ```{r, eval=FALSE}
+
 imputar_valores <- function(df, metodo) {
     print(paste("Método de imputação:", metodo)) 
   imput <- df
-  if (metodo == "media_simples") {
+  
+  if (metodo == "Analise_de_casos_completos") {
+    
+     imput <- imput %>% filter(!is.na(IDADEPAI))
+    
+  } else if (metodo == "media_simples") {
     media <- mean(df$IDADEPAI, na.rm = TRUE)
     imput$IDADEPAI[is.na(imput$IDADEPAI)] <- media
-  } else if (metodo == "mediana_simples") {
+    
+      } else if (metodo == "mediana_simples") {
     mediana <- median(df$IDADEPAI, na.rm = TRUE)
     imput$IDADEPAI[is.na(imput$IDADEPAI)] <- mediana
+    
   } else if (metodo == "mediana_condicional_IDADEMAE") {
     imput <- imput %>%
       group_by(IDADEMAE) %>%
       mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
       ungroup()
+    
   } else if (metodo == "mediana_condicional_IDADEMAE_e_ESTCIV") {
+    
     imput <- imput %>%
       group_by(IDADEMAE, ESTCIVMAE) %>%
       mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
@@ -404,8 +443,19 @@ imputar_valores <- function(df, metodo) {
     imput <- imput %>%
       group_by(IDADEMAE, HORANASC_turno) %>%
       mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
-      ungroup()
-  } else {
+        ungroup()
+} else if (metodo == "norm_nob_todos") {
+  indice_idadepai <- which(names(imput) == "IDADEPAI")
+  
+  imp <- mice(
+    imput, 
+    method = c("", "", "", "", "norm.nob"),  # método só para IDADEPAI (exemplo)
+    predictorMatrix = lista_predictorMatrix[["todos"]], 
+    print = FALSE
+  )
+  imput <- complete(imp)  # agora sim vira um data.frame
+}
+ else {
     stop("Método de imputação desconhecido")
   }
   return(imput)
@@ -413,10 +463,8 @@ imputar_valores <- function(df, metodo) {
 
 ```
 
-
-
-
 Função para extrair decis
+
 ```{r, eval=FALSE}
 
 extrair_decis <- function(x) {
@@ -427,8 +475,22 @@ extrair_decis <- function(x) {
 
 ```
 
+Métricas originais
 
-Simulações 
+```{r}
+media_dc_original = mean(amostracompleta$IDADEPAI, na.rm = TRUE)
+
+decis_dc_original = extrair_decis(amostracompleta$IDADEPAI)
+
+valores_dc_originais <- c(
+  imputado_media = media_dc_original,
+  imputado_mediana = median(amostracompleta$IDADEPAI, na.rm = TRUE),
+  decis_dc_original
+)
+
+```
+
+Simulações
 
 ```{r, eval=FALSE}
 
@@ -467,7 +529,6 @@ resultados_todos <- lapply(proporcoes, function(prop) {
         
         
         # Extrair quantis (decis)
-        decis_orig <- extrair_decis(amostra$IDADEPAI)
         decis_imput <- extrair_decis(imputado$IDADEPAI)
         
      # Montar os dados finais para essa simulação
@@ -478,7 +539,6 @@ resultados_todos <- lapply(proporcoes, function(prop) {
           metodo = metodo,
           imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
           imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
-          unlist(decis_orig),
           unlist(decis_imput)
         )
         return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
@@ -501,235 +561,94 @@ resultados_todos <- lapply(proporcoes, function(prop) {
 head(resultados_todos)
 ```
 
-
-
+```{r}
+resultados_todos <- resultados_todos %>%
+  mutate(metodo = case_when( 
+    metodo == "media_simples" ~ "imputação pela média",
+    metodo == "mediana_simples" ~ "imputação pela mediana",
+    metodo == "mediana_condicional_IDADEMAE" ~ "imputação pela mediana\ncondicional a idade da mãe",
+    metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "imputação pela mediana\ncondicional a idade da mãe\ne ao estado civil",
+    metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "imputação pela mediana\ncondicional a idade da mãe\ne a função do responsável\npelo preenchimento da declaração",
+    metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "imputação pela mediana\ncondicional a idade da mãe\ne ao turno de nascimento"
+  ))
+```
 
 Define a função para calcular as métricas
+
 ```{r,eval=FALSE}
-# calcular_metricas <- function(original, imputado, imputado_vetor) {
-#   rmse <- sqrt(mean(imputado_vetor - original)^2) # ainda em dúvida sobre essa metrica
-#   rb <-  imputado - original
-#   pb <- 100 * abs((imputado - original)/ original)
-#   return(list(RMSE = rmse, RB = rb, PB = pb))
-# }
+calcular_metricas <- function(imputado_cenario, valor_dc_original) {
+  erro_bruto <- mean(imputacoes_cenario) - media_dc_original
+  desvio_padrao <- sqrt(sum((imputacoes_cenario - media_dc_original)^2) / (length(imputacoes_cenario) - 1))
+  return(list(Erro_Bruto = erro_bruto, Desvio_padrao = desvio_padrao))
+}
 
 ```
 
+Processar os dados e calcular as métricas para cada grupo
 
- Processar os dados e calcular as métricas para cada grupo
 ```{r,eval=FALSE}
 
-metricas_resultado <- resultados_todos %>%
-  group_by(proporcao, mecanismo, metodo) %>%
-  mutate(
-    imputado_media = as.numeric(gsub(",", ".", `imputado_media`))) %>% 
+
+resultado_por_cenario_e_metodo <- resultados_todos %>%
+  mutate(imputado_media = as.numeric(gsub(",", ".", `imputado_media`))) %>%
+  group_by(metodo, proporcao, mecanismo) %>%
   summarise(
-    metricas = list(calcular_metricas(media_dc_original, mean(imputado_media),imputado_media)),
-    .groups = "drop"  
-  )  |> 
-  # Expandir as métricas em colunas individuais
+    metricas = list(calcular_metricas(imputado_media, media_dc_original)),
+    .groups = "drop"
+  ) %>%
   mutate(
-    RMSE = sapply(metricas, function(x) x$RMSE),
-    RB = sapply(metricas, function(x) x$RB),
-    PB = sapply(metricas, function(x) x$PB)
-  )  |> 
-  select(proporcao, mecanismo, metodo, RMSE, RB, PB) |>  
-   distinct(proporcao, mecanismo, metodo, RMSE, RB, PB)
-
-print(metricas_resultado)
+    `Erro Bruto` = sapply(metricas, function(x) x$Erro_Bruto),
+    `Desvio padrão` = sapply(metricas, function(x) x$Desvio_padrao)
+  ) %>%
+  select(proporcao, mecanismo, metodo, `Erro Bruto`, `Desvio padrão`)
+print(resultado_por_cenario_e_metodo
+      )
 
 ```
 
 ```{r,eval=FALSE}
-write_xlsx(metricas_resultado, "metricas_resultado.xlsx")
+
+write_xlsx(resultado_por_cenario_e_metodo, "metricas_resultado.xlsx")
 write_xlsx(resultados_todos, "resultados_todos.xlsx")
 save(resultados_todos, file ="resultados_todos.RData")
 ```
 
-## 'desvio padrão estimado', da estimativa bootstrap
+## Erro bruto e desvio padrão para os decis também
 
-medida de acurácia-> usada para dar um intevalo de confiança para o parâmetro desconhecido
-segundo: 
-@article{efron1986bootstrap,
-  title={Bootstrap methods for standard errors, confidence intervals, and other measures of statistical accuracy},
-  author={Efron, Bradley and Tibshirani, Robert},
-  journal={Statistical science},
-  pages={54--75},
-  year={1986},
-  publisher={JSTOR}
+```{r}
+
+# 4. Transformar resultados_todos para formato longo
+resultados_long <- resultados_todos %>%
+  pivot_longer(
+    cols = c(imputado_media, imputado_mediana, dec_10:dec_90, dec_10.1:dec_90.1),
+    names_to = "estatistica",
+    values_to = "valor"
+  ) %>%
+  mutate(valor = as.numeric(gsub(",", ".", valor)))  # Corrige se veio como texto
+
+# 5. Função para calcular as métricas
+calcular_metricas <- function(valores, verdadeiro) {
+  erro_bruto <- mean(valores) - verdadeiro
+  desvio_padrao <- sqrt(sum((valores - verdadeiro)^2) / (length(valores) - 1))
+  return(list(Erro_Bruto = erro_bruto, Desvio_Padrao = desvio_padrao))
 }
 
-$$
-\hat{\sigma}_B =\sqrt{  \frac{\sum_{b=1}^{B} (\hat{y}^I_{b} - \hat{y}^*_{b})^2}{B-1}}
-$$
-Neste cálculo, $\( \hat{y}^I_{b} \)$ representa a estatística calculada para a $\( b \)-ésima$ amostra bootstrap, e $\( \hat{\hat{y}^*_{b} \)$ é a média das estatísticas de todas as amostras bootstrap.
-$B$ é o número total de amostras.
-
-Essa métrica calcula a raiz quadrada da média dos quadrados das diferenças entre as estimativas da amostra bootstrap e a média das estimativas bootstrap, ou seja calcula o desvio padrão para $𝐵$ amostras, medindo a variabilidade de  $\hat{\sigma}$ devido a escolha aleatória de $y$
-
-```{r}
-resultados_todos$`Média imputada` <- gsub(",", ".", resultados_todos$`Média imputada`)
-resultados_todos$`Média imputada` = as.numeric(resultados_todos$`Média imputada`)
- 
-desvio_padrao_estimado_media = resultados_todos |> 
-  group_by(proporcao, mecanismo,`metodo de imputação`) |> 
-   summarise(
-    # Calculando a média das estatísticas de bootstrap
-media_bootstrap = mean(`Média imputada`, na.rm = TRUE),
-# Calculando o desvio padrão das estatísticas de bootstrap (de acordo com a fórmula bootstrap)
-desvio_padrao_media_bootstrap = sqrt(sum((`Média imputada` - media_bootstrap)^2, na.rm = TRUE) / (n() - 1)),
-  .groups = "drop" 
-  )
-
-
-# Exibir os resultados
-print(desvio_padrao_estimado_media)
-plot(density(desvio_padrao_estimado_media$desvio_padrao_media_bootstrap))
+# 6. Calcular para cada grupo
+metricas_resultado <- resultados_long %>%
+  group_by(proporcao, mecanismo, metodo, estatistica) %>%
+  summarise(
+    metricas = list(
+      calcular_metricas(
+        valores = valor,
+        verdadeiro = valores_dc_originais[[gsub("\\.1", "", unique(estatistica))]]
+      )
+    ),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    `Erro Bruto` = sapply(metricas, function(x) x$Erro_Bruto),
+    `Desvio Padrão` = sapply(metricas, function(x) x$Desvio_Padrao)
+  ) %>%
+  select(proporcao, mecanismo, metodo, estatistica, `Erro Bruto`, `Desvio Padrão`)
 
 ```
-
-
-
-## metrica 2  'desvio padrão imputado', da estimativa em relação ao dado completo da amostra $B$
-
-
-$$
-REQM_{I} =\sqrt{  \frac{\sum_{b=1}^{B} (\hat{y}^I_{b} - Y^{obs}_{b})^2}{B-1}}
-$$
-Essa métrica calcula a raiz quadrada da média dos quadrados das diferenças entre a estimativa da amostra bootstrap do dado imputado $\( \hat{y}^I_{b} \)$ e a estimativa do dado observado $Y^{obs}_{b}}$, antes da imputação. Ou seja, calcula a raiz do erro quadrádico médio $𝐵$ amostras, medindo a variabilidade da diferença entre os valores observados e imputados a partir de cada método, devido a seleção aleatória de Y.
-
-
-```{r}
-resultados_todos$`Média original` <- gsub(",", ".", resultados_todos$`Média original`)
-resultados_todos$`Média original` = as.numeric(resultados_todos$`Média original`)
- 
-desvio_padrao_estimado_real = resultados_todos |> 
-  group_by(proporcao, mecanismo,`metodo de imputação`) |> 
-   summarise(
-# Calculando o desvio padrão das estatísticas de bootstrap (de acordo com a fórmula bootstrap)
-desvio_padrao_media_real = sqrt(sum((`Média imputada` - `Média original`)^2, na.rm = TRUE) / (n() - 1)),
-  .groups = "drop" 
-  )
-
-
-# Exibir os resultados
-print(desvio_padrao_estimado_real)
-plot(density(desvio_padrao_estimado_real$desvio_padrao_media_real))
-```
-
-
-## metrica 3  'desvio padrão original', da estimativa em relação ao dado completo da amostra original
-
-$$
-REQM_{dc} =\sqrt{  \frac{\sum_{b=1}^{B} (\hat{y}^I_{b} - Y_{dc})^2}{B-1}}
-$$
-
-Essa métrica calcula a raiz quadrada da média dos quadrados das diferenças entre a estimativa da amostra bootstrap do dado imputado $\( \hat{y}^I_{b} \)$ e o  parâmetro original, a população com dados completos (observados antes da simulação) $Y_{dc}}$. Ou seja, calcula a raiz do erro quadrádico médio $𝐵$ amostras, medindo a variabilidade da diferença entre o parâmetro e as estimativas dos dados imputados das amostras com simulação de dados faltantes, medindo a variabilidade da  estimativa a partir de cada método de imputação e cenário.
-
-
-```{r}
-
-desvio_padrao_estimado_dado_completo = resultados_todos |> 
-  group_by(proporcao, mecanismo,`metodo de imputação`) |> 
-   summarise(
-# Calculando o desvio padrão das estatísticas de bootstrap (de acordo com a fórmula bootstrap)
-desvio_padrao_dado_completo = sqrt(sum((`Média imputada` - media_dc_original)^2, na.rm = TRUE) / (n() - 1)),
-  .groups = "drop" 
-  )
-
-
-# Exibir os resultados
-print(desvio_padrao_estimado_real)
-
-plot(density(desvio_padrao_estimado_dado_completo$desvio_padrao_dado_completo))
-
-```
-
-
-
-```{r}
-# Supondo que você tenha um dataframe 'resultados_todos'
-library(dplyr)
-library(ggplot2)
-
-# Agrupar os dados e calcular a média por grupo
-teste <- resultados_todos %>%
-  group_by(proporcao, mecanismo, `metodo de imputação`) 
-
-# Plotar o gráfico com ggplot2
-ggplot(teste, aes(x = proporcao, y =`Média imputada`, color = mecanismo)) +
-  geom_line() +
-  geom_point() +
-  facet_wrap(~`metodo de imputação`) + # Para separar os gráficos por 'metodo de imputação'
-  geom_hline(yintercept = media_dc_original, linetype = "dashed", color = "red", size = 1) +
-  labs(title = "Média Imputada por Proporção e Mecanismo",
-       x = "Proporção",
-       y = "Média Imputada") +
-  theme_minimal()
-
-
-```
-
-```{r}
-
-# # Agrupar os dados e calcular a média por grupo
-# cenarios <- resultados_todos %>%
-#   group_by(proporcao, mecanismo, `metodo de imputação`) |> 
-# group_split()
-# 
-# library(dplyr)
-# library(purrr)
-# 
-# # Supondo que 'cenarios_divididos' seja uma lista de tibbles, cada um representando um cenário
-# densidades <- map(cenarios, ~{
-#   d <- density(.x$`Média imputada`)
-#   tibble(x = d$x, y = d$y)
-# }) %>%
-#   bind_rows(.id = "cenario")
-# 
-# 
-# ggplot(densidades, aes(x = x, y = y, group = cenario)) +
-#   geom_line(alpha = 0.2) +  # Linhas com 20% de opacidade
-#   theme_minimal() +
-#   labs(title = "Densidades empíricas das 500 simulações",
-#        x = "Valor",
-#        y = "Densidade")
-
-```
-
-
-```{r}
-# library(dplyr)
-# library(purrr)
-# library(ggplot2)
-# 
-# # Supondo que 'cenarios' seja uma lista de tibbles, cada um representando um cenário
-# densidades <- map(cenarios, ~{
-#   dens <- density(.x$`Média imputada`)
-#   tibble(x = dens$x, y = dens$y, cenario = .x$`metodo de imputação`[1])
-# }) %>%
-#   bind_rows()
-# 
-# # Atribuir cores específicas para 'MAR' e 'NMAR'
-# densidades <- densidades %>%
-#   mutate(cor_mecanismo = case_when(
-#     cenario == "MAR" ~ "blue",
-#     cenario == "NMAR" ~ "orange",
-#     TRUE ~ "gray"
-#   ))
-# 
-# # Plotar o gráfico com ggplot2
-# ggplot(densidades, aes(x = x, y = y, group = cenario, color = cor_mecanismo)) +
-#   geom_line(alpha = 0.6) +  # Linhas com 60% de opacidade
-#   facet_wrap(~ cenario, scales = "free_y") +  # Um painel para cada cenário
-#   scale_color_identity() +  # Usar as cores definidas diretamente
-#   theme_minimal() +
-#   labs(title = "Densidades Empíricas por Cenário e Mecanismo",
-#        x = "Valor",
-#        y = "Densidade") +
-#   theme(legend.position = "top")
-
-```
-
-
-

@@ -1,0 +1,177 @@
+---
+title: "Visualizando metricas"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+require(tidyverse)
+library(ggplot2)
+library(writexl)
+```
+
+```{r}
+library(readxl)
+metricas_resultado <- read_excel("metricas_resultado.xlsx")
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+ggplot(metricas_resultado, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ metodo) +
+  labs(
+    x = "Proporção de Missing",
+    y = "Erro Bruto",
+    fill = "Mecanismo de Missing",
+    title = "Erro Bruto por Proporção, Mecanismo e Método"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+```{r}
+metricas_resultado_filtrado = metricas_resultado %>%
+  filter(metodo != "imputação pela média" & metodo != "imputação pela mediana" )%>%
+  filter(mecanismo== "MAR")
+
+ggplot(metricas_resultado_filtrado, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(`Erro Bruto`, 2)), 
+          vjust = -0.5, 
+          fontface = "bold", 
+          color = "black", 
+          size = 3)+
+  facet_wrap(~ metodo) +
+  labs(
+    x = "Proporção de Missing",
+    y = "Erro Bruto",
+    fill = "Mecanismo de Missing",
+    title = "Erro Bruto por Proporção, Mecanismo e Método"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+```{r}
+ggplot(metricas_resultado, aes(x = as.factor(proporcao), y = `Desvio padrão`, fill = mecanismo)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ metodo) +
+  labs(
+    x = "Proporção de Missing",
+    y = "Desvio padrão",
+    fill = "Mecanismo de Missing",
+    title = "Desvio padrão por Proporção, Mecanismo e Método"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5)
+  )
+```
+
+```{r}
+metricas_resultado_filtrado = metricas_resultado %>%
+  filter(metodo != "imputação pela média" & metodo != "imputação pela mediana" )%>%
+  filter(mecanismo== "MAR")
+
+ggplot(metricas_resultado_filtrado, aes(x = as.factor(proporcao), y = `Desvio padrão`, fill = mecanismo)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(`Desvio padrão`, 2)), 
+          vjust = -0.5, 
+          fontface = "bold", 
+          color = "black", 
+          size = 3)+
+  facet_wrap(~ metodo) +
+  labs(
+    x = "Proporção de Missing",
+    y = "Desvio padrão",
+    fill = "Mecanismo de Missing",
+    title = "Desvio padrão por Proporção, Mecanismo e Método"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+```{r}
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+
+# 1. Corrigir a proporção para formato percentual
+metricas_resultado_formatado <- metricas_resultado %>%
+  mutate(
+    proporcao = case_when(
+      proporcao == "0,2" ~ "20%",
+      proporcao == "0,4" ~ "40%",
+      proporcao == "0,6" ~ "60%",
+      proporcao == "0,8" ~ "80%",
+      TRUE ~ proporcao
+    )
+  )
+
+# 2. Reestruturar para formato largo: cada método como duas colunas (Erro e Desvio)
+metricas_larga <- metricas_resultado_formatado %>%
+  pivot_wider(
+    id_cols = c(mecanismo, proporcao),
+    names_from = metodo,
+    values_from = c(`Erro Bruto`, `Desvio padrão`)
+  )
+
+metricas_larga <- metricas_larga %>%
+  mutate(across(where(is.numeric), ~ sprintf("%.2f", .)))
+
+# Detectar dinamicamente os métodos
+nomes_metodos <- unique(metricas_resultado$metodo)
+
+# Construir col.names
+col_names <- c(
+  "Mecanismo de ausência", "Percentual de dado faltante",
+  unlist(lapply(nomes_metodos, function(metodo) c("Erro Bruto", "Desvio Padrão")))
+)
+
+# Construir header_above dinamicamente
+header_above <- c(" " = 2)
+for (metodo in nomes_metodos) {
+  header_above[metodo] <- 2
+}
+
+# Gerar a tabela LaTeX
+latex_table = kable(metricas_larga,
+      format = "latex",
+      booktabs = TRUE,
+      align = c("l", "l", rep("r", ncol(metricas_larga) - 2)),
+      escape = FALSE,
+      col.names = col_names
+) %>%
+  add_header_above(header_above) %>%
+  pack_rows("MCAR", 1, 4) %>%
+  pack_rows("MAR", 5, 8) %>%
+  pack_rows("MNAR", 9, 12) %>%
+  kable_styling(latex_options = c("hold_position", "striped"))
+
+
+latex_table <- gsub("\\\\cellcolor\\{.*?\\}", "", latex_table)
+
+
+writeLines(latex_table, "metricas_resultado_simulacao.tex")
+
+```
+
