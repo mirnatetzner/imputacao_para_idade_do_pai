@@ -76,7 +76,7 @@ for (UF in UFs) {
 sum(is.na(PR$IDADEPAI))
 ```
 
-**NAs na idade do pai do PR em 2022 antes de ser processado: 45.948**
+NAs na idade do pai do PR em 2022 antes de ser processado.
 
 Faz processamento dos dados:
 
@@ -123,29 +123,29 @@ estão presentes as categorias associadas ao preenchimento da DN:
 
 ```{r, eval=FALSE}
 
-# library(here)
-# 
-# # Obter o caminho para o diretório raiz do projeto
-# root_path <- here()
-# 
-# # Exemplo de usar o diretório raiz para acessar um arquivo ou pasta
-# file_path <- here("manuais/Estrutura_SINASC_para_CD.xlsx")
-# print(file_path)
-# 
-# 
-# Estrutura_SINASC <- read_xlsx(file_path)
-# #View(Estrutura_SINASC_para_CD)
-# ver = Estrutura_SINASC %>% 
-#   filter(`Sessão da DN`== "VII -\r\nPreenchimento") %>% 
-#   print()
+library(here)
+
+# Obter o caminho para o diretório raiz do projeto
+root_path <- here()
+
+# Exemplo de usar o diretório raiz para acessar um arquivo ou pasta
+file_path <- here("manuais/Estrutura_SINASC_para_CD.xlsx")
+print(file_path)
+
+
+Estrutura_SINASC <- read_xlsx(file_path)
+#View(Estrutura_SINASC_para_CD)
+ver = Estrutura_SINASC %>%
+  filter(`Sessão da DN`== "VII -\r\nPreenchimento") %>%
+  print()
 
 
 ```
 
 ```{r, eval=FALSE}
-# ver = Estrutura_SINASC %>% 
-#   filter(`Nome do campo no DBF`== "DTDECLARAC") %>% 
-#   print()
+ver = Estrutura_SINASC %>%
+  filter(`Nome do campo no DBF`== "DTDECLARAC") %>%
+  print()
 
 ```
 
@@ -271,12 +271,12 @@ latex_table <- mis |>
 latex_table <- gsub("\\\\cellcolor\\{.*?\\}", "", latex_table)  # Remover qualquer comando \cellcolor
 
 # Exportar para um arquivo .tex
-writeLines(latex_table, "parana_tabela_resumo_faltantes.tex")
+#writeLines(latex_table, "parana_tabela_resumo_faltantes.tex")
 
 ```
 
 Remove linhas com valores faltantes: Dimensões dos dados após a retirada
-das linhas
+das linhas com observações ausêntes
 
 ```{r, eval=FALSE}
 amostracompleta  = na.omit(df_select)
@@ -286,7 +286,6 @@ amostracompleta = amostracompleta |>
 
 dim(amostracompleta)
 rm(df_select)
-#setDT(amostracompleta)
 
 ```
 
@@ -375,7 +374,7 @@ simular_ausencia <- function(dt, proporcao, mecanismo) {
 
 ```
 
-Define a função para a imputação
+Estrutura matrizes de preditores para método norm.nob
 
 ```{r}
 library(mice)
@@ -403,6 +402,8 @@ lista_predictorMatrix <- list(
 )
 
 ```
+
+Define a função para a imputação
 
 ```{r, eval=FALSE}
 
@@ -444,17 +445,23 @@ imputar_valores <- function(df, metodo) {
       group_by(IDADEMAE, HORANASC_turno) %>%
       mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
         ungroup()
-} else if (metodo == "norm_nob_todos") {
+} else if (metodo == "pmm_mae") {
+    # atribui metodo para idade do pai
   indice_idadepai <- which(names(imput) == "IDADEPAI")
-  
+    method <- rep("", ncol(imput))
+    method[indice_idadepai] <- "pmm"
+    names(method) <- names(imput) 
+
   imp <- mice(
     imput, 
-    method = c("", "", "", "", "norm.nob"),  # método só para IDADEPAI (exemplo)
-    predictorMatrix = lista_predictorMatrix[["todos"]], 
-    print = FALSE
+    method = method, 
+    predictorMatrix = lista_predictorMatrix[["regressao_mae"]], 
+    print = FALSE,
+    m = 1 
   )
-  imput <- complete(imp)  # agora sim vira um data.frame
-}
+  imput <- complete(imp) # transformar em df
+  
+} 
  else {
     stop("Método de imputação desconhecido")
   }
@@ -524,7 +531,12 @@ resultados_todos <- lapply(proporcoes, function(prop) {
       amostra_miss <- simular_ausencia(amostra, prop, mecanismo)
       
        # Rodar todos os métodos de imputação
-            resultados_metodos <- lapply(c("media_simples", "mediana_simples", "mediana_condicional_IDADEMAE","mediana_condicional_IDADEMAE_e_ESTCIV","mediana_condicional_IDADEMAE_e_funcao_resp","mediana_condicional_IDADEMAE_e_HORANASC_turno"), function(metodo) {
+          resultados_metodos <- lapply(c("Analise_de_casos_completos","media_simples", "mediana_simples", "mediana_condicional_IDADEMAE",
+                               "mediana_condicional_IDADEMAE_e_ESTCIV",
+                               "mediana_condicional_IDADEMAE_e_funcao_resp",
+                               "mediana_condicional_IDADEMAE_e_HORANASC_turno",
+                               "pmm_mae"),
+           function(metodo) {
         imputado <- imputar_valores(amostra_miss, metodo)
         
         
@@ -558,27 +570,35 @@ resultados_todos <- lapply(proporcoes, function(prop) {
 
 ```{r}
 
-head(resultados_todos)
+head(resultados_todos,20)
 ```
 
 ```{r}
-resultados_todos <- resultados_todos %>%
+resultados_todos1 <- resultados_todos %>%
   mutate(metodo = case_when( 
-    metodo == "media_simples" ~ "imputação pela média",
-    metodo == "mediana_simples" ~ "imputação pela mediana",
-    metodo == "mediana_condicional_IDADEMAE" ~ "imputação pela mediana\ncondicional a idade da mãe",
-    metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "imputação pela mediana\ncondicional a idade da mãe\ne ao estado civil",
-    metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "imputação pela mediana\ncondicional a idade da mãe\ne a função do responsável\npelo preenchimento da declaração",
-    metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "imputação pela mediana\ncondicional a idade da mãe\ne ao turno de nascimento"
+    metodo == "Analise_de_casos_completos"~"Análise de casos completos",
+    metodo == "media_simples" ~ "Média",
+    metodo == "mediana_simples" ~ "Mediana",
+    metodo == "mediana_condicional_IDADEMAE" ~ "Mediana condicional\na idade da mãe",
+    metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "Mediana condicional\n a idade da mãe\ne ao estado civil",
+    metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN",
+    metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "Mediana condicional\n a idade da mãe\ne ao turno de nascimento",
+    metodo == "pmm_mae" ~ "PMM \nà idade da mãe"
+  ),
+  proporcao = case_when(
+    proporcao == "0,2" ~ "20%",
+    proporcao == "0,4" ~ "40%",
+    proporcao == "0,6" ~ "60%",
+    proporcao == "0,8" ~ "80%",
   ))
 ```
 
 Define a função para calcular as métricas
 
 ```{r,eval=FALSE}
-calcular_metricas <- function(imputado_cenario, valor_dc_original) {
-  erro_bruto <- mean(imputacoes_cenario) - media_dc_original
-  desvio_padrao <- sqrt(sum((imputacoes_cenario - media_dc_original)^2) / (length(imputacoes_cenario) - 1))
+calcular_metricas <- function(imputado_media, valor_dc_original) {
+  erro_bruto <- mean(imputado_media) - media_dc_original
+  desvio_padrao <- sqrt(sum((imputado_media - media_dc_original)^2) / (length(imputado_media) - 1))
   return(list(Erro_Bruto = erro_bruto, Desvio_padrao = desvio_padrao))
 }
 
@@ -589,7 +609,7 @@ Processar os dados e calcular as métricas para cada grupo
 ```{r,eval=FALSE}
 
 
-resultado_por_cenario_e_metodo <- resultados_todos %>%
+resultado_por_cenario_e_metodo <- resultados_todos1 %>%
   mutate(imputado_media = as.numeric(gsub(",", ".", `imputado_media`))) %>%
   group_by(metodo, proporcao, mecanismo) %>%
   summarise(
@@ -608,7 +628,7 @@ print(resultado_por_cenario_e_metodo
 
 ```{r,eval=FALSE}
 
-write_xlsx(resultado_por_cenario_e_metodo, "metricas_resultado.xlsx")
+
 write_xlsx(resultados_todos, "resultados_todos.xlsx")
 save(resultados_todos, file ="resultados_todos.RData")
 ```
@@ -618,9 +638,9 @@ save(resultados_todos, file ="resultados_todos.RData")
 ```{r}
 
 # 4. Transformar resultados_todos para formato longo
-resultados_long <- resultados_todos %>%
+resultados_long <- resultados_todos1 %>%
   pivot_longer(
-    cols = c(imputado_media, imputado_mediana, dec_10:dec_90, dec_10.1:dec_90.1),
+    cols = c(imputado_media, imputado_mediana, dec_10:dec_90),
     names_to = "estatistica",
     values_to = "valor"
   ) %>%
@@ -640,7 +660,7 @@ metricas_resultado <- resultados_long %>%
     metricas = list(
       calcular_metricas(
         valores = valor,
-        verdadeiro = valores_dc_originais[[gsub("\\.1", "", unique(estatistica))]]
+        verdadeiro = valores_dc_originais[[unique(estatistica)]]
       )
     ),
     .groups = "drop"
@@ -651,4 +671,12 @@ metricas_resultado <- resultados_long %>%
   ) %>%
   select(proporcao, mecanismo, metodo, estatistica, `Erro Bruto`, `Desvio Padrão`)
 
+write_xlsx(metricas_resultado, "metricas_resultado.xlsx")
+```
+
+```{r}
+lista_resultados <- resultados_todos1 %>%
+  group_split(metodo, proporcao, mecanismo)
+
+write_xlsx(lista_resultados, "20250429_lista_resultados.xlsx")
 ```

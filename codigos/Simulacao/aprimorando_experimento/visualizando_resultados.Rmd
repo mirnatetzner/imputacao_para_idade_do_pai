@@ -8,127 +8,151 @@ library(dplyr)
 require(tidyverse)
 library(ggplot2)
 library(writexl)
+# Instale se ainda não tiver
+#install.packages("showtext")
+
+
+# Run once
+install.packages("extrafont")
+library(extrafont)
+# Install **TTF** Latin Modern Roman fonts from www.fontsquirrel.com/fonts/latin-modern-roman
+# Import the newly installed LModern fonts, change the pattern according to the 
+# filename of the lmodern ttf files in your fonts folder
+path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
+
+loadfonts(device = "pdf")
+showtext_auto()
+
+
 ```
 
 ```{r}
 library(readxl)
 metricas_resultado <- read_excel("metricas_resultado.xlsx")
+lista_resultados <- read_excel("20250429_lista_resultados.xlsx")
 ```
+
 
 ```{r}
 
 
-```
+metricas_media <- metricas_resultado %>%
+  filter(estatistica == "imputado_media")
 
-```{r}
-
-
-ggplot(metricas_resultado, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(~ metodo) +
+erro_bruto_media =ggplot(metricas_media, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ metodo, ncol = 2)+
   labs(
-    x = "Proporção de Missing",
-    y = "Erro Bruto",
-    fill = "Mecanismo de Missing",
-    title = "Erro Bruto por Proporção, Mecanismo e Método"
+    x = "Percentual de dados faltantes",
+    y = "Erro Bruto \n(diferença em anos)",
+    fill = "Mecanismo",
+    title = ""
   ) +
-  theme_minimal() +
+  theme_minimal(base_family = "lmodern") +
   theme(
-    legend.title = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5)
+    legend.position = "bottom",
+    legend.justification = "center",
+    axis.text = element_text(size = 9),
+    strip.text = element_text(size = 11)
   )
 
-```
-```{r}
-metricas_resultado_filtrado = metricas_resultado %>%
-  filter(metodo != "imputação pela média" & metodo != "imputação pela mediana" )%>%
-  filter(mecanismo== "MAR")
+path = "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
 
-ggplot(metricas_resultado_filtrado, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = round(`Erro Bruto`, 2)), 
-          vjust = -0.5, 
-          fontface = "bold", 
-          color = "black", 
-          size = 3)+
-  facet_wrap(~ metodo) +
+ggsave(
+  filename = "erro_bruto_media.pdf",
+  plot = erro_bruto_media,
+  path= path,
+  width = 15,         # largura em centímetros
+  height = 20,        # altura em centímetros
+  dpi = 300,
+  units = "cm"        # unidade em centímetros
+)
+```
+
+
+
+
+```{r}
+
+metricas_media <- metricas_resultado %>%
+  filter(estatistica == "imputado_media")
+
+erro_bruto_media =ggplot(metricas_media, aes(x = as.factor(proporcao), y = `Desvio Padrão`, fill = mecanismo)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ metodo, ncol = 2)+
   labs(
-    x = "Proporção de Missing",
-    y = "Erro Bruto",
-    fill = "Mecanismo de Missing",
-    title = "Erro Bruto por Proporção, Mecanismo e Método"
+    x = "Percentual de dados faltantes",
+    y = "Desvio Padrão \n(diferença em anos)",
+    fill = "Mecanismo",
+    title = ""
   ) +
-  theme_minimal() +
+  theme_minimal(base_family = "lmodern") +
   theme(
-    legend.title = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5)
+    legend.position = "bottom",
+    legend.justification = "center",
+    axis.text = element_text(size = 9),
+    strip.text = element_text(size = 11)
   )
 
+
+ggsave(
+  filename = "Desvio_Padrao_media.pdf",
+  plot = erro_bruto_media,
+  path= path,
+  width = 15,         # largura em centímetros
+  height = 20,        # altura em centímetros
+  dpi = 300,
+  units = "cm"        # unidade em centímetros
+)
 ```
 
+
 ```{r}
-ggplot(metricas_resultado, aes(x = as.factor(proporcao), y = `Desvio padrão`, fill = mecanismo)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(~ metodo) +
-  labs(
-    x = "Proporção de Missing",
-    y = "Desvio padrão",
-    fill = "Mecanismo de Missing",
-    title = "Desvio padrão por Proporção, Mecanismo e Método"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.title = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5)
-  )
+
+# Filtrar, transformar e formatar os dados
+tabela_latex <- metricas_resultado %>%
+  filter(estatistica == "imputado_media") %>%
+  mutate(
+    valor_formatado = sprintf("%.2f (%.2f)", `Erro Bruto`, `Desvio Padrão`)
+  ) %>%
+  select(mecanismo, proporcao, metodo, valor_formatado) %>%
+  pivot_wider(
+    names_from = metodo,
+    values_from = valor_formatado
+  ) %>%
+  arrange(mecanismo, proporcao)
+
+# Caminho para salvar o arquivo .tex
+caminho_arquivo <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/tabelas/tabela_erro_bruto_desvio.tex"
+
+# Gerar a tabela como string LaTeX
+latex_string <- tabela_latex %>%
+  kable(format = "latex", booktabs = TRUE, linesep = "", 
+        caption = "Erro Bruto e Desvio Padrão por método, mecanismo e proporção de dados faltantes") %>%
+  kable_styling(latex_options = c("hold_position", "striped", "scale_down")) %>%
+  as.character()
+
+# Remover comandos \cellcolor{...}
+latex_string <- gsub("\\\\cellcolor\\{.*?\\}", "", latex_string)
+
+# Salvar no arquivo .tex
+cat(latex_string, file = caminho_arquivo)
 ```
 
-```{r}
-metricas_resultado_filtrado = metricas_resultado %>%
-  filter(metodo != "imputação pela média" & metodo != "imputação pela mediana" )%>%
-  filter(mecanismo== "MAR")
 
-ggplot(metricas_resultado_filtrado, aes(x = as.factor(proporcao), y = `Desvio padrão`, fill = mecanismo)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = round(`Desvio padrão`, 2)), 
-          vjust = -0.5, 
-          fontface = "bold", 
-          color = "black", 
-          size = 3)+
-  facet_wrap(~ metodo) +
-  labs(
-    x = "Proporção de Missing",
-    y = "Desvio padrão",
-    fill = "Mecanismo de Missing",
-    title = "Desvio padrão por Proporção, Mecanismo e Método"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.title = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5)
-  )
 
-```
+
 ```{r}
-library(dplyr)
 library(tidyr)
 library(knitr)
 library(kableExtra)
 
-# 1. Corrigir a proporção para formato percentual
-metricas_resultado_formatado <- metricas_resultado %>%
-  mutate(
-    proporcao = case_when(
-      proporcao == "0,2" ~ "20%",
-      proporcao == "0,4" ~ "40%",
-      proporcao == "0,6" ~ "60%",
-      proporcao == "0,8" ~ "80%",
-      TRUE ~ proporcao
-    )
-  )
+tabela_media =  metricas_resultado %>% 
+  filter(estatistica == "imputado_media")
 
 # 2. Reestruturar para formato largo: cada método como duas colunas (Erro e Desvio)
-metricas_larga <- metricas_resultado_formatado %>%
+metricas_larga <- tabela_media  %>%
   pivot_wider(
     id_cols = c(mecanismo, proporcao),
     names_from = metodo,
