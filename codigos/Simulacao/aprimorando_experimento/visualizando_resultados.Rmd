@@ -22,6 +22,8 @@ path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codi
 font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
 
 loadfonts(device = "pdf")
+library(showtext)
+
 showtext_auto()
 
 
@@ -38,7 +40,7 @@ lista_resultados <- read_excel("20250429_lista_resultados.xlsx")
 
 
 metricas_media <- metricas_resultado %>%
-  filter(estatistica == "imputado_media")
+  filter(estatistica == "imputado_media" & metodo != "PMM \nà idade da mãe")
 
 erro_bruto_media =ggplot(metricas_media, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
   geom_col(position = "dodge") +
@@ -76,7 +78,7 @@ ggsave(
 ```{r}
 
 metricas_media <- metricas_resultado %>%
-  filter(estatistica == "imputado_media")
+  filter(estatistica == "imputado_media", metodo != "PMM \nà idade da mãe")
 
 erro_bruto_media =ggplot(metricas_media, aes(x = as.factor(proporcao), y = `Desvio Padrão`, fill = mecanismo)) +
   geom_col(position = "dodge") +
