@@ -235,6 +235,9 @@ Dimensões dos dados
 
 ```{r, eval=FALSE}
 dim(df_select)
+
+
+
 ```
 
 Resumo de variáveis com dados faltantes:
@@ -251,8 +254,8 @@ library(kableExtra)
 # Criando o data frame
 mis <- data.frame(
   Variável = c("Idade do Pai", "Função do responsável pelo preenchimento", "Estado civil da mãe", "Turno do nascimento", "Idade da mãe"),
-  N_Faltantes = c(46003, 2115, 908, 52, 0),
-  Pct_Faltantes = c(32.7, 1.50, 0.646, 0.037, 0)
+  N_Faltantes = mis$n_miss,
+  Pct_Faltantes = mis$pct_miss
 )
 
 # Gerando a tabela com kable
@@ -287,6 +290,25 @@ amostracompleta = amostracompleta |>
 dim(amostracompleta)
 rm(df_select)
 
+```
+
+Testando normalidade
+
+```{r}
+# Ajusta o modelo
+modelo_idade <- lm(IDADEPAI ~ IDADEMAE, data = amostracompleta)
+
+# Exibe o resumo do modelo
+summary(modelo_idade)
+
+res <- residuals(modelo_idade)
+
+# Histograma
+hist(res, breaks = 30, main = "Histograma dos Resíduos", xlab = "Resíduos")
+
+# Q-Q plot
+qqnorm(res)
+qqline(res, col = "red")
 ```
 
 ## Reproduz mecanismos de ausência:
@@ -500,10 +522,76 @@ valores_dc_originais <- c(
 Simulações
 
 ```{r, eval=FALSE}
+# 
+# 
+# # Definir o número de simulações
+# nsim <- 500
+# 
+# # Define as proporções de dados ausentes a serem testadas
+# proporcoes <- c(0.2, 0.4, 0.6, 0.8)
+# 
+# # Defina os mecanismos de ausência a serem simulados
+# mecanismos <- c("MCAR", "MAR", "MNAR")
+# 
+# # Defina o seed para garantir que os números aleatórios sejam consistentes
+# set.seed(123)
+# 
+# # Roda a função com lapply 
+# resultados_todos <- lapply(proporcoes, function(prop) {
+#   cat("Executando para proporção:", prop, "\n")
+#   
+#   resultados_completos <- lapply(mecanismos, function(mecanismo) {
+#     cat("Mecanismo:", mecanismo, "\n")
+#     
+#     # Executa para cada simulação
+#     resultados_simulacao <- lapply(1:nsim, function(i) {
+#       set.seed(i)
+#       
+#       # Gerar amostra e simular ausência de dados
+#       
+#       amostra <- amostracompleta[sample(nrow(amostracompleta), replace = TRUE), ]
+#       amostra_miss <- simular_ausencia(amostra, prop, mecanismo)
+#       
+#        # Rodar todos os métodos de imputação
+#           resultados_metodos <- lapply(c("Analise_de_casos_completos","media_simples", "mediana_simples", "mediana_condicional_IDADEMAE",
+#                                "mediana_condicional_IDADEMAE_e_ESTCIV",
+#                                "mediana_condicional_IDADEMAE_e_funcao_resp",
+#                                "mediana_condicional_IDADEMAE_e_HORANASC_turno"),
+#            function(metodo) {
+#         imputado <- imputar_valores(amostra_miss, metodo)
+#         
+#         
+#         # Extrair quantis (decis)
+#         decis_imput <- extrair_decis(imputado$IDADEPAI)
+#         
+#      # Montar os dados finais para essa simulação
+#         dados <- c(
+#           proporcao = prop,
+#           mecanismo = mecanismo,
+#           repeticao = i,
+#           metodo = metodo,
+#           imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
+#           imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
+#           unlist(decis_imput)
+#         )
+#         return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
+#       })
+#       
+#       return(do.call(rbind, resultados_metodos))
+#     })
+#     
+#     return(bind_rows(resultados_simulacao))
+#   })
+#   
+#   return(bind_rows(resultados_completos))
+# }) %>% bind_rows()
+# 
 
+```
 
+```{r}
 # Definir o número de simulações
-nsim <- 500
+nsim <-500
 
 # Define as proporções de dados ausentes a serem testadas
 proporcoes <- c(0.2, 0.4, 0.6, 0.8)
@@ -514,47 +602,43 @@ mecanismos <- c("MCAR", "MAR", "MNAR")
 # Defina o seed para garantir que os números aleatórios sejam consistentes
 set.seed(123)
 
-# Roda a função com lapply 
+# Lista para salvar as colunas de IDADEPAI
+lista_idadepai <- list()
+
 resultados_todos <- lapply(proporcoes, function(prop) {
   cat("Executando para proporção:", prop, "\n")
   
   resultados_completos <- lapply(mecanismos, function(mecanismo) {
     cat("Mecanismo:", mecanismo, "\n")
     
-    # Executa para cada simulação
     resultados_simulacao <- lapply(1:nsim, function(i) {
       set.seed(i)
-      
-      # Gerar amostra e simular ausência de dados
       
       amostra <- amostracompleta[sample(nrow(amostracompleta), replace = TRUE), ]
       amostra_miss <- simular_ausencia(amostra, prop, mecanismo)
       
-       # Rodar todos os métodos de imputação
-          resultados_metodos <- lapply(c("Analise_de_casos_completos","media_simples", "mediana_simples", "mediana_condicional_IDADEMAE",
-                               "mediana_condicional_IDADEMAE_e_ESTCIV",
-                               "mediana_condicional_IDADEMAE_e_funcao_resp",
-                               "mediana_condicional_IDADEMAE_e_HORANASC_turno",
-                               "pmm_mae"),
-           function(metodo) {
-        imputado <- imputar_valores(amostra_miss, metodo)
-        
-        
-        # Extrair quantis (decis)
-        decis_imput <- extrair_decis(imputado$IDADEPAI)
-        
-     # Montar os dados finais para essa simulação
-        dados <- c(
-          proporcao = prop,
-          mecanismo = mecanismo,
-          repeticao = i,
-          metodo = metodo,
-          imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
-          imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
-          unlist(decis_imput)
-        )
-        return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
-      })
+      resultados_metodos <- lapply(c("Analise_de_casos_completos","media_simples", "mediana_simples", 
+                                     "mediana_condicional_IDADEMAE", "mediana_condicional_IDADEMAE_e_ESTCIV",
+                                     "mediana_condicional_IDADEMAE_e_funcao_resp", 
+                                     "mediana_condicional_IDADEMAE_e_HORANASC_turno"),
+        function(metodo) {
+          imputado <- imputar_valores(amostra_miss, metodo)
+          decis_imput <- extrair_decis(imputado$IDADEPAI)
+          
+            # SALVAR coluna IDADEPAI imputada
+          lista_idadepai[[paste0("prop", prop, "_", mecanismo, "_rep", i, "_", metodo)]] <<- imputado$IDADEPAI
+          
+          dados <- c(
+            proporcao = prop,
+            mecanismo = mecanismo,
+            repeticao = i,
+            metodo = metodo,
+            imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
+            imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
+            unlist(decis_imput)
+          )
+          return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
+        })
       
       return(do.call(rbind, resultados_metodos))
     })
@@ -565,12 +649,12 @@ resultados_todos <- lapply(proporcoes, function(prop) {
   return(bind_rows(resultados_completos))
 }) %>% bind_rows()
 
-
 ```
 
 ```{r}
 
 head(resultados_todos,20)
+
 ```
 
 ```{r}
