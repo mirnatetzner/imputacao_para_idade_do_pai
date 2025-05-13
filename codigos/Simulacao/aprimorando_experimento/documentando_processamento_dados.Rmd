@@ -625,8 +625,12 @@ resultados_todos <- lapply(proporcoes, function(prop) {
           imputado <- imputar_valores(amostra_miss, metodo)
           decis_imput <- extrair_decis(imputado$IDADEPAI)
           
-            # SALVAR coluna IDADEPAI imputada
-          lista_idadepai[[paste0("prop", prop, "_", mecanismo, "_rep", i, "_", metodo)]] <<- imputado$IDADEPAI
+          # SALVAR apenas nas últimas 3 simulações
+          if (i > (nsim - 3)) { 
+            
+            chave <- paste0("prop", prop, "_", mecanismo, "_rep", i, "_", metodo)
+            lista_idadepai[[chave]] <<- imputado$IDADEPAI
+          }
           
           dados <- c(
             proporcao = prop,
@@ -666,8 +670,8 @@ resultados_todos1 <- resultados_todos %>%
     metodo == "mediana_condicional_IDADEMAE" ~ "Mediana condicional\na idade da mãe",
     metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "Mediana condicional\n a idade da mãe\ne ao estado civil",
     metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN",
-    metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "Mediana condicional\n a idade da mãe\ne ao turno de nascimento",
-    metodo == "pmm_mae" ~ "PMM \nà idade da mãe"
+    metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "Mediana condicional\n a idade da mãe\ne ao turno de nascimento"
+    #,metodo == "pmm_mae" ~ "PMM \nà idade da mãe"
   ),
   proporcao = case_when(
     proporcao == "0,2" ~ "20%",
@@ -762,5 +766,5 @@ write_xlsx(metricas_resultado, "metricas_resultado.xlsx")
 lista_resultados <- resultados_todos1 %>%
   group_split(metodo, proporcao, mecanismo)
 
-write_xlsx(lista_resultados, "20250429_lista_resultados.xlsx")
+write_xlsx(lista_resultados, "20250512_lista_resultados.xlsx")
 ```

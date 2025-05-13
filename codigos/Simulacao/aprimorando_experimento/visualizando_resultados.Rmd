@@ -13,7 +13,7 @@ library(writexl)
 
 
 # Run once
-install.packages("extrafont")
+#install.packages("extrafont")
 library(extrafont)
 # Install **TTF** Latin Modern Roman fonts from www.fontsquirrel.com/fonts/latin-modern-roman
 # Import the newly installed LModern fonts, change the pattern according to the 
@@ -32,7 +32,8 @@ showtext_auto()
 ```{r}
 library(readxl)
 metricas_resultado <- read_excel("metricas_resultado.xlsx")
-lista_resultados <- read_excel("20250429_lista_resultados.xlsx")
+lista_resultados <- read_excel("20250512_lista_resultados.xlsx")
+load("20250512_resultados_com_idades_pai.RData")
 ```
 
 
@@ -109,95 +110,219 @@ ggsave(
 )
 ```
 
-
+  
+  
 ```{r}
-
-# Filtrar, transformar e formatar os dados
-tabela_latex <- metricas_resultado %>%
-  filter(estatistica == "imputado_media") %>%
-  mutate(
-    valor_formatado = sprintf("%.2f (%.2f)", `Erro Bruto`, `Desvio Padrão`)
-  ) %>%
-  select(mecanismo, proporcao, metodo, valor_formatado) %>%
-  pivot_wider(
-    names_from = metodo,
-    values_from = valor_formatado
-  ) %>%
-  arrange(mecanismo, proporcao)
-
-# Caminho para salvar o arquivo .tex
-caminho_arquivo <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/tabelas/tabela_erro_bruto_desvio.tex"
-
-# Gerar a tabela como string LaTeX
-latex_string <- tabela_latex %>%
-  kable(format = "latex", booktabs = TRUE, linesep = "", 
-        caption = "Erro Bruto e Desvio Padrão por método, mecanismo e proporção de dados faltantes") %>%
-  kable_styling(latex_options = c("hold_position", "striped", "scale_down")) %>%
-  as.character()
-
-# Remover comandos \cellcolor{...}
-latex_string <- gsub("\\\\cellcolor\\{.*?\\}", "", latex_string)
-
-# Salvar no arquivo .tex
-cat(latex_string, file = caminho_arquivo)
-```
-
-
-
-
-```{r}
+library(dplyr)
 library(tidyr)
-library(knitr)
 library(kableExtra)
+library(openxlsx)
 
-tabela_media =  metricas_resultado %>% 
-  filter(estatistica == "imputado_media")
-
-# 2. Reestruturar para formato largo: cada método como duas colunas (Erro e Desvio)
-metricas_larga <- tabela_media  %>%
-  pivot_wider(
-    id_cols = c(mecanismo, proporcao),
-    names_from = metodo,
-    values_from = c(`Erro Bruto`, `Desvio padrão`)
-  )
-
-metricas_larga <- metricas_larga %>%
-  mutate(across(where(is.numeric), ~ sprintf("%.2f", .)))
-
-# Detectar dinamicamente os métodos
-nomes_metodos <- unique(metricas_resultado$metodo)
-
-# Construir col.names
-col_names <- c(
-  "Mecanismo de ausência", "Percentual de dado faltante",
-  unlist(lapply(nomes_metodos, function(metodo) c("Erro Bruto", "Desvio Padrão")))
+# Definir a ordem dos métodos
+ordem_metodos <- c(
+  "ACC",
+  "Média",
+  "Mediana",
+  "MCIM",
+  "MCIM \ne ao estado civil",
+  "MCIM\ne ao turno de nascimento",
+  "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN"
 )
 
-# Construir header_above dinamicamente
-header_above <- c(" " = 2)
-for (metodo in nomes_metodos) {
-  header_above[metodo] <- 2
+
+# Preparar base formatada
+tabela_formatada <- metricas_resultado %>%
+  filter(estatistica == "imputado_media") %>%
+  mutate(
+    metodo = factor(metodo, levels = ordem_metodos),
+    grupo_coluna = paste(mecanismo, proporcao, sep = "_"),
+    Erro_Bruto = format(round(`Erro Bruto`, 3), nsmall = 3, decimal.mark = ","),
+    Desvio_Padrao = format(round(`Desvio Padrão`, 3), nsmall = 3, decimal.mark = ",")
+  ) %>%
+  select(metodo, grupo_coluna, Erro_Bruto, Desvio_Padrao) %>%
+  arrange(metodo)
+
+# Tabela de Erro Bruto
+erro_bruto_df <- tabela_formatada %>%
+  pivot_wider(
+    id_cols = metodo,
+    names_from = grupo_coluna,
+    values_from = Erro_Bruto,
+    names_glue = "{grupo_coluna}.Erro_Bruto_fmt"
+  ) %>%
+  select(
+    metodo,
+    matches("MAR_20%"), matches("MCAR_20%"), matches("MNAR_20%"),
+    matches("MAR_40%"), matches("MCAR_40%"), matches("MNAR_40%"),
+    matches("MAR_60%"), matches("MCAR_60%"), matches("MNAR_60%"),
+    matches("MAR_80%"), matches("MCAR_80%"), matches("MNAR_80%")
+  )
+
+# Tabela de Desvio Padrão
+desvio_padrao_df <- tabela_formatada %>%
+  pivot_wider(
+    id_cols = metodo,
+    names_from = grupo_coluna,
+    values_from = Desvio_Padrao,
+    names_glue = "{grupo_coluna}.Desvio_Padrao_fmt"
+  ) %>%
+  select(
+    metodo,
+    matches("MAR_20%"), matches("MCAR_20%"), matches("MNAR_20%"),
+    matches("MAR_40%"), matches("MCAR_40%"), matches("MNAR_40%"),
+    matches("MAR_60%"), matches("MCAR_60%"), matches("MNAR_60%"),
+    matches("MAR_80%"), matches("MCAR_80%"), matches("MNAR_80%")
+  )
+
+# Criar o arquivo .xlsx com duas folhas
+wb <- createWorkbook()
+
+# Adicionar folha 1 - Erro Bruto
+addWorksheet(wb, "Erro Bruto")
+writeData(wb, sheet = "Erro Bruto", erro_bruto_df)
+
+# Adicionar folha 2 - Desvio Padrão
+addWorksheet(wb, "Desvio Padrão")
+writeData(wb, sheet = "Desvio Padrão", desvio_padrao_df)
+
+# Salvar arquivo
+#saveWorkbook(wb, "20250512_resultados_imputacao.xlsx", overwrite = TRUE)
+```
+
+```{r}
+# # Função para extrair partes do nome
+# extrair_info <- function(nome) {
+#   partes <- unlist(strsplit(nome, "_"))
+#   proporcao <- partes[1]             # ex: "prop0,2"
+#   mecanismo <- partes[2]             # ex: "MCAR"
+#   metodo <- paste(partes[4:length(partes)], collapse = "_")  # junta o resto como método
+#   list(proporcao = proporcao, mecanismo = mecanismo, metodo = metodo)
+# }
+# 
+# # Criar estrutura aninhada
+# lista_organizada <- list()
+# 
+# for (nome in names(lista_idadepai)) {
+#   info <- extrair_info(nome)
+#   prop <- info$proporcao
+#   mec <- info$mecanismo
+#   met <- info$metodo
+#   
+#   if (!met %in% names(lista_organizada)) {
+#     lista_organizada[[met]] <- list()
+#   }
+#   if (!mec %in% names(lista_organizada[[met]])) {
+#     lista_organizada[[met]][[mec]] <- list()
+#   }
+#   if (!prop %in% names(lista_organizada[[met]][[mec]])) {
+#     lista_organizada[[met]][[mec]][[prop]] <- list()
+#   }
+#   
+#   lista_organizada[[met]][[mec]][[prop]][[nome]] <- lista_idadepai[[nome]]
+# }
+# 
+# glimpse(lista_organizada[["media_simples"]][["MCAR"]][["prop0,2"]])
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+
+
+# Caminho para salvar os gráficos
+path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+
+# Transformar lista em data frame longo
+
+ordem_metodos <- c(
+  "ACC",
+  "Média",
+  "Mediana",
+  "MCIM",
+  "MCIM e ao \nestado civil",
+  "MCIM e ao turno\n de nascimento",
+  "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+)
+
+df_idade <- tibble::enframe(lista_idadepai, name = "nome_completo", value = "valores") %>%
+  separate(nome_completo,
+         into = c("proporcao", "mecanismo", "repeticao", "metodo"),
+         sep = "_",
+         extra = "merge",
+         fill = "right") %>%
+  mutate(
+    proporcao = str_remove(proporcao, "prop"),
+    repeticao = str_remove(repeticao, "rep"),
+    metodo = case_when(
+      metodo == "Analise_de_casos_completos" ~ "ACC",
+      metodo == "media_simples" ~ "Média",
+      metodo == "mediana_simples" ~ "Mediana",
+      metodo == "mediana_condicional_IDADEMAE" ~ "MCIM",
+      metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "MCIM e ao \nestado civil",
+      metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "MCIM e ao turno\n de nascimento",
+      metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "MCIM e a função\n do responsável\npelo preenchimento\n da DN",
+      TRUE ~ metodo
+    ),
+    metodo = factor(metodo, levels = ordem_metodos)
+  ) %>%
+  tidyr::unnest_longer(valores)
+
+
+plot_fdp <- function(mec, rep) {
+  ordem_metodos <- c(
+    "ACC",
+    "Média",
+    "Mediana",
+    "MCIM",
+    "MCIM e ao \nestado civil",
+    "MCIM e ao turno\n de nascimento",
+    "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+  )
+
+  df_plot <- df_idade %>%
+    filter(mecanismo == mec, repeticao == rep) %>%
+   mutate(
+      metodo = factor(metodo, levels = ordem_metodos),
+      proporcao = factor(proporcao)  # para usar como categoria no gráfico
+    )
+
+  p <- ggplot(df_plot, aes(x = valores,  color = proporcao, linetype = proporcao)) +
+    geom_density(size=1,alpha = 0.5) + #, 
+    facet_wrap(~metodo, scales = "free") +
+    labs(
+      title = "",
+      x = "Idade do Pai Imputada",
+      y = "Densidade",
+      color = "Proporção (%)",
+      fill = "Proporção (%)"
+    ) +
+    theme_minimal(base_family = "lmodern") +
+    theme(strip.text = element_text(size = 10))
+
+ tryCatch({
+  ggsave(
+    filename = paste0("FDP_Mecanismo_", mec, "_Repeticao_", rep, ".pdf"),
+    plot = p,
+    width = 15,
+    height = 20,
+    path = path,
+    dpi = 300,
+    units = "cm"
+  )
+}, error = function(e) {
+  message("Erro ao salvar gráfico: ", e$message)
+})
+
+  message("Gráfico salvo em: ", path)
+  return(p)
 }
 
-# Gerar a tabela LaTeX
-latex_table = kable(metricas_larga,
-      format = "latex",
-      booktabs = TRUE,
-      align = c("l", "l", rep("r", ncol(metricas_larga) - 2)),
-      escape = FALSE,
-      col.names = col_names
-) %>%
-  add_header_above(header_above) %>%
-  pack_rows("MCAR", 1, 4) %>%
-  pack_rows("MAR", 5, 8) %>%
-  pack_rows("MNAR", 9, 12) %>%
-  kable_styling(latex_options = c("hold_position", "striped"))
-
-
-latex_table <- gsub("\\\\cellcolor\\{.*?\\}", "", latex_table)
-
-
-writeLines(latex_table, "metricas_resultado_simulacao.tex")
+plot_fdp("MCAR", "500")
+plot_fdp("MAR", "500")
+plot_fdp("MNAR", "500")
 
 ```
 

@@ -1,0 +1,137 @@
+---
+title: "expandindo_a_imputacao"
+output: html_document
+date: "2025-05-13"
+---
+
+```{r setup, include=FALSE}
+{r,warning=FALSE,message=FALSE}
+library(microdatasus)
+library(mice)
+library(stringr)
+library(ggmice)
+library(lubridate)
+library(readxl)
+library(hms)
+library(naniar)
+library(future.apply)
+library(data.table)
+library(boot)
+library(dplyr)
+require(tidyverse)
+library(ggplot2)
+library(writexl)
+library(Amelia)
+options(scipen = 999, 
+        OutDec = ",")
+
+
+# Caminho para salvar os gráficos
+path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+
+library(extrafont)
+# Install **TTF** Latin Modern Roman fonts from www.fontsquirrel.com/fonts/latin-modern-roman
+# Import the newly installed LModern fonts, change the pattern according to the 
+# filename of the lmodern ttf files in your fonts folder
+path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
+
+loadfonts(device = "pdf")
+library(showtext)
+
+showtext_auto()
+
+
+```
+
+
+```{r}
+{r, warning=FALSE, message=FALSE }
+
+#UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO")
+
+UFs = c("PR")
+
+for (UF in UFs) {
+  nome <- UF
+  assign(nome, fetch_datasus(year_start = 2022, year_end = 2022, uf = UF, 
+                             information_system = "SINASC", 
+                             vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC", "TPFUNCRESP")))
+  #save(list = nome, file = paste0(UF, ".Rdata"))
+  #rm(list = nome)
+}
+
+
+```
+
+
+
+
+```{r}
+for (uf in UFs) {
+  
+  dados_processados <- process_sinasc(get(uf), municipality_data = TRUE)
+  assign(uf, dados_processados)
+  
+}
+
+```
+
+
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) %>%
+    mutate(IDADEMAE = as.numeric(IDADEMAE),
+           IDADEPAI = as.numeric(IDADEPAI),
+      missing = ifelse(is.na(IDADEPAI), 1, 0)) |>  # Marcado dos valores ausentes para idade do pai
+     mutate(
+    # Filtra valores inválidos ou transforma em NA
+    HORANASC = ifelse(
+      grepl("^[0-9]{1,4}$", HORANASC), # Verifica se HORANASC contém apenas números (1-4 dígitos)
+      str_pad(HORANASC, width = 4, pad = "0"), # Preenche com zeros à esquerda se necessário
+      NA_character_ # Define como NA se for inválido
+    )
+  ) %>%
+  mutate(
+    HORANASC = ifelse(
+      is.na(HORANASC),
+      NA, # Mantém NA para valores inválidos
+      parse_hms(paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4), ":00"))
+    ),
+    HORANASC = hms::hms(HORANASC)
+    )
+  
+assign(uf, temp)
+  
+}
+```
+
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) %>%
+    mutate( 
+            HORANASC_seconds = as.numeric(as_hms(HORANASC)),
+            HORANASC_turno = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE),
+            Diferenca_nasc_dn = as.integer(DTDECLARAC - DTNASC)) %>%
+    mutate(
+            
+            ESTCIVMAE = as.factor(ESTCIVMAE),
+            TPFUNCRESP = as.factor(TPFUNCRESP),
+            )|> 
+    select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`))
+
+
+assign(uf, temp)
+}  
+
+glimpse(PR)
+
+
+```
+
+
+
