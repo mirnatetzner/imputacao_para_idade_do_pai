@@ -134,7 +134,7 @@ print(file_path)
 
 
 Estrutura_SINASC <- read_xlsx(file_path)
-#View(Estrutura_SINASC_para_CD)
+View(Estrutura_SINASC)
 ver = Estrutura_SINASC %>%
   filter(`Sessão da DN`== "VII -\r\nPreenchimento") %>%
   print()
