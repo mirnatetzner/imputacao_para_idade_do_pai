@@ -39,12 +39,12 @@ library(extrafont)
 # filename of the lmodern ttf files in your fonts folder
 
 
-font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
-
-loadfonts(device = "pdf")
-library(showtext)
-
-showtext_auto()
+# font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
+# 
+# loadfonts(device = "pdf")
+# library(showtext)
+# 
+# showtext_auto()
 
 
 ```
@@ -57,7 +57,7 @@ UFs <- c(
   "MG", "ES", "RJ", "SP", "PR", "SC", "RS",
   "MS", "MT", "GO", "DF"
 )
-ano = "2022"
+ano = "2020"
 
 ```
 
@@ -69,9 +69,7 @@ ano = "2022"
 
 projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 
-# pop_parana<- projecoes_2024_tab1_idade_simples %>%
-#   filter(LOCAL == "Paraná") %>% 
-#   select(`SEXO`,`IDADE`,`2012`:`2022`)
+
 
 populacao <- projecoes_2024_tab1_idade_simples %>%
   filter(SIGLA %in% UFs) %>%
@@ -84,6 +82,7 @@ table(populacao$LOCAL)
 ```{r, warning=FALSE, message=FALSE }
 
 
+ano <- as.numeric(ano)
 
 for (UF in UFs) {
   nome <- UF
@@ -92,7 +91,7 @@ for (UF in UFs) {
                              vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC", "TPFUNCRESP")))
  
 }
-
+# 
 
 ```
 
@@ -150,7 +149,7 @@ for (uf in UFs) {
     mutate(
             
             ESTCIVMAE = as.factor(ESTCIVMAE),
-            TPFUNCRESP = as.factor(TPFUNCRESP),
+            #TPFUNCRESP = as.factor(TPFUNCRESP),
             )|> 
     select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`,HORANASC, HORANASC_seconds))
 
@@ -184,7 +183,7 @@ for (uf in UFs) {
   # Calcula proporção de valores ausentes em IDADEPAI
   pct_miss_idadepai <- mean(is.na(temp$IDADEPAI))
 
-  if (pct_miss_idadepai > 0.79) {
+if (pct_miss_idadepai > 0.79) {
     message(uf, ": Proporção de missings em IDADEPAI > 79%. MCIM e ao turno")
 
     temp_imputado <- temp %>%
@@ -196,7 +195,20 @@ for (uf in UFs) {
       ) %>%
       ungroup()
 
-  } else {
+}  else if (!"TPFUNCRESP" %in% names(temp)) {
+    message(uf, ": Variável TPFUNCRESP não encontrada. Usando apenas IDADEMAE para imputação.")
+
+    temp_imputado <- temp %>%
+      group_by(IDADEMAE) %>%
+      mutate(
+        idadepai_foi_imputada = is.na(IDADEPAI),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM apenas idade mãe (TPFUNCRESP ausente)", NA)
+      ) %>%
+      ungroup()
+
+  }
+  else {
     message(uf, ": Imputação realizada com MCIM e função do responsável")
 
     temp_imputado <- temp %>%
@@ -240,10 +252,10 @@ for (uf in UFs) {
   
   message("Processando UF: ", uf)
 
-  # Subconjunto da população para a UF, sexo feminino, ano 2022
+  # Subconjunto da população para a UF, sexo feminino, ano 
   pop_uf <- populacao %>%
     filter(SEXO == "Mulheres", SIGLA == uf) %>%
-    pivot_longer(cols = `2022`, names_to = "Ano", values_to = "Populacao") %>%
+    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
     mutate(
       Ano = as.integer(Ano),
       Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
@@ -283,15 +295,15 @@ for (uf in UFs) {
 ```
 
 Conferindo o resultado das taxas femininas:
-
+/
 ```{r}
 
-projecoes_2024_tab4_indicadores <- read_excel("Downloads/projecoes_2024_tab4_indicadores.xlsx", 
-    sheet = "4) INDICADORES")
-
-projecoes_2024_tab4_indicadores %>% 
-  filter(SIGLA %in% UFs, ANO == 2022) %>%
-  print()
+# projecoes_2024_tab4_indicadores <- read_excel("Downloads/projecoes_2024_tab4_indicadores.xlsx", 
+#     sheet = "4) INDICADORES")
+# 
+# projecoes_2024_tab4_indicadores %>% 
+#   filter(SIGLA %in% UFs, ANO == ano) %>%
+#   print()
 ```
 
 taxas masculinas
@@ -306,7 +318,7 @@ for (uf in UFs) {
   # Subconjunto da população para a UF, sexo feminino, ano 2022
   pop_uf <- populacao %>%
     filter(SEXO == "Homens", SIGLA == uf) %>%
-    pivot_longer(cols = `2022`, names_to = "Ano", values_to = "Populacao") %>%
+    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
     mutate(
       Ano = as.integer(Ano),
       Grupo_idade = cut(IDADE, breaks = seq(15, 60, 5), right = FALSE)

@@ -65,11 +65,7 @@ for (UF in UFs) {
   nome <- UF
   assign(nome, fetch_datasus(year_start = 2022, year_end = 2022, uf = UF, 
                              information_system = "SINASC", 
-                             vars = c("IDADEMAE", "IDADEPAI", "ESCMAE2010", "ESTCIVMAE","DTDECLARAC", "DTNASC", "HORANASC", "CODESTAB", 
-                                      "TPFUNCRESP", "RACACORMAE" 
-                                      )))
-  #save(list = nome, file = paste0(UF, ".Rdata"))
-  #rm(list = nome)
+                             vars = c("IDADEMAE", "IDADEPAI", "ESTCIVMAE", "HORANASC","TPFUNCRESP")))
 }
 
 
@@ -160,7 +156,6 @@ for (uf in UFs) {
   temp <- get(uf) %>%
     mutate(IDADEMAE = as.numeric(IDADEMAE),
            IDADEPAI = as.numeric(IDADEPAI),
-           Ano = year(as.Date(DTNASC)), # Extrai o ano de nascimento
       missing = ifelse(is.na(IDADEPAI), 1, 0)) |>  # Marcado dos valores ausentes para idade do pai
      mutate(
     # Filtra valores inválidos ou transforma em NA
@@ -176,9 +171,8 @@ for (uf in UFs) {
       NA, # Mantém NA para valores inválidos
       parse_hms(paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4), ":00"))
     ),
-    HORANASC = hms::hms(HORANASC),
-    DTNASC = as.Date(DTNASC, format = "%Y-%m-%d"),
-    DTDECLARAC = as.Date(DTDECLARAC , format = "%Y-%m-%d")
+    HORANASC = hms::hms(HORANASC)
+   
     )
   
 assign(uf, temp)
@@ -195,15 +189,10 @@ for (uf in UFs) {
   temp <- get(uf) %>%
     mutate( 
             HORANASC_seconds = as.numeric(as_hms(HORANASC)),
-            HORANASC_turno = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE),
-            Diferenca_nasc_dn = as.integer(DTDECLARAC - DTNASC)) %>%
+            HORANASC_turno = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE))%>%
     mutate(
-            ESCMAE2010 =as.ordered(ESCMAE2010),
             ESTCIVMAE = as.factor(ESTCIVMAE),
-            RACACORMAE = as.factor(RACACORMAE),
             TPFUNCRESP = as.factor(TPFUNCRESP),
-            CODESTAB = as.factor(CODESTAB),
-            RACACORMAE = as.factor(RACACORMAE)
         )|> 
     select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`))
 

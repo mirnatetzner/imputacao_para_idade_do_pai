@@ -8,8 +8,6 @@ library(dplyr)
 require(tidyverse)
 library(ggplot2)
 library(writexl)
-# Instale se ainda não tiver
-#install.packages("showtext")
 
 
 # Run once
@@ -34,6 +32,7 @@ library(readxl)
 metricas_resultado <- read_excel("metricas_resultado.xlsx")
 lista_resultados <- read_excel("20250512_lista_resultados.xlsx")
 load("20250512_resultados_com_idades_pai.RData")
+load("~/Documentos/Dissetacao/parana_completo.RData")
 ```
 
 
@@ -62,15 +61,15 @@ erro_bruto_media =ggplot(metricas_media, aes(x = as.factor(proporcao), y = `Erro
 
 path = "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
 
-ggsave(
-  filename = "erro_bruto_media.pdf",
-  plot = erro_bruto_media,
-  path= path,
-  width = 15,         # largura em centímetros
-  height = 20,        # altura em centímetros
-  dpi = 300,
-  units = "cm"        # unidade em centímetros
-)
+# ggsave(
+#   filename = "erro_bruto_media.pdf",
+#   plot = erro_bruto_media,
+#   path= path,
+#   width = 15,         # largura em centímetros
+#   height = 20,        # altura em centímetros
+#   dpi = 300,
+#   units = "cm"        # unidade em centímetros
+# )
 ```
 
 
@@ -99,15 +98,15 @@ erro_bruto_media =ggplot(metricas_media, aes(x = as.factor(proporcao), y = `Desv
   )
 
 
-ggsave(
-  filename = "Desvio_Padrao_media.pdf",
-  plot = erro_bruto_media,
-  path= path,
-  width = 15,         # largura em centímetros
-  height = 20,        # altura em centímetros
-  dpi = 300,
-  units = "cm"        # unidade em centímetros
-)
+# ggsave(
+#   filename = "Desvio_Padrao_media.pdf",
+#   plot = erro_bruto_media,
+#   path= path,
+#   width = 15,         # largura em centímetros
+#   height = 20,        # altura em centímetros
+#   dpi = 300,
+#   units = "cm"        # unidade em centímetros
+# )
 ```
 
   
@@ -288,30 +287,29 @@ plot_fdp <- function(mec, rep) {
       metodo = factor(metodo, levels = ordem_metodos),
       proporcao = factor(proporcao)  # para usar como categoria no gráfico
     )
-
-  p <- ggplot(df_plot, aes(x = valores,  color = proporcao, linetype = proporcao)) +
+View(df_plot)
+  p <- ggplot(df_plot, aes(x = valores,  color = proporcao)) +
     geom_density(size=1,alpha = 0.5) + #, 
     facet_wrap(~metodo, scales = "free") +
     labs(
       title = "",
       x = "Idade do Pai Imputada",
       y = "Densidade",
-      color = "Proporção (%)",
-      fill = "Proporção (%)"
+      color = "Percentual\n faltante"
     ) +
     theme_minimal(base_family = "lmodern") +
     theme(strip.text = element_text(size = 10))
 
  tryCatch({
-  ggsave(
-    filename = paste0("FDP_Mecanismo_", mec, "_Repeticao_", rep, ".pdf"),
-    plot = p,
-    width = 15,
-    height = 20,
-    path = path,
-    dpi = 300,
-    units = "cm"
-  )
+  # ggsave(
+  #   filename = paste0("FDP_Mecanismo_", mec, "_Repeticao_", rep, ".pdf"),
+  #   plot = p,
+  #   width = 15,
+  #   height = 20,
+  #   path = path,
+  #   dpi = 300,
+  #   units = "cm"
+  # )
 }, error = function(e) {
   message("Erro ao salvar gráfico: ", e$message)
 })
@@ -321,8 +319,306 @@ plot_fdp <- function(mec, rep) {
 }
 
 plot_fdp("MCAR", "500")
-plot_fdp("MAR", "500")
-plot_fdp("MNAR", "500")
+
+
+```
+```{r}
+
+
+# Caminho para salvar os gráficos
+path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+
+# Transformar lista em data frame longo
+
+ordem_metodos <- c(
+  "ACC",
+  "Média",
+  "Mediana",
+  "MCIM",
+  "MCIM e ao \nestado civil",
+  "MCIM e ao turno\n de nascimento",
+  "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+)
+
+
+df_idade <- tibble::enframe(lista_idadepai, name = "nome_completo", value = "valores") %>%
+  separate(nome_completo,
+         into = c("proporcao", "mecanismo", "repeticao", "metodo"),
+         sep = "_",
+         extra = "merge",
+         fill = "right") %>%
+  mutate(
+    proporcao = str_remove(proporcao, "prop"),
+    repeticao = str_remove(repeticao, "rep"),
+    metodo = case_when(
+      metodo == "Analise_de_casos_completos" ~ "ACC",
+      metodo == "media_simples" ~ "Média",
+      metodo == "mediana_simples" ~ "Mediana",
+      metodo == "mediana_condicional_IDADEMAE" ~ "MCIM",
+      metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "MCIM e ao \nestado civil",
+      metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "MCIM e ao turno\n de nascimento",
+      metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "MCIM e a função\n do responsável\npelo preenchimento\n da DN",
+      TRUE ~ metodo
+    ),
+    metodo = factor(metodo, levels = ordem_metodos)
+  ) %>%
+  tidyr::unnest_longer(valores)
+
+
+plot_fdp_por_mecanismo <- function(prop, rep) {
+  ordem_metodos <- c(
+    "ACC",
+    "Média",
+    "Mediana",
+    "MCIM",
+    "MCIM e ao \nestado civil",
+    "MCIM e ao turno\n de nascimento",
+    "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+  )
+
+  df_plot <- df_idade %>%
+    filter(proporcao == prop, repeticao == rep, valores < 60, valores >= 15) %>%
+    mutate(
+      metodo = factor(metodo, levels = ordem_metodos),
+      mecanismo = factor(mecanismo)
+    )
+
+    amostra_pai <- amostracompleta %>%
+    filter(IDADEPAI < 60, IDADEPAI >= 15)
+    
+  
+  prop_titulo <- paste0(as.numeric(str_replace(prop, ",", ".")) * 100, "%")
+  min_x <- floor(min(df_plot$valores, na.rm = TRUE) / 5) * 5
+  max_x <- ceiling(max(df_plot$valores, na.rm = TRUE) / 5) * 5
+
+   p <- ggplot(df_plot, aes(x = valores, color = metodo)) +
+    geom_density(size = 1, alpha = 0.5) +
+    geom_density(
+      data = amostra_pai,
+      aes(x = IDADEPAI),
+      color = "black",
+      linetype = "dashed",
+      size = 1,
+      inherit.aes = FALSE
+    ) +
+    facet_wrap(~mecanismo, scales = "free", ncol = 1) +
+    scale_x_continuous(breaks = seq(min_x, max_x, by = 5)) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+    labs(
+      title = paste("Distribuição da Idade do Pai \nPercentual:", prop_titulo , "| Repetição:", rep),
+      x = "Idade do pai",
+      y = "Densidade",
+      color = "Método de \ntratamento"
+    ) +
+    theme_minimal(base_family = "lmodern") +
+    theme(strip.text = element_text(size = 10))
+
+  tryCatch({
+    ggsave(
+      filename = paste0("FDP_mecanismos_", prop, "_Repeticao_", rep, ".pdf"),
+      plot = p,
+      width = 15,
+      height = 20,
+      path = path,
+      dpi = 300,
+      units = "cm"
+    )
+  }, error = function(e) {
+    message("Erro ao salvar gráfico: ", e$message)
+  })
+
+  message("Gráfico gerado (não salvo): ", prop, " - ", rep)
+  return(p)
+}
+plot_fdp_por_mecanismo("0,2", "500")
+
+```
+```{r}
+# Caminho para salvar os gráficos
+path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+
+# Ordem dos métodos para o gráfico
+ordem_metodos <- c(
+  "ACC",
+  "Média",
+  "Mediana",
+  "MCIM",
+  "MCIM e ao \nestado civil",
+  "MCIM e ao turno\n de nascimento",
+  "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+)
+
+# Cores distintas por grupo
+cores_metodos <- c(
+  "ACC" = "#E69F00",
+  "Média" = "#56B4E9",
+  "Mediana" = "#009E73",
+  "MCIM" = "#CC79A7",
+  "MCIM e ao \nestado civil" = "#0072B2",
+  "MCIM e ao turno\n de nascimento" = "#D55E00",
+  "MCIM e a função\n do responsável\npelo preenchimento\n da DN" = "#999999"
+)
+
+# Transformar lista em data frame longo
+df_idade <- tibble::enframe(lista_idadepai, name = "nome_completo", value = "valores") %>%
+  separate(nome_completo,
+           into = c("proporcao", "mecanismo", "repeticao", "metodo"),
+           sep = "_",
+           extra = "merge",
+           fill = "right") %>%
+  mutate(
+    proporcao = str_remove(proporcao, "prop"),
+    repeticao = str_remove(repeticao, "rep"),
+    metodo = case_when(
+      metodo == "Analise_de_casos_completos" ~ "ACC",
+      metodo == "media_simples" ~ "Média",
+      metodo == "mediana_simples" ~ "Mediana",
+      metodo == "mediana_condicional_IDADEMAE" ~ "MCIM",
+      metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "MCIM e ao \nestado civil",
+      metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "MCIM e ao turno\n de nascimento",
+      metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "MCIM e a função\n do responsável\npelo preenchimento\n da DN",
+      TRUE ~ metodo
+    ),
+    grupo_metodo = case_when(
+      metodo %in% c("ACC", "Média", "Mediana") ~ "Simples",
+      TRUE ~ "Condicional"
+    ),
+    metodo = factor(metodo, levels = ordem_metodos)
+  ) %>%
+  tidyr::unnest_longer(valores)
+
+# Função para plotar
+plot_fdp_por_mecanismo <- function(prop, rep) {
+  df_plot <- df_idade %>%
+    filter(proporcao == prop, repeticao == rep, valores < 60, valores >= 15) %>%
+    mutate(
+      metodo = factor(metodo, levels = ordem_metodos),
+      mecanismo = factor(mecanismo)
+    )
+
+  amostra_pai <- amostracompleta %>%
+    filter(IDADEPAI < 60, IDADEPAI >= 15)
+
+  prop_titulo <- paste0(as.numeric(str_replace(prop, ",", ".")) * 100, "%")
+  min_x <- floor(min(df_plot$valores, na.rm = TRUE) / 5) * 5
+  max_x <- ceiling(max(df_plot$valores, na.rm = TRUE) / 5) * 5
+
+  p <- ggplot(df_plot, aes(x = valores, color = metodo)) +
+    geom_density(size = 1, alpha = 0.6) +
+    geom_density(
+      data = amostra_pai,
+      aes(x = IDADEPAI),
+      color = "black",
+      linetype = "dashed",
+      size = 1.2,
+      inherit.aes = FALSE
+    ) +
+    facet_wrap(~mecanismo, scales = "free", ncol = 1) +
+    scale_x_continuous(breaks = seq(min_x, max_x, by = 5)) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+    scale_color_manual(values = cores_metodos) +
+    labs(
+      title = paste("Distribuição da Idade do Pai (≤ 59 anos)",
+                    "\nPercentual:", prop_titulo, "| Repetição:", rep),
+      x = "Idade do pai",
+      y = "Densidade",
+      color = "Método de\ntratamento"
+    ) +
+    theme_minimal(base_family = "lmodern") +
+    theme(
+      strip.text = element_text(size = 10),
+      legend.position = "bottom",
+      legend.title = element_text(size = 10),
+      legend.text = element_text(size = 9)
+    )
+
+  # Salvar
+  tryCatch({
+    # ggsave(
+    #   filename = paste0("FDP_mecanismos_", prop, "_Repeticao_", rep, ".pdf"),
+    #   plot = p,
+    #   width = 15,
+    #   height = 20,
+    #   path = path,
+    #   dpi = 300,
+    #   units = "cm"
+    # )
+  }, error = function(e) {
+    message("Erro ao salvar gráfico: ", e$message)
+  })
+
+  message("Gráfico gerado (não salvo): ", prop, " - ", rep)
+  return(p)
+}
+
+# Teste
+plot_fdp_por_mecanismo("0,2", "500")
+
+```
+```{r}
+plot_fdp_por_mecanismo <- function(prop, rep) {
+  df_plot <- df_idade %>%
+    filter(proporcao == prop, repeticao == rep, valores < 60, valores >= 15) %>%
+    mutate(
+      metodo = factor(metodo, levels = ordem_metodos),
+      mecanismo = factor(mecanismo),
+      grupo_metodo = factor(grupo_metodo, levels = c("Simples", "Condicional"))
+    )
+
+  amostra_pai <- amostracompleta %>%
+    filter(IDADEPAI < 60, IDADEPAI >= 15)
+
+  prop_titulo <- paste0(as.numeric(str_replace(prop, ",", ".")) * 100, "%")
+  min_x <- floor(min(df_plot$valores, na.rm = TRUE) / 5) * 5
+  max_x <- ceiling(max(df_plot$valores, na.rm = TRUE) / 5) * 5
+
+  p <- ggplot(df_plot, aes(x = valores, color = metodo)) +
+    geom_density(size = 1, alpha = 0.6) +
+    geom_density(
+      data = amostra_pai,
+      aes(x = IDADEPAI),
+      color = "black",
+      linetype = "dashed",
+      size = 1.2,
+      inherit.aes = FALSE
+    ) +
+    facet_grid(grupo_metodo ~ mecanismo, scales = "free_y") +
+    scale_x_continuous(breaks = seq(min_x, max_x, by = 5)) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+    scale_color_manual(values = cores_metodos) +
+    labs(
+      title = paste("Distribuição da Idade do Pai (≤ 59 anos)",
+                    "\nPercentual:", prop_titulo, "| Repetição:", rep),
+      x = "Idade do pai",
+      y = "Densidade",
+      color = "Método de\ntratamento"
+    ) +
+    theme_minimal(base_family = "lmodern") +
+    theme(
+      strip.text = element_text(size = 10),
+      legend.position = "bottom",
+      legend.title = element_text(size = 10),
+      legend.text = element_text(size = 9)
+    )
+
+  # Salvar
+  tryCatch({
+    # ggsave(
+    #   filename = paste0("FDP_mecanismos_grupos_", prop, "_Repeticao_", rep, ".pdf"),
+    #   plot = p,
+    #   width = 20,
+    #   height = 20,
+    #   path = path,
+    #   dpi = 300,
+    #   units = "cm"
+    # )
+  }, error = function(e) {
+    message("Erro ao salvar gráfico: ", e$message)
+  })
+
+  message("Gráfico gerado (não salvo): ", prop, " - ", rep)
+  return(p)
+}
 
 ```
 
