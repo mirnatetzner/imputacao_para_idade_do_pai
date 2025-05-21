@@ -675,8 +675,8 @@ Define a função para calcular as métricas
 ```{r,eval=FALSE}
 calcular_metricas <- function(imputado_media, valor_dc_original) {
   erro_bruto <- mean(imputado_media) - media_dc_original
-  desvio_padrao <- sqrt(sum((imputado_media - media_dc_original)^2) / (length(imputado_media) - 1))
-  return(list(Erro_Bruto = erro_bruto, Desvio_padrao = desvio_padrao))
+  RMSE <- sqrt(sum((imputado_media - media_dc_original)^2) / (length(imputado_media) - 1))
+  return(list(Erro_Bruto = erro_bruto, RMSE = RMSE))
 }
 
 ```
@@ -686,7 +686,7 @@ Processar os dados e calcular as métricas para cada grupo
 ```{r,eval=FALSE}
 
 
-resultado_por_cenario_e_metodo <- resultados_todos1 %>%
+resultado_por_cenario_e_metodo <- resultados_todos %>%
   mutate(imputado_media = as.numeric(gsub(",", ".", `imputado_media`))) %>%
   group_by(metodo, proporcao, mecanismo) %>%
   summarise(
@@ -695,7 +695,7 @@ resultado_por_cenario_e_metodo <- resultados_todos1 %>%
   ) %>%
   mutate(
     `Erro Bruto` = sapply(metricas, function(x) x$Erro_Bruto),
-    `Desvio padrão` = sapply(metricas, function(x) x$Desvio_padrao)
+    `Desvio padrão` = sapply(metricas, function(x) x$RMSE)
   ) %>%
   select(proporcao, mecanismo, metodo, `Erro Bruto`, `Desvio padrão`)
 print(resultado_por_cenario_e_metodo
@@ -726,8 +726,8 @@ resultados_long <- resultados_todos1 %>%
 # 5. Função para calcular as métricas
 calcular_metricas <- function(valores, verdadeiro) {
   erro_bruto <- mean(valores) - verdadeiro
-  desvio_padrao <- sqrt(sum((valores - verdadeiro)^2) / (length(valores) - 1))
-  return(list(Erro_Bruto = erro_bruto, Desvio_Padrao = desvio_padrao))
+  RMSE <- sqrt(sum((valores - verdadeiro)^2) / (length(valores) - 1))
+  return(list(Erro_Bruto = erro_bruto, RMSE = RMSE))
 }
 
 # 6. Calcular para cada grupo

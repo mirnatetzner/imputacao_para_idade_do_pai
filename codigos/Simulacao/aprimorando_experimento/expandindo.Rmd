@@ -57,12 +57,11 @@ UFs <- c(
   "MG", "ES", "RJ", "SP", "PR", "SC", "RS",
   "MS", "MT", "GO", "DF"
 )
-ano = "2020"
+ano = "2022"
 
 ```
 
 ## DENOMINADOR - projecao de populacao de 2024
-
 
 ```{r}
 
@@ -78,7 +77,6 @@ populacao <- projecoes_2024_tab1_idade_simples %>%
 table(populacao$LOCAL)
 ```
 
-
 ```{r, warning=FALSE, message=FALSE }
 
 
@@ -88,15 +86,12 @@ for (UF in UFs) {
   nome <- UF
   assign(nome, fetch_datasus(year_start = ano, year_end = ano, uf = UF, 
                              information_system = "SINASC", 
-                             vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC", "TPFUNCRESP")))
+                             vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC","TPFUNCRESP")))
  
 }
 # 
 
 ```
-
-
-
 
 ```{r}
 for (uf in UFs) {
@@ -107,8 +102,6 @@ for (uf in UFs) {
 }
 
 ```
-
-
 
 ```{r}
 
@@ -138,7 +131,6 @@ assign(uf, temp)
 }
 ```
 
-
 ```{r}
 
 for (uf in UFs) {
@@ -166,17 +158,12 @@ assign(uf, temp)
 for (uf in UFs) {
   temp <- get(uf) 
 mis = miss_var_summary(temp)
-
-assign(paste(uf,"_miss"), mis)
+assign(paste0(uf,"_miss"), mis)
 }  
 
 ```
 
-
-
-
-
-```{r}
+```{r, eval=FALSE}
 for (uf in UFs) {
   temp <- get(uf)
   
@@ -245,7 +232,7 @@ if (pct_miss_idadepai > 0.79) {
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 
 # Loop por UF
 for (uf in UFs) {
@@ -294,8 +281,8 @@ for (uf in UFs) {
 
 ```
 
-Conferindo o resultado das taxas femininas:
-/
+Conferindo o resultado das taxas femininas: /
+
 ```{r}
 
 # projecoes_2024_tab4_indicadores <- read_excel("Downloads/projecoes_2024_tab4_indicadores.xlsx", 
@@ -308,7 +295,7 @@ Conferindo o resultado das taxas femininas:
 
 taxas masculinas
 
-```{r}
+```{r, eval=FALSE}
 
 # Loop por UF
 for (uf in UFs) {
@@ -357,8 +344,7 @@ for (uf in UFs) {
 
 ```
 
-
-```{r}
+```{r, eval=FALSE}
 # Cria uma lista com os dataframes de cada estado e adiciona a coluna UF
 tefm_todos <- map_dfr(UFs, function(uf) {
   df <- get(paste0("tefm_", uf))
@@ -395,7 +381,7 @@ openxlsx::write.xlsx(tefm_tabela_larga, paste(path_res,ano,"_tabela_tefm.xlsx"),
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 # Cria uma lista com os dataframes de cada estado e adiciona a coluna UF
 teff_todos <- map_dfr(UFs, function(uf) {
   df <- get(paste0("teff_", uf))
@@ -422,8 +408,7 @@ openxlsx::write.xlsx(teff_tabela_larga, paste(path_res,ano,"_tabela_teff.xlsx"),
 
 ```
 
-
-```{r}
+```{r, eval=FALSE}
 
 # Cria um data.frame consolidado com TFTs
 tabela_tft <- do.call(rbind, lapply(UFs, function(uf) {
@@ -449,7 +434,6 @@ write_xlsx(tabela_tft, path = paste(path_res, ano, "_TFT_por_UF.xlsx"))
 
 ```
 
-
 ```{r}
 # Pegar os nomes dos objetos *_miss
 ufs_miss_names <- ls(pattern = "^[A-Z]{2}_miss$")
@@ -462,7 +446,6 @@ ufs_miss_df <- purrr::map_dfr(ufs_miss_names, function(nome) {
 })
 
 ```
-
 
 ```{r}
 
@@ -496,20 +479,33 @@ tabela_abs <- ufs_miss_df %>%
   arrange(UF) %>%
   mutate(across(where(is.numeric), ~ format(.x, big.mark = ".")))  # formata com separador de milhar
 
-# Novos nomes de colunas
-novos_nomes <- c(
-  "UF",
-  "Idade do pai",
-  "Estado civil da mãe",
-  "Turno do nascimento",
-  "Tipo de função do responsável pelo preenchimento da DN",
-  "Idade da mãe"
+# Dicionário com nomes originais e nomes novos
+mapeamento_nomes <- c(
+  IDADEPAI      = "Idade do pai",
+  ESTCIVMAE     = "Estado civil da mãe",
+  TPFUNCRESP    = "Função",
+  IDADEMAE      = "Idade da mãe",
+  HORANASC_turno = "Turno da hora do nascimento"
 )
 
-# Renomeando as colunas nas duas tabelas
-colnames(tabela_abs) <- novos_nomes
-colnames(tabela_pct) <- novos_nomes
+# Renomeia somente colunas que estão presentes
+renomear_colunas_seguro <- function(df) {
+  nomes_atuais <- colnames(df)
+  nomes_novos <- nomes_atuais
+  for (i in seq_along(nomes_atuais)) {
+    if (nomes_atuais[i] %in% names(mapeamento_nomes)) {
+      nomes_novos[i] <- mapeamento_nomes[nomes_atuais[i]]
+    }
+  }
+  colnames(df) <- nomes_novos
+  return(df)
+}
 
+# Aplicar nas duas tabelas
+tabela_abs <- renomear_colunas_seguro(tabela_abs)
+tabela_pct <- renomear_colunas_seguro(tabela_pct)
+
+# Ordena pela ordem desejada de UFs
 tabela_pct <- tabela_pct %>%
   mutate(UF = factor(UF, levels = UFs)) %>%
   arrange(UF)
@@ -518,9 +514,9 @@ tabela_abs <- tabela_abs %>%
   mutate(UF = factor(UF, levels = UFs)) %>%
   arrange(UF)
 
+
 openxlsx::write.xlsx(tabela_pct, paste(path_res,ano,"_tabela_pct_miss.xlsx"), overwrite = TRUE)
 openxlsx::write.xlsx(tabela_abs, paste(path_res,ano,"_tabela_n_miss.xlsx"), overwrite = TRUE)
 
 
 ```
-
