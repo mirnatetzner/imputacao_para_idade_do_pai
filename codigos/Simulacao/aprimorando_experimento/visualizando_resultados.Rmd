@@ -3,175 +3,457 @@ title: "Visualizando metricas"
 output: html_notebook
 ---
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(dplyr)
 require(tidyverse)
 library(ggplot2)
 library(writexl)
+
+
+library(extrafont)
+# Install **TTF** Latin Modern Roman fonts from www.fontsquirrel.com/fonts/latin-modern-roman
+# Import the newly installed LModern fonts, change the pattern according to the 
+# filename of the lmodern ttf files in your fonts folder
+path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+#font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
+
+loadfonts(device = "pdf")
+library(showtext)
+
+showtext_auto()
+
+
 ```
 
 ```{r}
 library(readxl)
 metricas_resultado <- read_excel("metricas_resultado.xlsx")
+lista_resultados <- read_excel("20250512_lista_resultados.xlsx")
+load("20250512_resultados_com_idades_pai.RData")
+load("~/Documentos/Dissetacao/parana_completo.RData")
 ```
 
 ```{r}
 
 
-```
+metricas_media <- metricas_resultado %>%
+  filter(estatistica == "imputado_media" & metodo != "PMM \nà idade da mãe")
 
-```{r}
-
-
-ggplot(metricas_resultado, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(~ metodo) +
+erro_bruto_media =ggplot(metricas_media, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ metodo, ncol = 2)+
   labs(
-    x = "Proporção de Missing",
-    y = "Erro Bruto",
-    fill = "Mecanismo de Missing",
-    title = "Erro Bruto por Proporção, Mecanismo e Método"
+    x = "Percentual de dados faltantes",
+    y = "Erro Bruto \n(diferença em anos)",
+    fill = "Mecanismo",
+    title = ""
   ) +
-  theme_minimal() +
+  theme_minimal(base_family = "lmodern") +
   theme(
-    legend.title = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5)
+    legend.position = "bottom",
+    legend.justification = "center",
+    axis.text = element_text(size = 9),
+    strip.text = element_text(size = 11)
   )
 
-```
-```{r}
-metricas_resultado_filtrado = metricas_resultado %>%
-  filter(metodo != "imputação pela média" & metodo != "imputação pela mediana" )%>%
-  filter(mecanismo== "MAR")
+path = "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
 
-ggplot(metricas_resultado_filtrado, aes(x = as.factor(proporcao), y = `Erro Bruto`, fill = mecanismo)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = round(`Erro Bruto`, 2)), 
-          vjust = -0.5, 
-          fontface = "bold", 
-          color = "black", 
-          size = 3)+
-  facet_wrap(~ metodo) +
-  labs(
-    x = "Proporção de Missing",
-    y = "Erro Bruto",
-    fill = "Mecanismo de Missing",
-    title = "Erro Bruto por Proporção, Mecanismo e Método"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.title = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5)
-  )
-
+# ggsave(
+#   filename = "erro_bruto_media.pdf",
+#   plot = erro_bruto_media,
+#   path= path,
+#   width = 15,         # largura em centímetros
+#   height = 20,        # altura em centímetros
+#   dpi = 300,
+#   units = "cm"        # unidade em centímetros
+# )
 ```
 
 ```{r}
-ggplot(metricas_resultado, aes(x = as.factor(proporcao), y = `Desvio padrão`, fill = mecanismo)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(~ metodo) +
-  labs(
-    x = "Proporção de Missing",
-    y = "Desvio padrão",
-    fill = "Mecanismo de Missing",
-    title = "Desvio padrão por Proporção, Mecanismo e Método"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.title = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5)
-  )
-```
 
-```{r}
-metricas_resultado_filtrado = metricas_resultado %>%
-  filter(metodo != "imputação pela média" & metodo != "imputação pela mediana" )%>%
-  filter(mecanismo== "MAR")
+metricas_media <- metricas_resultado %>%
+  filter(estatistica == "imputado_media", metodo != "PMM \nà idade da mãe")
 
-ggplot(metricas_resultado_filtrado, aes(x = as.factor(proporcao), y = `Desvio padrão`, fill = mecanismo)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = round(`Desvio padrão`, 2)), 
-          vjust = -0.5, 
-          fontface = "bold", 
-          color = "black", 
-          size = 3)+
-  facet_wrap(~ metodo) +
+erro_bruto_media =ggplot(metricas_media, aes(x = as.factor(proporcao), y = `Desvio Padrão`, fill = mecanismo)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ metodo, ncol = 2)+
   labs(
-    x = "Proporção de Missing",
-    y = "Desvio padrão",
-    fill = "Mecanismo de Missing",
-    title = "Desvio padrão por Proporção, Mecanismo e Método"
+    x = "Percentual de dados faltantes",
+    y = "Desvio Padrão \n(diferença em anos)",
+    fill = "Mecanismo",
+    title = ""
   ) +
-  theme_minimal() +
+  theme_minimal(base_family = "lmodern") +
   theme(
-    legend.title = element_text(face = "bold"),
-    plot.title = element_text(hjust = 0.5)
+    legend.position = "bottom",
+    legend.justification = "center",
+    axis.text = element_text(size = 9),
+    strip.text = element_text(size = 11)
   )
 
+
+# ggsave(
+#   filename = "Desvio_Padrao_media.pdf",
+#   plot = erro_bruto_media,
+#   path= path,
+#   width = 15,         # largura em centímetros
+#   height = 20,        # altura em centímetros
+#   dpi = 300,
+#   units = "cm"        # unidade em centímetros
+# )
 ```
+
 ```{r}
 library(dplyr)
 library(tidyr)
-library(knitr)
 library(kableExtra)
+library(openxlsx)
 
-# 1. Corrigir a proporção para formato percentual
-metricas_resultado_formatado <- metricas_resultado %>%
-  mutate(
-    proporcao = case_when(
-      proporcao == "0,2" ~ "20%",
-      proporcao == "0,4" ~ "40%",
-      proporcao == "0,6" ~ "60%",
-      proporcao == "0,8" ~ "80%",
-      TRUE ~ proporcao
-    )
-  )
-
-# 2. Reestruturar para formato largo: cada método como duas colunas (Erro e Desvio)
-metricas_larga <- metricas_resultado_formatado %>%
-  pivot_wider(
-    id_cols = c(mecanismo, proporcao),
-    names_from = metodo,
-    values_from = c(`Erro Bruto`, `Desvio padrão`)
-  )
-
-metricas_larga <- metricas_larga %>%
-  mutate(across(where(is.numeric), ~ sprintf("%.2f", .)))
-
-# Detectar dinamicamente os métodos
-nomes_metodos <- unique(metricas_resultado$metodo)
-
-# Construir col.names
-col_names <- c(
-  "Mecanismo de ausência", "Percentual de dado faltante",
-  unlist(lapply(nomes_metodos, function(metodo) c("Erro Bruto", "Desvio Padrão")))
+# Definir a ordem dos métodos
+ordem_metodos <- c(
+  "ACC",
+  "Média",
+  "Mediana",
+  "MCIM",
+  "MCIM \ne ao estado civil",
+  "MCIM\ne ao turno de nascimento",
+  "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN"
 )
 
-# Construir header_above dinamicamente
-header_above <- c(" " = 2)
-for (metodo in nomes_metodos) {
-  header_above[metodo] <- 2
+
+# Preparar base formatada
+tabela_formatada <- metricas_resultado %>%
+  filter(estatistica == "imputado_media") %>%
+  mutate(
+    metodo = factor(metodo, levels = ordem_metodos),
+    grupo_coluna = paste(mecanismo, proporcao, sep = "_"),
+    Erro_Bruto = format(round(`Erro Bruto`, 3), nsmall = 3, decimal.mark = ","),
+    Desvio_Padrao = format(round(`Desvio Padrão`, 3), nsmall = 3, decimal.mark = ",")
+  ) %>%
+  select(metodo, grupo_coluna, Erro_Bruto, Desvio_Padrao) %>%
+  arrange(metodo)
+
+# Tabela de Erro Bruto
+erro_bruto_df <- tabela_formatada %>%
+  pivot_wider(
+    id_cols = metodo,
+    names_from = grupo_coluna,
+    values_from = Erro_Bruto,
+    names_glue = "{grupo_coluna}.Erro_Bruto_fmt"
+  ) %>%
+  select(
+    metodo,
+    matches("MAR_20%"), matches("MCAR_20%"), matches("MNAR_20%"),
+    matches("MAR_40%"), matches("MCAR_40%"), matches("MNAR_40%"),
+    matches("MAR_60%"), matches("MCAR_60%"), matches("MNAR_60%"),
+    matches("MAR_80%"), matches("MCAR_80%"), matches("MNAR_80%")
+  )
+
+# Tabela de Desvio Padrão
+desvio_padrao_df <- tabela_formatada %>%
+  pivot_wider(
+    id_cols = metodo,
+    names_from = grupo_coluna,
+    values_from = Desvio_Padrao,
+    names_glue = "{grupo_coluna}.Desvio_Padrao_fmt"
+  ) %>%
+  select(
+    metodo,
+    matches("MAR_20%"), matches("MCAR_20%"), matches("MNAR_20%"),
+    matches("MAR_40%"), matches("MCAR_40%"), matches("MNAR_40%"),
+    matches("MAR_60%"), matches("MCAR_60%"), matches("MNAR_60%"),
+    matches("MAR_80%"), matches("MCAR_80%"), matches("MNAR_80%")
+  )
+
+# Criar o arquivo .xlsx com duas folhas
+wb <- createWorkbook()
+
+# Adicionar folha 1 - Erro Bruto
+addWorksheet(wb, "Erro Bruto")
+writeData(wb, sheet = "Erro Bruto", erro_bruto_df)
+
+# Adicionar folha 2 - Desvio Padrão
+addWorksheet(wb, "Desvio Padrão")
+writeData(wb, sheet = "Desvio Padrão", desvio_padrao_df)
+
+# Salvar arquivo
+#saveWorkbook(wb, "20250512_resultados_imputacao.xlsx", overwrite = TRUE)
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+
+
+# Caminho para salvar os gráficos
+path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+
+# Transformar lista em data frame longo
+
+ordem_metodos <- c(
+  "ACC",
+  "Média",
+  "Mediana",
+  "MCIM",
+  "MCIM e ao \nestado civil",
+  "MCIM e ao turno\n de nascimento",
+  "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+)
+
+df_idade <- tibble::enframe(lista_idadepai, name = "nome_completo", value = "valores") %>%
+  separate(nome_completo,
+         into = c("proporcao", "mecanismo", "repeticao", "metodo"),
+         sep = "_",
+         extra = "merge",
+         fill = "right") %>%
+  mutate(
+    proporcao = str_remove(proporcao, "prop"),
+    repeticao = str_remove(repeticao, "rep"),
+    metodo = case_when(
+      metodo == "Analise_de_casos_completos" ~ "ACC",
+      metodo == "media_simples" ~ "Média",
+      metodo == "mediana_simples" ~ "Mediana",
+      metodo == "mediana_condicional_IDADEMAE" ~ "MCIM",
+      metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "MCIM e ao \nestado civil",
+      metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "MCIM e ao turno\n de nascimento",
+      metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "MCIM e a função\n do responsável\npelo preenchimento\n da DN",
+      TRUE ~ metodo
+    ),
+    metodo = factor(metodo, levels = ordem_metodos)
+  ) %>%
+  tidyr::unnest_longer(valores)
+
+
+plot_fdp <- function(mec, rep) {
+  ordem_metodos <- c(
+    "ACC",
+    "Média",
+    "Mediana",
+    "MCIM",
+    "MCIM e ao \nestado civil",
+    "MCIM e ao turno\n de nascimento",
+    "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+  )
+
+  df_plot <- df_idade %>%
+    filter(mecanismo == mec, repeticao == rep) %>%
+   mutate(
+      metodo = factor(metodo, levels = ordem_metodos),
+      proporcao = factor(proporcao)  # para usar como categoria no gráfico
+    )
+View(df_plot)
+  p <- ggplot(df_plot, aes(x = valores,  color = proporcao)) +
+    geom_density(size=1,alpha = 0.5) + #, 
+    facet_wrap(~metodo, scales = "free") +
+    labs(
+      title = "",
+      x = "Idade do Pai Imputada",
+      y = "Densidade",
+      color = "Percentual\n faltante"
+    ) +
+    theme_minimal(base_family = "lmodern") +
+    theme(strip.text = element_text(size = 10))
+
+ tryCatch({
+  # ggsave(
+  #   filename = paste0("FDP_Mecanismo_", mec, "_Repeticao_", rep, ".pdf"),
+  #   plot = p,
+  #   width = 15,
+  #   height = 20,
+  #   path = path,
+  #   dpi = 300,
+  #   units = "cm"
+  # )
+}, error = function(e) {
+  message("Erro ao salvar gráfico: ", e$message)
+})
+
+  message("Gráfico salvo em: ", path)
+  return(p)
 }
 
-# Gerar a tabela LaTeX
-latex_table = kable(metricas_larga,
-      format = "latex",
-      booktabs = TRUE,
-      align = c("l", "l", rep("r", ncol(metricas_larga) - 2)),
-      escape = FALSE,
-      col.names = col_names
-) %>%
-  add_header_above(header_above) %>%
-  pack_rows("MCAR", 1, 4) %>%
-  pack_rows("MAR", 5, 8) %>%
-  pack_rows("MNAR", 9, 12) %>%
-  kable_styling(latex_options = c("hold_position", "striped"))
+plot_fdp("MCAR", "500")
 
-
-latex_table <- gsub("\\\\cellcolor\\{.*?\\}", "", latex_table)
-
-
-writeLines(latex_table, "metricas_resultado_simulacao.tex")
 
 ```
 
+```{r}
+# Caminho para salvar os gráficos
+path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+
+# Ordem dos métodos para o gráfico
+ordem_metodos <- c(
+  "ACC",
+  "Média",
+  "Mediana",
+  "MCIM",
+  "MCIM e ao \nestado civil",
+  "MCIM e ao turno\n de nascimento",
+  "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+)
+
+# Cores distintas por grupo
+cores_metodos <- c(
+  "ACC" = "#E69F00",
+  "Média" = "#56B4E9",
+  "Mediana" = "#009E73",
+  "MCIM" = "#CC79A7",
+  "MCIM e ao \nestado civil" = "#0072B2",
+  "MCIM e ao turno\n de nascimento" = "#D55E00",
+  "MCIM e a função\n do responsável\npelo preenchimento\n da DN" = "#999999"
+)
+
+# Transformar lista em data frame longo
+df_idade <- tibble::enframe(lista_idadepai, name = "nome_completo", value = "valores") %>%
+  separate(nome_completo,
+           into = c("proporcao", "mecanismo", "repeticao", "metodo"),
+           sep = "_",
+           extra = "merge",
+           fill = "right") %>%
+  mutate(
+    proporcao = str_remove(proporcao, "prop"),
+    repeticao = str_remove(repeticao, "rep"),
+    metodo = case_when(
+      metodo == "Analise_de_casos_completos" ~ "ACC",
+      metodo == "media_simples" ~ "Média",
+      metodo == "mediana_simples" ~ "Mediana",
+      metodo == "mediana_condicional_IDADEMAE" ~ "MCIM",
+      metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "MCIM e ao \nestado civil",
+      metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "MCIM e ao turno\n de nascimento",
+      metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "MCIM e a função\n do responsável\npelo preenchimento\n da DN",
+      TRUE ~ metodo
+    ),
+    grupo_metodo = case_when(
+      metodo %in% c("ACC", "Média", "Mediana") ~ "Simples",
+      TRUE ~ "Condicional"
+    ),
+    metodo = factor(metodo, levels = ordem_metodos)
+  ) %>%
+  tidyr::unnest_longer(valores)
+
+
+df_idade <- df_idade %>%
+  mutate(
+    grupo_metodo = case_when(
+      metodo %in% c("ACC", "Média", "Mediana") ~ "Simples",
+      metodo %in% c(
+        "MCIM",
+        "MCIM e ao \nestado civil",
+        "MCIM e ao turno\n de nascimento",
+        "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+      ) ~ "Sofisticado",
+      TRUE ~ "Outro"
+    )
+  )
+
+df_simples <- df_idade %>% filter(grupo_metodo == "Simples")
+df_sofisticado <- df_idade %>% filter(grupo_metodo == "Sofisticado")
+
+
+
+
+```
+
+```{r}
+
+plot_fdp_por_mecanismo <- function(prop, rep, grupo) {
+  ordem_metodos <- c(
+    "ACC",
+    "Média",
+    "Mediana",
+    "MCIM",
+    "MCIM e ao \nestado civil",
+    "MCIM e ao turno\n de nascimento",
+    "MCIM e a função\n do responsável\npelo preenchimento\n da DN"
+  )
+
+  df_plot <- df_idade %>%
+  filter(
+    proporcao == prop,
+    repeticao == rep,
+    valores < 60,
+    valores >= 15,
+    grupo_metodo == grupo
+  ) %>%
+  droplevels() %>%  # <- ESSENCIAL para remover métodos não usados
+  mutate(
+    metodo = factor(metodo, levels = levels(metodo)),  # manter só os levels usados
+    mecanismo = factor(mecanismo)
+  )
+
+  library(RColorBrewer)
+  metodos_usados <- levels(droplevels(df_plot$metodo))
+  paleta <- brewer.pal(length(metodos_usados), "Set1")
+  cores_metodos <- setNames(paleta, metodos_usados)
+  
+  
+  amostra_pai <- amostracompleta %>%
+    filter(IDADEPAI < 60, IDADEPAI >= 15)
+
+  prop_titulo <- paste0(as.numeric(str_replace(prop, ",", ".")) * 100, "%")
+  min_x <- floor(min(df_plot$valores, na.rm = TRUE) / 5) * 5
+  max_x <- ceiling(max(df_plot$valores, na.rm = TRUE) / 5) * 5
+  p <- ggplot(df_plot, aes(x = valores, color = metodo)) +
+    geom_density(size = 0.5, alpha = 0.5) +
+    geom_density(
+data = amostra_pai,
+    aes(x = IDADEPAI, fill = "Dado completo"),
+    color = NA,
+    alpha = 0.5,
+    inherit.aes = FALSE,
+    show.legend = TRUE
+    ) +
+    facet_wrap(~mecanismo, scales = "free", ncol = 1) +
+  scale_x_continuous(breaks = seq(min_x, max_x, by = 5)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  scale_color_manual(values = cores_metodos) +  # usa seu vetor de cores
+  scale_fill_manual(
+    name = NULL,
+    values = c("Dado completo" = "grey80")
+  ) +
+  labs(
+    title = paste(""),
+    x = "Idade do pai",
+    y = "Densidade",
+    color = "Método de \ntratamento"
+  ) +
+  guides(
+    color = guide_legend(order = 1),
+    fill = guide_legend(order = 2, override.aes = list(alpha = 0.5))
+  ) +
+  theme_minimal(base_family = "lmodern") +
+  theme(strip.text = element_text(size = 10))
+    
+
+  tryCatch({
+    ggsave(
+      filename = paste0("FDP_", grupo, "_", prop, "_Repeticao_", rep, ".pdf"),
+      plot = p,
+      width = 15,
+      height = 20,
+      path = path,
+      dpi = 300,
+      units = "cm"
+    )
+  }, error = function(e) {
+    message("Erro ao salvar gráfico: ", e$message)
+  })
+
+  message("Gráfico gerado (não salvo): ", grupo, " - ", prop, " - ", rep)
+ 
+}
+
+plot_fdp_por_mecanismo("0,8", "500", "Simples")
+plot_fdp_por_mecanismo("0,8", "500", "Sofisticado")
+
+plot_fdp_por_mecanismo("0,6", "500", "Simples")
+plot_fdp_por_mecanismo("0,6", "500", "Sofisticado")
+
+plot_fdp_por_mecanismo("0,4", "500", "Simples")
+plot_fdp_por_mecanismo("0,4", "500", "Sofisticado")
+
+plot_fdp_por_mecanismo("0,2", "500", "Simples")
+plot_fdp_por_mecanismo("0,2", "500", "Sofisticado")
+```

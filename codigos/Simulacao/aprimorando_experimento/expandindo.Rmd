@@ -1,0 +1,522 @@
+---
+title: "expandindo_a_imputacao"
+output: html_document
+date: "2025-05-13"
+---
+
+```{r,warning=FALSE,message=FALSE}
+
+library(microdatasus)
+library(mice)
+library(stringr)
+library(ggmice)
+library(lubridate)
+library(readxl)
+library(hms)
+library(naniar)
+library(future.apply)
+library(data.table)
+library(boot)
+library(dplyr)
+require(tidyverse)
+library(ggplot2)
+library(writexl)
+library(Amelia)
+options(scipen = 999, 
+        OutDec = ",")
+
+
+# Caminho para salvar os gráficos
+path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+
+# Caminho para salvar resultados
+path_res = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/202505_resultados/"
+
+library(extrafont)
+# Install **TTF** Latin Modern Roman fonts from www.fontsquirrel.com/fonts/latin-modern-roman
+# Import the newly installed LModern fonts, change the pattern according to the 
+# filename of the lmodern ttf files in your fonts folder
+
+
+# font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
+# 
+# loadfonts(device = "pdf")
+# library(showtext)
+# 
+# showtext_auto()
+
+
+```
+
+```{r}
+# Vetor com a ordem desejada das UFs
+UFs <- c(
+  "RO", "AC", "AM", "RR", "PA", "AP", "TO",
+  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",
+  "MG", "ES", "RJ", "SP", "PR", "SC", "RS",
+  "MS", "MT", "GO", "DF"
+)
+ano = "2022"
+
+```
+
+## DENOMINADOR - projecao de populacao de 2024
+
+```{r}
+
+
+projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+
+
+
+populacao <- projecoes_2024_tab1_idade_simples %>%
+  filter(SIGLA %in% UFs) %>%
+  select(`SEXO`,`IDADE`,ano,"LOCAL", "SIGLA")
+
+table(populacao$LOCAL)
+```
+
+```{r, warning=FALSE, message=FALSE }
+
+
+ano <- as.numeric(ano)
+
+for (UF in UFs) {
+  nome <- UF
+  assign(nome, fetch_datasus(year_start = ano, year_end = ano, uf = UF, 
+                             information_system = "SINASC", 
+                             vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC","TPFUNCRESP")))
+ 
+}
+# 
+
+```
+
+```{r}
+for (uf in UFs) {
+  
+  dados_processados <- process_sinasc(get(uf), municipality_data = TRUE)
+  assign(uf, dados_processados)
+  
+}
+
+```
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) %>%
+    mutate(IDADEMAE = as.numeric(IDADEMAE),
+           IDADEPAI = as.numeric(IDADEPAI)) |> 
+     mutate(
+    # Filtra valores inválidos ou transforma em NA
+    HORANASC = ifelse(
+      grepl("^[0-9]{1,4}$", HORANASC), # Verifica se HORANASC contém apenas números (1-4 dígitos)
+      str_pad(HORANASC, width = 4, pad = "0"), # Preenche com zeros à esquerda se necessário
+      NA_character_ # Define como NA se for inválido
+    )
+  ) %>%
+  mutate(
+    HORANASC = ifelse(
+      is.na(HORANASC),
+      NA, # Mantém NA para valores inválidos
+      parse_hms(paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4), ":00"))
+    ),
+    HORANASC = hms::hms(HORANASC)
+    )
+  
+assign(uf, temp)
+  
+}
+```
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) %>%
+    mutate( 
+            HORANASC_seconds = as.numeric(as_hms(HORANASC)),
+            HORANASC_turno = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE)) %>%
+    mutate(
+            
+            ESTCIVMAE = as.factor(ESTCIVMAE),
+            #TPFUNCRESP = as.factor(TPFUNCRESP),
+            )|> 
+    select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`,HORANASC, HORANASC_seconds))
+
+
+assign(uf, temp)
+}  
+
+
+
+```
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) 
+mis = miss_var_summary(temp)
+assign(paste0(uf,"_miss"), mis)
+}  
+
+```
+
+```{r, eval=FALSE}
+for (uf in UFs) {
+  temp <- get(uf)
+  
+  # Calcula proporção de valores ausentes em IDADEPAI
+  pct_miss_idadepai <- mean(is.na(temp$IDADEPAI))
+
+if (pct_miss_idadepai > 0.79) {
+    message(uf, ": Proporção de missings em IDADEPAI > 79%. MCIM e ao turno")
+
+    temp_imputado <- temp %>%
+      group_by(IDADEMAE, HORANASC_turno) %>%
+      mutate(
+        idadepai_foi_imputada = is.na(IDADEPAI),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM e ao turno", NA)
+      ) %>%
+      ungroup()
+
+}  else if (!"TPFUNCRESP" %in% names(temp)) {
+    message(uf, ": Variável TPFUNCRESP não encontrada. Usando apenas IDADEMAE para imputação.")
+
+    temp_imputado <- temp %>%
+      group_by(IDADEMAE) %>%
+      mutate(
+        idadepai_foi_imputada = is.na(IDADEPAI),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM apenas idade mãe (TPFUNCRESP ausente)", NA)
+      ) %>%
+      ungroup()
+
+  }
+  else {
+    message(uf, ": Imputação realizada com MCIM e função do responsável")
+
+    temp_imputado <- temp %>%
+      group_by(IDADEMAE, TPFUNCRESP) %>%
+      mutate(
+        idadepai_foi_imputada = is.na(IDADEPAI),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM e a função", NA)
+      ) %>%
+      ungroup()
+  }
+
+  # Verifica se ainda restam NAs em IDADEPAI
+  if (any(is.na(temp_imputado$IDADEPAI))) {
+    message(uf, ": Realizando imputação complementar com MCIM apenas por IDADEMAE")
+
+    temp_imputado <- temp_imputado %>%
+      group_by(IDADEMAE) %>%
+      mutate(
+        idadepai_foi_imputada = ifelse(is.na(IDADEPAI), TRUE, idadepai_foi_imputada),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(is.na(IDADEPAI) & idadepai_foi_imputada, "MCIM apenas idade mãe", metodo_imputacao)
+      ) %>%
+      ungroup()
+  }
+
+  # Salva os dados imputados com flags
+  assign(paste0(uf, "_imputado"), temp_imputado)
+
+  # Salva resumo dos missings originais
+  mis <- miss_var_summary(temp)
+  assign(paste0(uf, "_miss"), mis)
+}
+
+```
+
+```{r, eval=FALSE}
+
+# Loop por UF
+for (uf in UFs) {
+  
+  message("Processando UF: ", uf)
+
+  # Subconjunto da população para a UF, sexo feminino, ano 
+  pop_uf <- populacao %>%
+    filter(SEXO == "Mulheres", SIGLA == uf) %>%
+    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+    mutate(
+      Ano = as.integer(Ano),
+      Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+    ) %>%
+    filter(!is.na(Grupo_idade)) %>%
+    group_by(Grupo_idade) %>%
+    summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+
+  # Carrega dados de nascimentos imputados
+  uf_imputado <- get(paste0(uf, "_imputado"))
+
+  # Agrupa os nascimentos por grupo etário da mãe
+  nascimentos_uf <- uf_imputado %>%
+    mutate(
+      Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)
+    ) %>%
+    group_by(Grupo_idade) %>%
+    summarise(nascimentos = n(), .groups = "drop") %>%
+    filter(!is.na(Grupo_idade))
+
+  # Junta população e nascimentos e calcula a TEF
+  tef_uf <- nascimentos_uf %>%
+    inner_join(pop_uf, by = "Grupo_idade") %>%
+    mutate(TEF = nascimentos / Populacao)
+
+  # Calcula a Taxa de Fecundidade Total (TFT)
+  tft <- sum(tef_uf$TEF) * 5
+
+  # Exibe os resultados
+  message("TFT para ", uf, ": ", round(tft, 2))
+
+  # Salva objetos com nomes específicos
+  assign(paste0("teff_", uf), tef_uf)
+  assign(paste0("tftf_", uf), tft)
+}
+
+```
+
+Conferindo o resultado das taxas femininas: /
+
+```{r}
+
+# projecoes_2024_tab4_indicadores <- read_excel("Downloads/projecoes_2024_tab4_indicadores.xlsx", 
+#     sheet = "4) INDICADORES")
+# 
+# projecoes_2024_tab4_indicadores %>% 
+#   filter(SIGLA %in% UFs, ANO == ano) %>%
+#   print()
+```
+
+taxas masculinas
+
+```{r, eval=FALSE}
+
+# Loop por UF
+for (uf in UFs) {
+  
+  message("Processando UF: ", uf)
+
+  # Subconjunto da população para a UF, sexo feminino, ano 2022
+  pop_uf <- populacao %>%
+    filter(SEXO == "Homens", SIGLA == uf) %>%
+    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+    mutate(
+      Ano = as.integer(Ano),
+      Grupo_idade = cut(IDADE, breaks = seq(15, 60, 5), right = FALSE)
+    ) %>%
+    filter(!is.na(Grupo_idade)) %>%
+    group_by(Grupo_idade) %>%
+    summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+
+  # Carrega dados de nascimentos imputados
+  uf_imputado <- get(paste0(uf, "_imputado"))
+
+  # Agrupa os nascimentos por grupo etário da mãe
+  nascimentos_uf <- uf_imputado %>%
+    mutate(
+      Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
+    ) %>%
+    group_by(Grupo_idade) %>%
+    summarise(nascimentos = n(), .groups = "drop") %>%
+    filter(!is.na(Grupo_idade))
+
+  # Junta população e nascimentos e calcula a TEF
+  tef_uf <- nascimentos_uf %>%
+    inner_join(pop_uf, by = "Grupo_idade") %>%
+    mutate(TEF = nascimentos / Populacao)
+
+  # Calcula a Taxa de Fecundidade Total (TFT)
+  tft <- sum(tef_uf$TEF) * 5
+
+  # Exibe os resultados
+  message("TFT para ", uf, ": ", round(tft, 2))
+
+  # Salva objetos com nomes específicos
+  assign(paste0("tefm_", uf), tef_uf)
+  assign(paste0("tftm_", uf), tft)
+}
+
+```
+
+```{r, eval=FALSE}
+# Cria uma lista com os dataframes de cada estado e adiciona a coluna UF
+tefm_todos <- map_dfr(UFs, function(uf) {
+  df <- get(paste0("tefm_", uf))
+  df$UF <- uf
+  df
+})
+
+# Visualização organizada 
+tefm_todos <- tefm_todos %>%
+  select(UF, everything()) %>%
+  arrange(UF, Grupo_idade)
+
+# Vetor com a ordem desejada das UFs
+UFs <- c(
+  "RO", "AC", "AM", "RR", "PA", "AP", "TO",
+  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",
+  "MG", "ES", "RJ", "SP", "PR", "SC", "RS",
+  "MS", "MT", "GO", "DF"
+)
+
+
+tefm_tabela_larga <- tefm_todos %>%
+  select(-nascimentos, -Populacao) %>%
+  mutate(
+    UF = factor(UF, levels = UFs),    # converte para fator ordenado
+    TEF = round(TEF, 3)
+  ) %>%
+  pivot_wider(names_from = Grupo_idade, values_from = TEF) %>%
+  arrange(UF)
+
+# Visualização opcional:
+print(tefm_tabela_larga)
+openxlsx::write.xlsx(tefm_tabela_larga, paste(path_res,ano,"_tabela_tefm.xlsx"), overwrite = TRUE)
+
+```
+
+```{r, eval=FALSE}
+# Cria uma lista com os dataframes de cada estado e adiciona a coluna UF
+teff_todos <- map_dfr(UFs, function(uf) {
+  df <- get(paste0("teff_", uf))
+  df$UF <- uf
+  df
+})
+
+# Visualização organizada (opcional)
+teff_todos <- teff_todos %>%
+  select(UF, everything()) %>%
+  arrange(UF, Grupo_idade)
+
+teff_tabela_larga <- teff_todos %>%
+  select(-nascimentos, -Populacao) %>%
+  mutate(
+    UF = factor(UF, levels = UFs),    # converte para fator ordenado
+    TEF = round(TEF, 3)
+  ) %>%
+  pivot_wider(names_from = Grupo_idade, values_from = TEF) %>%
+  arrange(UF)
+
+
+openxlsx::write.xlsx(teff_tabela_larga, paste(path_res,ano,"_tabela_teff.xlsx"), overwrite = TRUE)
+
+```
+
+```{r, eval=FALSE}
+
+# Cria um data.frame consolidado com TFTs
+tabela_tft <- do.call(rbind, lapply(UFs, function(uf) {
+  tftf <- get(paste0("tftf_", uf))
+  tftm <- get(paste0("tftm_", uf))
+  data.frame(
+    UF = uf,
+     TFT_feminino = round(tftf, 3),
+    TFT_masculino = round(tftm, 3)
+  )
+}))
+
+tabela_tft <- tabela_tft %>%
+  mutate(UF = factor(UF, levels = UFs)) %>%
+  arrange(UF)
+
+
+# Visualiza a tabela
+print(tabela_tft)
+
+write_xlsx(tabela_tft, path = paste(path_res, ano, "_TFT_por_UF.xlsx"))
+
+
+```
+
+```{r}
+# Pegar os nomes dos objetos *_miss
+ufs_miss_names <- ls(pattern = "^[A-Z]{2}_miss$")
+
+# Carregar os objetos e adicionar a coluna UF em cada um
+ufs_miss_df <- purrr::map_dfr(ufs_miss_names, function(nome) {
+  df <- get(nome)
+  df$UF <- gsub("_miss$", "", nome)
+  df
+})
+
+```
+
+```{r}
+
+
+ufs_miss_df <- ufs_miss_df %>%
+  dplyr::mutate(
+    n_miss = as.numeric(n_miss),
+    pct_miss = as.numeric(pct_miss)
+  )
+
+
+ufs_miss_df <- ufs_miss_df %>%
+  dplyr::select(UF, everything())  # Coloca a UF na primeira coluna
+
+
+library(dplyr)
+library(tidyr)
+library(scales)  # para percent()
+
+# Tabela de percentuais
+tabela_pct <- ufs_miss_df %>%
+  select(UF, variable, pct_miss) %>%
+  pivot_wider(names_from = variable, values_from = pct_miss) %>%
+  arrange(UF) %>%
+  mutate(across(where(is.numeric), ~ percent(.x / 100, accuracy = 0.01)))  # formata como %
+
+# Tabela de números absolutos
+tabela_abs <- ufs_miss_df %>%
+  select(UF, variable, n_miss) %>%
+  pivot_wider(names_from = variable, values_from = n_miss) %>%
+  arrange(UF) %>%
+  mutate(across(where(is.numeric), ~ format(.x, big.mark = ".")))  # formata com separador de milhar
+
+# Dicionário com nomes originais e nomes novos
+mapeamento_nomes <- c(
+  IDADEPAI      = "Idade do pai",
+  ESTCIVMAE     = "Estado civil da mãe",
+  TPFUNCRESP    = "Função",
+  IDADEMAE      = "Idade da mãe",
+  HORANASC_turno = "Turno da hora do nascimento"
+)
+
+# Renomeia somente colunas que estão presentes
+renomear_colunas_seguro <- function(df) {
+  nomes_atuais <- colnames(df)
+  nomes_novos <- nomes_atuais
+  for (i in seq_along(nomes_atuais)) {
+    if (nomes_atuais[i] %in% names(mapeamento_nomes)) {
+      nomes_novos[i] <- mapeamento_nomes[nomes_atuais[i]]
+    }
+  }
+  colnames(df) <- nomes_novos
+  return(df)
+}
+
+# Aplicar nas duas tabelas
+tabela_abs <- renomear_colunas_seguro(tabela_abs)
+tabela_pct <- renomear_colunas_seguro(tabela_pct)
+
+# Ordena pela ordem desejada de UFs
+tabela_pct <- tabela_pct %>%
+  mutate(UF = factor(UF, levels = UFs)) %>%
+  arrange(UF)
+
+tabela_abs <- tabela_abs %>%
+  mutate(UF = factor(UF, levels = UFs)) %>%
+  arrange(UF)
+
+
+openxlsx::write.xlsx(tabela_pct, paste(path_res,ano,"_tabela_pct_miss.xlsx"), overwrite = TRUE)
+openxlsx::write.xlsx(tabela_abs, paste(path_res,ano,"_tabela_n_miss.xlsx"), overwrite = TRUE)
+
+
+```

@@ -65,18 +65,14 @@ for (UF in UFs) {
   nome <- UF
   assign(nome, fetch_datasus(year_start = 2022, year_end = 2022, uf = UF, 
                              information_system = "SINASC", 
-                             vars = c("IDADEMAE", "IDADEPAI", "ESCMAE2010", "ESTCIVMAE","DTDECLARAC", "DTNASC", "HORANASC", "CODESTAB", 
-                                      "TPFUNCRESP", "RACACORMAE" 
-                                      )))
-  #save(list = nome, file = paste0(UF, ".Rdata"))
-  #rm(list = nome)
+                             vars = c("IDADEMAE", "IDADEPAI", "ESTCIVMAE", "HORANASC","TPFUNCRESP")))
 }
 
 
 sum(is.na(PR$IDADEPAI))
 ```
 
-**NAs na idade do pai do PR em 2022 antes de ser processado: 45.948**
+NAs na idade do pai do PR em 2022 antes de ser processado.
 
 Faz processamento dos dados:
 
@@ -123,29 +119,29 @@ estão presentes as categorias associadas ao preenchimento da DN:
 
 ```{r, eval=FALSE}
 
-# library(here)
-# 
-# # Obter o caminho para o diretório raiz do projeto
-# root_path <- here()
-# 
-# # Exemplo de usar o diretório raiz para acessar um arquivo ou pasta
-# file_path <- here("manuais/Estrutura_SINASC_para_CD.xlsx")
-# print(file_path)
-# 
-# 
-# Estrutura_SINASC <- read_xlsx(file_path)
-# #View(Estrutura_SINASC_para_CD)
-# ver = Estrutura_SINASC %>% 
-#   filter(`Sessão da DN`== "VII -\r\nPreenchimento") %>% 
-#   print()
+library(here)
+
+# Obter o caminho para o diretório raiz do projeto
+root_path <- here()
+
+# Exemplo de usar o diretório raiz para acessar um arquivo ou pasta
+file_path <- here("manuais/Estrutura_SINASC_para_CD.xlsx")
+print(file_path)
+
+
+Estrutura_SINASC <- read_xlsx(file_path)
+View(Estrutura_SINASC)
+ver = Estrutura_SINASC %>%
+  filter(`Sessão da DN`== "VII -\r\nPreenchimento") %>%
+  print()
 
 
 ```
 
 ```{r, eval=FALSE}
-# ver = Estrutura_SINASC %>% 
-#   filter(`Nome do campo no DBF`== "DTDECLARAC") %>% 
-#   print()
+ver = Estrutura_SINASC %>%
+  filter(`Nome do campo no DBF`== "DTDECLARAC") %>%
+  print()
 
 ```
 
@@ -160,7 +156,6 @@ for (uf in UFs) {
   temp <- get(uf) %>%
     mutate(IDADEMAE = as.numeric(IDADEMAE),
            IDADEPAI = as.numeric(IDADEPAI),
-           Ano = year(as.Date(DTNASC)), # Extrai o ano de nascimento
       missing = ifelse(is.na(IDADEPAI), 1, 0)) |>  # Marcado dos valores ausentes para idade do pai
      mutate(
     # Filtra valores inválidos ou transforma em NA
@@ -176,9 +171,8 @@ for (uf in UFs) {
       NA, # Mantém NA para valores inválidos
       parse_hms(paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4), ":00"))
     ),
-    HORANASC = hms::hms(HORANASC),
-    DTNASC = as.Date(DTNASC, format = "%Y-%m-%d"),
-    DTDECLARAC = as.Date(DTDECLARAC , format = "%Y-%m-%d")
+    HORANASC = hms::hms(HORANASC)
+   
     )
   
 assign(uf, temp)
@@ -195,15 +189,10 @@ for (uf in UFs) {
   temp <- get(uf) %>%
     mutate( 
             HORANASC_seconds = as.numeric(as_hms(HORANASC)),
-            HORANASC_turno = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE),
-            Diferenca_nasc_dn = as.integer(DTDECLARAC - DTNASC)) %>%
+            HORANASC_turno = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE))%>%
     mutate(
-            ESCMAE2010 =as.ordered(ESCMAE2010),
             ESTCIVMAE = as.factor(ESTCIVMAE),
-            RACACORMAE = as.factor(RACACORMAE),
             TPFUNCRESP = as.factor(TPFUNCRESP),
-            CODESTAB = as.factor(CODESTAB),
-            RACACORMAE = as.factor(RACACORMAE)
         )|> 
     select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`))
 
@@ -235,6 +224,9 @@ Dimensões dos dados
 
 ```{r, eval=FALSE}
 dim(df_select)
+
+
+
 ```
 
 Resumo de variáveis com dados faltantes:
@@ -251,8 +243,8 @@ library(kableExtra)
 # Criando o data frame
 mis <- data.frame(
   Variável = c("Idade do Pai", "Função do responsável pelo preenchimento", "Estado civil da mãe", "Turno do nascimento", "Idade da mãe"),
-  N_Faltantes = c(46003, 2115, 908, 52, 0),
-  Pct_Faltantes = c(32.7, 1.50, 0.646, 0.037, 0)
+  N_Faltantes = mis$n_miss,
+  Pct_Faltantes = mis$pct_miss
 )
 
 # Gerando a tabela com kable
@@ -271,12 +263,12 @@ latex_table <- mis |>
 latex_table <- gsub("\\\\cellcolor\\{.*?\\}", "", latex_table)  # Remover qualquer comando \cellcolor
 
 # Exportar para um arquivo .tex
-writeLines(latex_table, "parana_tabela_resumo_faltantes.tex")
+#writeLines(latex_table, "parana_tabela_resumo_faltantes.tex")
 
 ```
 
 Remove linhas com valores faltantes: Dimensões dos dados após a retirada
-das linhas
+das linhas com observações ausêntes
 
 ```{r, eval=FALSE}
 amostracompleta  = na.omit(df_select)
@@ -286,8 +278,26 @@ amostracompleta = amostracompleta |>
 
 dim(amostracompleta)
 rm(df_select)
-#setDT(amostracompleta)
 
+```
+
+Testando normalidade
+
+```{r}
+# Ajusta o modelo
+modelo_idade <- lm(IDADEPAI ~ IDADEMAE, data = amostracompleta)
+
+# Exibe o resumo do modelo
+summary(modelo_idade)
+
+res <- residuals(modelo_idade)
+
+# Histograma
+hist(res, breaks = 30, main = "Histograma dos Resíduos", xlab = "Resíduos")
+
+# Q-Q plot
+qqnorm(res)
+qqline(res, col = "red")
 ```
 
 ## Reproduz mecanismos de ausência:
@@ -375,7 +385,7 @@ simular_ausencia <- function(dt, proporcao, mecanismo) {
 
 ```
 
-Define a função para a imputação
+Estrutura matrizes de preditores para método norm.nob
 
 ```{r}
 library(mice)
@@ -403,6 +413,8 @@ lista_predictorMatrix <- list(
 )
 
 ```
+
+Define a função para a imputação
 
 ```{r, eval=FALSE}
 
@@ -444,17 +456,23 @@ imputar_valores <- function(df, metodo) {
       group_by(IDADEMAE, HORANASC_turno) %>%
       mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
         ungroup()
-} else if (metodo == "norm_nob_todos") {
+} else if (metodo == "pmm_mae") {
+    # atribui metodo para idade do pai
   indice_idadepai <- which(names(imput) == "IDADEPAI")
-  
+    method <- rep("", ncol(imput))
+    method[indice_idadepai] <- "pmm"
+    names(method) <- names(imput) 
+
   imp <- mice(
     imput, 
-    method = c("", "", "", "", "norm.nob"),  # método só para IDADEPAI (exemplo)
-    predictorMatrix = lista_predictorMatrix[["todos"]], 
-    print = FALSE
+    method = method, 
+    predictorMatrix = lista_predictorMatrix[["regressao_mae"]], 
+    print = FALSE,
+    m = 1 
   )
-  imput <- complete(imp)  # agora sim vira um data.frame
-}
+  imput <- complete(imp) # transformar em df
+  
+} 
  else {
     stop("Método de imputação desconhecido")
   }
@@ -493,10 +511,76 @@ valores_dc_originais <- c(
 Simulações
 
 ```{r, eval=FALSE}
+# 
+# 
+# # Definir o número de simulações
+# nsim <- 500
+# 
+# # Define as proporções de dados ausentes a serem testadas
+# proporcoes <- c(0.2, 0.4, 0.6, 0.8)
+# 
+# # Defina os mecanismos de ausência a serem simulados
+# mecanismos <- c("MCAR", "MAR", "MNAR")
+# 
+# # Defina o seed para garantir que os números aleatórios sejam consistentes
+# set.seed(123)
+# 
+# # Roda a função com lapply 
+# resultados_todos <- lapply(proporcoes, function(prop) {
+#   cat("Executando para proporção:", prop, "\n")
+#   
+#   resultados_completos <- lapply(mecanismos, function(mecanismo) {
+#     cat("Mecanismo:", mecanismo, "\n")
+#     
+#     # Executa para cada simulação
+#     resultados_simulacao <- lapply(1:nsim, function(i) {
+#       set.seed(i)
+#       
+#       # Gerar amostra e simular ausência de dados
+#       
+#       amostra <- amostracompleta[sample(nrow(amostracompleta), replace = TRUE), ]
+#       amostra_miss <- simular_ausencia(amostra, prop, mecanismo)
+#       
+#        # Rodar todos os métodos de imputação
+#           resultados_metodos <- lapply(c("Analise_de_casos_completos","media_simples", "mediana_simples", "mediana_condicional_IDADEMAE",
+#                                "mediana_condicional_IDADEMAE_e_ESTCIV",
+#                                "mediana_condicional_IDADEMAE_e_funcao_resp",
+#                                "mediana_condicional_IDADEMAE_e_HORANASC_turno"),
+#            function(metodo) {
+#         imputado <- imputar_valores(amostra_miss, metodo)
+#         
+#         
+#         # Extrair quantis (decis)
+#         decis_imput <- extrair_decis(imputado$IDADEPAI)
+#         
+#      # Montar os dados finais para essa simulação
+#         dados <- c(
+#           proporcao = prop,
+#           mecanismo = mecanismo,
+#           repeticao = i,
+#           metodo = metodo,
+#           imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
+#           imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
+#           unlist(decis_imput)
+#         )
+#         return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
+#       })
+#       
+#       return(do.call(rbind, resultados_metodos))
+#     })
+#     
+#     return(bind_rows(resultados_simulacao))
+#   })
+#   
+#   return(bind_rows(resultados_completos))
+# }) %>% bind_rows()
+# 
 
+```
 
+```{r}
 # Definir o número de simulações
-nsim <- 500
+nsim <-500
 
 # Define as proporções de dados ausentes a serem testadas
 proporcoes <- c(0.2, 0.4, 0.6, 0.8)
@@ -507,42 +591,47 @@ mecanismos <- c("MCAR", "MAR", "MNAR")
 # Defina o seed para garantir que os números aleatórios sejam consistentes
 set.seed(123)
 
-# Roda a função com lapply 
+# Lista para salvar as colunas de IDADEPAI
+lista_idadepai <- list()
+
 resultados_todos <- lapply(proporcoes, function(prop) {
   cat("Executando para proporção:", prop, "\n")
   
   resultados_completos <- lapply(mecanismos, function(mecanismo) {
     cat("Mecanismo:", mecanismo, "\n")
     
-    # Executa para cada simulação
     resultados_simulacao <- lapply(1:nsim, function(i) {
       set.seed(i)
-      
-      # Gerar amostra e simular ausência de dados
       
       amostra <- amostracompleta[sample(nrow(amostracompleta), replace = TRUE), ]
       amostra_miss <- simular_ausencia(amostra, prop, mecanismo)
       
-       # Rodar todos os métodos de imputação
-            resultados_metodos <- lapply(c("media_simples", "mediana_simples", "mediana_condicional_IDADEMAE","mediana_condicional_IDADEMAE_e_ESTCIV","mediana_condicional_IDADEMAE_e_funcao_resp","mediana_condicional_IDADEMAE_e_HORANASC_turno"), function(metodo) {
-        imputado <- imputar_valores(amostra_miss, metodo)
-        
-        
-        # Extrair quantis (decis)
-        decis_imput <- extrair_decis(imputado$IDADEPAI)
-        
-     # Montar os dados finais para essa simulação
-        dados <- c(
-          proporcao = prop,
-          mecanismo = mecanismo,
-          repeticao = i,
-          metodo = metodo,
-          imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
-          imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
-          unlist(decis_imput)
-        )
-        return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
-      })
+      resultados_metodos <- lapply(c("Analise_de_casos_completos","media_simples", "mediana_simples", 
+                                     "mediana_condicional_IDADEMAE", "mediana_condicional_IDADEMAE_e_ESTCIV",
+                                     "mediana_condicional_IDADEMAE_e_funcao_resp", 
+                                     "mediana_condicional_IDADEMAE_e_HORANASC_turno"),
+        function(metodo) {
+          imputado <- imputar_valores(amostra_miss, metodo)
+          decis_imput <- extrair_decis(imputado$IDADEPAI)
+          
+          # SALVAR apenas nas últimas 3 simulações
+          if (i > (nsim - 3)) { 
+            
+            chave <- paste0("prop", prop, "_", mecanismo, "_rep", i, "_", metodo)
+            lista_idadepai[[chave]] <<- imputado$IDADEPAI
+          }
+          
+          dados <- c(
+            proporcao = prop,
+            mecanismo = mecanismo,
+            repeticao = i,
+            metodo = metodo,
+            imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
+            imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
+            unlist(decis_imput)
+          )
+          return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
+        })
       
       return(do.call(rbind, resultados_metodos))
     })
@@ -553,33 +642,41 @@ resultados_todos <- lapply(proporcoes, function(prop) {
   return(bind_rows(resultados_completos))
 }) %>% bind_rows()
 
-
 ```
 
 ```{r}
 
-head(resultados_todos)
+head(resultados_todos,20)
+
 ```
 
 ```{r}
-resultados_todos <- resultados_todos %>%
+resultados_todos1 <- resultados_todos %>%
   mutate(metodo = case_when( 
-    metodo == "media_simples" ~ "imputação pela média",
-    metodo == "mediana_simples" ~ "imputação pela mediana",
-    metodo == "mediana_condicional_IDADEMAE" ~ "imputação pela mediana\ncondicional a idade da mãe",
-    metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "imputação pela mediana\ncondicional a idade da mãe\ne ao estado civil",
-    metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "imputação pela mediana\ncondicional a idade da mãe\ne a função do responsável\npelo preenchimento da declaração",
-    metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "imputação pela mediana\ncondicional a idade da mãe\ne ao turno de nascimento"
+    metodo == "Analise_de_casos_completos"~"Análise de casos completos",
+    metodo == "media_simples" ~ "Média",
+    metodo == "mediana_simples" ~ "Mediana",
+    metodo == "mediana_condicional_IDADEMAE" ~ "Mediana condicional\na idade da mãe",
+    metodo == "mediana_condicional_IDADEMAE_e_ESTCIV" ~ "Mediana condicional\n a idade da mãe\ne ao estado civil",
+    metodo == "mediana_condicional_IDADEMAE_e_funcao_resp" ~ "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN",
+    metodo == "mediana_condicional_IDADEMAE_e_HORANASC_turno" ~ "Mediana condicional\n a idade da mãe\ne ao turno de nascimento"
+    #,metodo == "pmm_mae" ~ "PMM \nà idade da mãe"
+  ),
+  proporcao = case_when(
+    proporcao == "0,2" ~ "20%",
+    proporcao == "0,4" ~ "40%",
+    proporcao == "0,6" ~ "60%",
+    proporcao == "0,8" ~ "80%",
   ))
 ```
 
 Define a função para calcular as métricas
 
 ```{r,eval=FALSE}
-calcular_metricas <- function(imputado_cenario, valor_dc_original) {
-  erro_bruto <- mean(imputacoes_cenario) - media_dc_original
-  desvio_padrao <- sqrt(sum((imputacoes_cenario - media_dc_original)^2) / (length(imputacoes_cenario) - 1))
-  return(list(Erro_Bruto = erro_bruto, Desvio_padrao = desvio_padrao))
+calcular_metricas <- function(imputado_media, valor_dc_original) {
+  erro_bruto <- mean(imputado_media) - media_dc_original
+  RMSE <- sqrt(sum((imputado_media - media_dc_original)^2) / (length(imputado_media) - 1))
+  return(list(Erro_Bruto = erro_bruto, RMSE = RMSE))
 }
 
 ```
@@ -598,7 +695,7 @@ resultado_por_cenario_e_metodo <- resultados_todos %>%
   ) %>%
   mutate(
     `Erro Bruto` = sapply(metricas, function(x) x$Erro_Bruto),
-    `Desvio padrão` = sapply(metricas, function(x) x$Desvio_padrao)
+    `Desvio padrão` = sapply(metricas, function(x) x$RMSE)
   ) %>%
   select(proporcao, mecanismo, metodo, `Erro Bruto`, `Desvio padrão`)
 print(resultado_por_cenario_e_metodo
@@ -608,7 +705,7 @@ print(resultado_por_cenario_e_metodo
 
 ```{r,eval=FALSE}
 
-write_xlsx(resultado_por_cenario_e_metodo, "metricas_resultado.xlsx")
+
 write_xlsx(resultados_todos, "resultados_todos.xlsx")
 save(resultados_todos, file ="resultados_todos.RData")
 ```
@@ -618,9 +715,9 @@ save(resultados_todos, file ="resultados_todos.RData")
 ```{r}
 
 # 4. Transformar resultados_todos para formato longo
-resultados_long <- resultados_todos %>%
+resultados_long <- resultados_todos1 %>%
   pivot_longer(
-    cols = c(imputado_media, imputado_mediana, dec_10:dec_90, dec_10.1:dec_90.1),
+    cols = c(imputado_media, imputado_mediana, dec_10:dec_90),
     names_to = "estatistica",
     values_to = "valor"
   ) %>%
@@ -629,8 +726,8 @@ resultados_long <- resultados_todos %>%
 # 5. Função para calcular as métricas
 calcular_metricas <- function(valores, verdadeiro) {
   erro_bruto <- mean(valores) - verdadeiro
-  desvio_padrao <- sqrt(sum((valores - verdadeiro)^2) / (length(valores) - 1))
-  return(list(Erro_Bruto = erro_bruto, Desvio_Padrao = desvio_padrao))
+  RMSE <- sqrt(sum((valores - verdadeiro)^2) / (length(valores) - 1))
+  return(list(Erro_Bruto = erro_bruto, RMSE = RMSE))
 }
 
 # 6. Calcular para cada grupo
@@ -640,7 +737,7 @@ metricas_resultado <- resultados_long %>%
     metricas = list(
       calcular_metricas(
         valores = valor,
-        verdadeiro = valores_dc_originais[[gsub("\\.1", "", unique(estatistica))]]
+        verdadeiro = valores_dc_originais[[unique(estatistica)]]
       )
     ),
     .groups = "drop"
@@ -651,4 +748,12 @@ metricas_resultado <- resultados_long %>%
   ) %>%
   select(proporcao, mecanismo, metodo, estatistica, `Erro Bruto`, `Desvio Padrão`)
 
+write_xlsx(metricas_resultado, "metricas_resultado.xlsx")
+```
+
+```{r}
+lista_resultados <- resultados_todos1 %>%
+  group_split(metodo, proporcao, mecanismo)
+
+write_xlsx(lista_resultados, "20250512_lista_resultados.xlsx")
 ```
