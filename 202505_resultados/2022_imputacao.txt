@@ -1,0 +1,54 @@
+RO: Imputação realizada com MCIM e função do responsável
+RO: Realizando imputação complementar com MCIM apenas por IDADEMAE
+AC: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+AC: Realizando imputação complementar com MCIM apenas por IDADEMAE
+AM: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+AM: Realizando imputação complementar com MCIM apenas por IDADEMAE
+RR: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+RR: Realizando imputação complementar com MCIM apenas por IDADEMAE
+PA: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+PA: Realizando imputação complementar com MCIM apenas por IDADEMAE
+AP: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+AP: Realizando imputação complementar com MCIM apenas por IDADEMAE
+TO: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+TO: Realizando imputação complementar com MCIM apenas por IDADEMAE
+MA: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+MA: Realizando imputação complementar com MCIM apenas por IDADEMAE
+PI: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+PI: Realizando imputação complementar com MCIM apenas por IDADEMAE
+CE: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+CE: Realizando imputação complementar com MCIM apenas por IDADEMAE
+RN: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+RN: Realizando imputação complementar com MCIM apenas por IDADEMAE
+PB: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+PB: Realizando imputação complementar com MCIM apenas por IDADEMAE
+PE: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+PE: Realizando imputação complementar com MCIM apenas por IDADEMAE
+AL: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+AL: Realizando imputação complementar com MCIM apenas por IDADEMAE
+SE: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+SE: Realizando imputação complementar com MCIM apenas por IDADEMAE
+BA: Imputação realizada com MCIM e função do responsável
+BA: Realizando imputação complementar com MCIM apenas por IDADEMAE
+MG: Imputação realizada com MCIM e função do responsável
+MG: Realizando imputação complementar com MCIM apenas por IDADEMAE
+ES: Imputação realizada com MCIM e função do responsável
+ES: Realizando imputação complementar com MCIM apenas por IDADEMAE
+RJ: Imputação realizada com MCIM e função do responsável
+RJ: Realizando imputação complementar com MCIM apenas por IDADEMAE
+SP: Imputação realizada com MCIM e função do responsável
+SP: Realizando imputação complementar com MCIM apenas por IDADEMAE
+PR: Imputação realizada com MCIM e função do responsável
+PR: Realizando imputação complementar com MCIM apenas por IDADEMAE
+SC: Imputação realizada com MCIM e função do responsável
+SC: Realizando imputação complementar com MCIM apenas por IDADEMAE
+RS: Imputação realizada com MCIM e função do responsável
+RS: Realizando imputação complementar com MCIM apenas por IDADEMAE
+MS: Imputação realizada com MCIM e função do responsável
+MS: Realizando imputação complementar com MCIM apenas por IDADEMAE
+MT: Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
+MT: Realizando imputação complementar com MCIM apenas por IDADEMAE
+GO: Imputação realizada com MCIM e função do responsável
+GO: Realizando imputação complementar com MCIM apenas por IDADEMAE
+DF: Imputação realizada com MCIM e função do responsável
+DF: Realizando imputação complementar com MCIM apenas por IDADEMAE
