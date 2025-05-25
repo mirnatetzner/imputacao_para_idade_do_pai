@@ -1,0 +1,913 @@
+---
+title: "expandindo_a_imputacao"
+output: html_document
+date: "2025-05-13"
+---
+
+```{r,warning=FALSE,message=FALSE}
+
+library(microdatasus)
+library(mice)
+library(stringr)
+library(ggmice)
+library(lubridate)
+library(readxl)
+library(hms)
+library(naniar)
+library(future.apply)
+library(data.table)
+library(boot)
+library(dplyr)
+require(tidyverse)
+library(ggplot2)
+library(writexl)
+library(Amelia)
+options(scipen = 999, 
+        OutDec = ",")
+
+
+# Caminho para salvar os gráficos
+# path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+# path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+
+# Caminho para salvar resultados
+# path_res = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/202505_resultados/"
+
+path = "D:/Mirna/ENCE/DISSERTACAO/Dissertacao_text/imagens/"
+path_font ="D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+path_res = "D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/202505_resultados/"
+
+
+library(extrafont)
+# Install **TTF** Latin Modern Roman fonts from www.fontsquirrel.com/fonts/latin-modern-roman
+# Import the newly installed LModern fonts, change the pattern according to the 
+# filename of the lmodern ttf files in your fonts folder
+
+
+# font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
+# 
+# loadfonts(device = "pdf")
+# library(showtext)
+# 
+# showtext_auto()
+
+
+```
+
+```{r}
+# Vetor com a ordem desejada das UFs
+UFs <- c(
+  "RO", "AC", "AM", "RR", "PA", "AP", "TO",
+  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",
+  "MG", "ES", "RJ", "SP", "PR", "SC", "RS",
+  "MS", "MT", "GO", "DF"
+)
+
+brasil_regioes = c("BR","NO","ND","SD","SU","CO")
+
+ano = "2012"
+
+```
+
+## DENOMINADOR - projecao de populacao de 2024
+
+```{r}
+
+
+#projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+
+projecoes_2024_tab1_idade_simples <- read_excel("D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+
+populacao <- projecoes_2024_tab1_idade_simples %>%
+  filter(SIGLA %in% brasil_regioes) %>%
+  select(`SEXO`,`IDADE`,ano,"LOCAL", "SIGLA")
+
+table(populacao$LOCAL)
+```
+
+```{r, warning=FALSE, message=FALSE }
+
+
+ano <- as.numeric(ano)
+
+for (UF in UFs) {
+  nome <- UF
+  assign(nome, fetch_datasus(year_start = ano, year_end = ano, uf = UF, 
+                             information_system = "SINASC", 
+                             vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC")))#,"TPFUNCRESP"
+ 
+}
+# 
+
+```
+
+```{r}
+for (uf in UFs) {
+  
+  dados_processados <- process_sinasc(get(uf), municipality_data = FALSE)
+  assign(uf, dados_processados)
+  
+}
+
+```
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) %>%
+    mutate(IDADEMAE = as.numeric(IDADEMAE),
+           IDADEPAI = as.numeric(IDADEPAI)) |> 
+     mutate(
+    # Filtra valores inválidos ou transforma em NA
+    HORANASC = ifelse(
+      grepl("^[0-9]{1,4}$", HORANASC), # Verifica se HORANASC contém apenas números (1-4 dígitos)
+      str_pad(HORANASC, width = 4, pad = "0"), # Preenche com zeros à esquerda se necessário
+      NA_character_ # Define como NA se for inválido
+    )
+  ) %>%
+  mutate(
+    HORANASC = ifelse(
+      is.na(HORANASC),
+      NA, # Mantém NA para valores inválidos
+      parse_hms(paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4), ":00"))
+    ),
+    HORANASC = hms::hms(HORANASC)
+    )
+  
+assign(uf, temp)
+  
+}
+```
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) %>%
+    mutate( 
+            HORANASC_seconds = as.numeric(as_hms(HORANASC)),
+            HORANASC_turno = cut(HORANASC_seconds,breaks = c(0, 21600, 43200, 64800, 86400),labels = c("Madrugada", "Manhã", "Tarde", "Noite"),include.lowest = TRUE)) %>%
+    mutate(
+            
+            ESTCIVMAE = as.factor(ESTCIVMAE),
+            #TPFUNCRESP = as.factor(TPFUNCRESP),
+            )|> 
+    select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`,HORANASC, HORANASC_seconds))
+
+
+assign(uf, temp)
+}  
+
+
+
+```
+
+### Juntando as ufs em regiões
+
+```{r}
+
+# Regiões do Brasil com suas respectivas UFs
+
+norte <- c("AC", "AP", "AM", "PA", "RO", "RR", "TO")
+nordeste <- c("AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE")
+centro_oeste <- c("DF", "GO", "MT", "MS")
+sudeste <- c("ES", "MG", "RJ", "SP")
+sul <- c("PR", "RS", "SC")
+
+# Lista com os nomes das regiões
+regioes <- c("norte", "nordeste", "centro_oeste", "sudeste", "sul")
+
+```
+
+
+```{r}
+library(dplyr)
+library(naniar)  # para miss_var_summary
+
+# --- 1. Função para imputar IDADEPAI ---
+imputar_idadepai <- function(df) {
+  
+   n_linhas_antes <- nrow(df)
+  n_colunas_antes <- ncol(df)
+  pct_miss <- mean(is.na(df$IDADEPAI))
+  
+  message(sprintf("Dataset com %d linhas e %d colunas antes da imputação", n_linhas_antes, n_colunas_antes))
+  message(sprintf("Proporção de missing IDADEPAI antes: %.3f", pct_miss))
+  
+  if (pct_miss > 0.79) {
+    message("Proporção de missings em IDADEPAI > 79%. MCIM e ao turno")
+    df_imputado <- df %>%
+      group_by(IDADEMAE, HORANASC_turno) %>%
+      mutate(
+        idadepai_foi_imputada = is.na(IDADEPAI),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM e ao turno", NA_character_)
+      ) %>%
+      ungroup()
+  } else if (!"TPFUNCRESP" %in% names(df)) {
+    message("Variável TPFUNCRESP não encontrada. Usando apenas IDADEMAE para imputação.")
+    df_imputado <- df %>%
+      group_by(IDADEMAE) %>%
+      mutate(
+        idadepai_foi_imputada = is.na(IDADEPAI),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM apenas idade mãe (TPFUNCRESP ausente)", NA_character_)
+      ) %>%
+      ungroup()
+  } else {
+    message("Imputação realizada com MCIM e função do responsável")
+    df_imputado <- df %>%
+      group_by(IDADEMAE, TPFUNCRESP) %>%
+      mutate(
+        idadepai_foi_imputada = is.na(IDADEPAI),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM e a função", NA_character_)
+      ) %>%
+      ungroup()
+  }
+  
+  if (any(is.na(df_imputado$IDADEPAI))) {
+    message("Realizando imputação complementar com MCIM apenas por IDADEMAE")
+    df_imputado <- df_imputado %>%
+      group_by(IDADEMAE) %>%
+      mutate(
+        idadepai_foi_imputada = ifelse(is.na(IDADEPAI), TRUE, idadepai_foi_imputada),
+        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+        metodo_imputacao = ifelse(is.na(IDADEPAI) & idadepai_foi_imputada, "MCIM apenas idade mãe", metodo_imputacao)
+      ) %>%
+      ungroup()
+  }
+  
+  return(df_imputado)
+}
+
+
+```
+
+
+```{r}
+# Abrir arquivo para capturar stdout e mensagens (console)
+log_file <- paste0(ano,"_log_imputacao.txt" )
+
+# Abre conexão para mensagens
+con <- file(log_file, open = "wt")
+
+# Redirecionar saída padrão (prints, mensagens, warnings)
+sink(log_file, append = FALSE)           # captura prints e mensagens normais
+sink(con, type = "message")
+
+```
+
+
+#-----------------------------------------
+# 1 - Imputando por UF e concatenando dados imputados depois da imputação:
+```{r}
+
+# --- 2. Definir UFs e regiões ---
+ufs_all <- c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", 
+             "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", 
+             "RS", "RO", "RR", "SC", "SP", "SE", "TO")
+
+regioes <- list(
+  norte = c("AC", "AP", "AM", "PA", "RO", "RR", "TO"),
+  nordeste = c("AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"),
+  centro_oeste = c("DF", "GO", "MT", "MS"),
+  sudeste = c("ES", "MG", "RJ", "SP"),
+  sul = c("PR", "RS", "SC")
+)
+
+# --- 3. Loop para imputar por UF e armazenar ---
+lista_imputados <- list()
+lista_missings <- list()
+
+for (uf in ufs_all) {
+  message(paste0("Iniciando imputação para UF: ", uf))
+  temp <- get(uf)
+  
+  temp_imputado <- imputar_idadepai(temp)
+  
+  lista_imputados[[uf]] <- temp_imputado
+  lista_missings[[uf]] <- miss_var_summary(temp)
+  
+  message(paste0("Finalizada imputação para UF: ", uf))
+}
+
+
+
+
+```
+
+
+```{r}
+message(paste0("Concatenando UF imputadas: "))
+# --- 5. Juntar dados por região ---
+dados_regioes <- lapply(names(regioes), function(nome_regiao) {
+  ufs <- regioes[[nome_regiao]]
+  dados <- bind_rows(lista_imputados[ufs], .id = "UF")
+  dados$REGIAO <- nome_regiao
+  return(dados)
+})
+message(paste0("Concatenando regiões com UFs imputadas: "))
+dados_brasil <- bind_rows(dados_regioes, .id = "REGIAO")
+message(paste0("----------------------------------- Fim do fluxo 1 -----------------------------------"))
+```
+#-----------------------------------------
+
+# 2 - Imputando por região concatenada antes da imputação:
+
+
+```{r}
+
+# Concatenar todos os dataframes das UFs (originais, não imputados ainda)
+dados_brasil <- do.call(rbind, lapply(ufs_all, get))
+
+# (Opcional) adicionar coluna UF para controle
+dados_brasil$UF <- rep(ufs_all, sapply(lapply(ufs_all, get), nrow))
+
+
+message("Iniciando imputação para o Brasil concatenado")
+dados_brasil_imputado <- imputar_idadepai(dados_brasil)
+message("Finalizada imputação para o Brasil concatenado")
+
+```
+
+
+
+```{r}
+# Função para concatenar e imputar dados de UFs por região
+imputar_regiao <- function(ufs) {
+  message(paste0("Iniciando concatenação --> imputação para as região, ufs: ", paste(ufs, collapse = ", ")))
+  # Concatenar dataframes das UFs da região
+  df_regiao <- do.call(rbind, lapply(ufs, get))
+  
+  # (Opcional) adicionar coluna UF para rastreabilidade
+  df_regiao$UF <- rep(ufs, sapply(lapply(ufs, get), nrow))
+  
+  # Aplicar imputação no dataframe concatenado
+  df_regiao_imputado_depois_de_concatenar <- imputar_idadepai(df_regiao)
+  
+   message("Finalizada imputação para a região")
+  
+  return(df_regiao_imputado_depois_de_concatenar)
+}
+
+# Aplicar por região
+dados_regioes_imputados_depois_de_concatenar <- lapply(regioes, imputar_regiao)
+message(paste0("----------------------------------- Fim do fluxo 2 -----------------------------------"))
+```
+
+
+```{r}
+# Fechar redirecionamento para console
+
+# Finalmente fecha os sinks e a conexão
+sink(type = "message")
+sink()
+close(con)
+
+cat("Processo finalizado. Logs salvos em:", log_file, "\n")
+
+```
+
+
+#-----------------------------------------
+
+
+```{r, eval=FALSE}
+
+# Loop por UF
+for (uf in UFs) {
+  
+  message("Processando UF: ", uf)
+
+  # Subconjunto da população para a UF, sexo feminino, ano 
+  pop_uf <- populacao %>%
+    filter(SEXO == "Mulheres", SIGLA == uf) %>%
+    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+    mutate(
+      Ano = as.integer(Ano),
+      Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+    ) %>%
+    filter(!is.na(Grupo_idade)) %>%
+    group_by(Grupo_idade) %>%
+    summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+
+  # Carrega dados de nascimentos imputados
+  uf_imputado <- get(paste0(uf, "_imputado"))
+
+  # Agrupa os nascimentos por grupo etário da mãe
+  nascimentos_uf <- uf_imputado %>%
+    mutate(
+      Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)
+    ) %>%
+    group_by(Grupo_idade) %>%
+    summarise(nascimentos = n(), .groups = "drop") %>%
+    filter(!is.na(Grupo_idade))
+
+  # Junta população e nascimentos e calcula a TEF
+  tef_uf <- nascimentos_uf %>%
+    inner_join(pop_uf, by = "Grupo_idade") %>%
+    mutate(TEF = nascimentos / Populacao)
+
+  # Calcula a Taxa de Fecundidade Total (TFT)
+  tft <- sum(tef_uf$TEF) * 5
+
+  # Exibe os resultados
+  message("TFT para ", uf, ": ", round(tft, 2))
+
+  # Salva objetos com nomes específicos
+  assign(paste0("teff_", uf), tef_uf)
+  assign(paste0("tftf_", uf), tft)
+}
+
+```
+
+Conferindo o resultado das taxas femininas: /
+
+```{r}
+
+# projecoes_2024_tab4_indicadores <- read_excel("Downloads/projecoes_2024_tab4_indicadores.xlsx", 
+#     sheet = "4) INDICADORES")
+# 
+# projecoes_2024_tab4_indicadores %>% 
+#   filter(SIGLA %in% UFs, ANO == ano) %>%
+#   print()
+```
+
+taxas masculinas
+
+```{r, eval=FALSE}
+
+# Loop por UF
+for (uf in UFs) {
+  
+  message("Processando UF: ", uf)
+
+  # Subconjunto da população para a UF, sexo feminino, ano 2022
+  pop_uf <- populacao %>%
+    filter(SEXO == "Homens", SIGLA == uf) %>%
+    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+    mutate(
+      Ano = as.integer(Ano),
+      Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+    ) %>%
+    filter(!is.na(Grupo_idade)) %>%
+    group_by(Grupo_idade) %>%
+    summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+
+  # Carrega dados de nascimentos imputados
+  uf_imputado <- get(paste0(uf, "_imputado"))
+
+  # Agrupa os nascimentos por grupo etário da mãe
+  nascimentos_uf <- uf_imputado %>%
+    mutate(
+      Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)
+    ) %>%
+    group_by(Grupo_idade) %>%
+    summarise(nascimentos = n(), .groups = "drop") %>%
+    filter(!is.na(Grupo_idade))
+
+  # Junta população e nascimentos e calcula a TEF
+  tef_uf <- nascimentos_uf %>%
+    inner_join(pop_uf, by = "Grupo_idade") %>%
+    mutate(TEF = nascimentos / Populacao)
+
+  # Calcula a Taxa de Fecundidade Total (TFT)
+  tft <- sum(tef_uf$TEF) * 5
+
+  # Exibe os resultados
+  message("TFT para ", uf, ": ", round(tft, 2))
+
+  # Salva objetos com nomes específicos
+  assign(paste0("tefm_", uf), tef_uf)
+  assign(paste0("tftm_", uf), tft)
+}
+
+```
+
+```{r, eval=FALSE}
+# Cria uma lista com os dataframes de cada estado e adiciona a coluna UF
+tefm_todos <- map_dfr(UFs, function(uf) {
+  df <- get(paste0("tefm_", uf))
+  df$UF <- uf
+  df
+})
+
+# Visualização organizada 
+tefm_todos <- tefm_todos %>%
+  select(UF, everything()) %>%
+  arrange(UF, Grupo_idade)
+
+# Vetor com a ordem desejada das UFs
+UFs <- c(
+  "RO", "AC", "AM", "RR", "PA", "AP", "TO",
+  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",
+  "MG", "ES", "RJ", "SP", "PR", "SC", "RS",
+  "MS", "MT", "GO", "DF"
+)
+
+
+tefm_tabela_larga <- tefm_todos %>%
+  select(-nascimentos, -Populacao) %>%
+  mutate(
+    UF = factor(UF, levels = UFs),    # converte para fator ordenado
+    TEF = round(TEF, 3)
+  ) %>%
+  pivot_wider(names_from = Grupo_idade, values_from = TEF) %>%
+  arrange(UF)
+
+# Visualização opcional:
+print(tefm_tabela_larga)
+openxlsx::write.xlsx(tefm_tabela_larga, paste(path_res,ano,"_tabela_tefm.xlsx"), overwrite = TRUE)
+
+```
+
+```{r, eval=FALSE}
+# Cria uma lista com os dataframes de cada estado e adiciona a coluna UF
+teff_todos <- map_dfr(UFs, function(uf) {
+  df <- get(paste0("teff_", uf))
+  df$UF <- uf
+  df
+})
+
+# Visualização organizada (opcional)
+teff_todos <- teff_todos %>%
+  select(UF, everything()) %>%
+  arrange(UF, Grupo_idade)
+
+teff_tabela_larga <- teff_todos %>%
+  select(-nascimentos, -Populacao) %>%
+  mutate(
+    UF = factor(UF, levels = UFs),    # converte para fator ordenado
+    TEF = round(TEF, 3)
+  ) %>%
+  pivot_wider(names_from = Grupo_idade, values_from = TEF) %>%
+  arrange(UF)
+
+
+openxlsx::write.xlsx(teff_tabela_larga, paste(path_res,ano,"_tabela_teff.xlsx"), overwrite = TRUE)
+
+```
+
+```{r, eval=FALSE}
+
+# Cria um data.frame consolidado com TFTs
+tabela_tft <- do.call(rbind, lapply(UFs, function(uf) {
+  tftf <- get(paste0("tftf_", uf))
+  tftm <- get(paste0("tftm_", uf))
+  data.frame(
+    UF = uf,
+     TFT_feminino = round(tftf, 3),
+    TFT_masculino = round(tftm, 3)
+  )
+}))
+
+tabela_tft <- tabela_tft %>%
+  mutate(UF = factor(UF, levels = UFs)) %>%
+  arrange(UF)
+
+
+# Visualiza a tabela
+print(tabela_tft)
+
+write_xlsx(tabela_tft, path = paste(path_res, ano, "_TFT_por_UF.xlsx"))
+
+
+```
+
+
+
+
+
+```{r}
+## Pegar os nomes dos objetos *_miss
+# ufs_miss_names <- ls(pattern = "^[A-Z]{2}_miss$")
+
+## Carregar os objetos e adicionar a coluna UF em cada um
+# ufs_miss_df <- purrr::map_dfr(ufs_miss_names, function(nome) {
+#  df <- get(nome)
+#  df$UF <- gsub("_miss$", "", nome)
+#  df
+# })
+
+```
+
+
+
+
+
+
+
+
+
+# Missing
+
+
+```{r}
+
+
+library(naniar)  # para miss_var_summary
+
+
+# Lista para armazenar resultados por UF
+miss_ufs <- list()
+
+# 1. Calcular miss por UF e guardar em lista
+ufs_all <- c(norte, nordeste, centro_oeste, sudeste, sul)
+
+for (uf in ufs_all) {
+  temp <- get(uf)  # dataframe da UF
+  mis <- miss_var_summary(temp)
+  assign(paste0(uf,"_miss"), mis)   # opcional salvar no ambiente global
+  miss_ufs[[uf]] <- mis              # salvar em lista para acesso rápido
+}
+
+# 2. Calcular miss para cada região concatenando os dataframes das UFs
+
+for (nome_regiao in names(regioes)) {
+  ufs <- regioes[[nome_regiao]]  # vetor de UFs da região
+
+  dados_regiao <- do.call(rbind, lapply(ufs, get))
+  
+  miss_regiao <- miss_var_summary(dados_regiao)
+  
+  assign(paste0(nome_regiao, "_miss"), miss_regiao)
+}
+
+
+```
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Função para agregar missings por região
+miss_regiao <- lapply(names(regioes), function(reg) {
+  ufs <- regioes[[reg]]
+  # Pegar os missings das UFs da região e concatenar
+  miss_ufs <- do.call(rbind, lista_missings[ufs])
+  
+  # Agrupar por variável e calcular soma de missing e média de pct_missing ponderada por tamanho?
+  # Se quiser média simples:
+  miss_agrup <- miss_ufs %>%
+    group_by(variable) %>%
+    summarise(
+      n_miss = sum(n_miss),
+      pct_miss = mean(pct_miss)
+    ) %>%
+    mutate(REGIAO = reg)
+  
+  return(miss_agrup)
+})
+
+# Dataframe único com missings por região
+miss_regioes_df <- bind_rows(miss_regiao)
+
+```
+
+
+```{r}
+miss_brasil_df <- miss_var_summary(dados_brasil) %>%
+  mutate(REGIAO = "Brasil")
+
+```
+
+```{r}
+# Adicionar coluna UF nas tabelas originais de missings
+ufs_miss_df <- do.call(rbind, lapply(names(lista_missings), function(uf) {
+  df <- lista_missings[[uf]]
+  df$UF <- uf
+  df
+}))
+
+# Concatenar todas as tabelas com coluna de origem
+miss_total <- bind_rows(
+  ufs_miss_df %>% mutate(NIVEL = "UF"),
+  miss_regioes_df %>% rename(UF = REGIAO) %>% mutate(NIVEL = "Região"),
+  miss_brasil_df %>% rename(UF = REGIAO) %>% mutate(NIVEL = "Brasil")
+)
+
+```
+
+```{r}
+
+
+# Dicionário com nomes originais e nomes novos
+mapeamento_nomes <- c(
+  IDADEPAI      = "Idade do pai",
+  ESTCIVMAE     = "Estado civil da mãe",
+  TPFUNCRESP    = "Função",
+  IDADEMAE      = "Idade da mãe",
+  HORANASC_turno = "Turno da hora do nascimento"
+)
+
+renomear_colunas_seguro <- function(df) {
+  nomes_atuais <- colnames(df)
+  nomes_novos <- nomes_atuais
+  for (i in seq_along(nomes_atuais)) {
+    if (nomes_atuais[i] %in% names(mapeamento_nomes)) {
+      nomes_novos[i] <- mapeamento_nomes[nomes_atuais[i]]
+    }
+  }
+  colnames(df) <- nomes_novos
+  return(df)
+}
+
+library(tidyr)
+library(scales)
+
+# Ajustar tipos e ordenar
+miss_total <- miss_total %>%
+  mutate(
+    n_miss = as.numeric(n_miss),
+    pct_miss = as.numeric(pct_miss)
+  ) %>%
+  select(UF, everything()) %>%
+  mutate(UF = factor(UF, levels = c("Brasil",names(regioes) , ufs_all))) %>%
+  arrange(UF)
+
+miss_total <- miss_total %>%
+  rename(codigo_lugar = UF) 
+
+# Tabela wide com percentuais formatados
+tabela_pct <- miss_total %>%
+  select(codigo_lugar, variable, pct_miss) %>%
+  pivot_wider(names_from = variable, values_from = pct_miss) %>%
+  mutate(across(where(is.numeric), ~ scales::percent(.x / 100, accuracy = 0.01)))
+
+
+# Tabela wide com números absolutos formatados
+tabela_abs <- miss_total %>%
+  select(codigo_lugar, variable, n_miss) %>%
+  pivot_wider(names_from = variable, values_from = n_miss) %>%
+  mutate(across(where(is.numeric), ~ format(.x, big.mark = ".", decimal.mark = ",")))
+
+# Renomear colunas (reaproveitando sua função)
+tabela_abs <- renomear_colunas_seguro(tabela_abs)
+tabela_pct <- renomear_colunas_seguro(tabela_pct)
+
+# Exportar XLSX
+openxlsx::write.xlsx(tabela_pct, paste0(path_res, ano, "_tabela_pct_miss.xlsx"), overwrite = TRUE)
+openxlsx::write.xlsx(tabela_abs, paste0(path_res, ano, "_tabela_n_miss.xlsx"), overwrite = TRUE)
+
+
+
+```
+
+
+------------------
+# TEF E TFT
+
+## por uf
+```{r}
+
+```
+
+
+
+## por região
+```{r}
+# Lista para salvar resultados por região
+tftf_regioes <- list()
+tftm_regioes <- list()
+teff_regioes <- list()
+tefm_regioes <- list()
+
+for (nome_regiao in names(regioes)) {
+  message("Processando região: ", nome_regiao)
+  
+  ufs <- regioes[[nome_regiao]]
+  
+  # --- POPULAÇÃO FEMININA ---
+  pop_fem <- populacao %>%
+    filter(SEXO == "Mulheres", SIGLA %in% UFs) %>%
+    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+    mutate(
+      Ano = as.integer(Ano),
+      Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+    ) %>%
+    filter(!is.na(Grupo_idade)) %>%
+    group_by(Grupo_idade) %>%
+    summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+
+  # --- POPULAÇÃO MASCULINA ---
+  pop_masc <- populacao %>%
+    filter(SEXO == "Homens", SIGLA %in% UFs) %>%
+    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+    mutate(
+      Ano = as.integer(Ano),
+      Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+    ) %>%
+    filter(!is.na(Grupo_idade)) %>%
+    group_by(Grupo_idade) %>%
+    summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+
+  # --- NASCIMENTOS ---
+  dados_regiao <- bind_rows(lista_imputados[ufs])  # junta os dados imputados das UFs da região
+
+  nascimentos_fem <- dados_regiao %>%
+    mutate(Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)) %>%
+    group_by(Grupo_idade) %>%
+    summarise(nascimentos = n(), .groups = "drop") %>%
+    filter(!is.na(Grupo_idade))
+
+  nascimentos_masc <- dados_regiao %>%
+    mutate(Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)) %>%
+    group_by(Grupo_idade) %>%
+    summarise(nascimentos = n(), .groups = "drop") %>%
+    filter(!is.na(Grupo_idade))
+
+  # --- TEF e TFT Feminino ---
+  tef_fem <- nascimentos_fem %>%
+    inner_join(pop_fem, by = "Grupo_idade") %>%
+    mutate(TEF = nascimentos / Populacao)
+  
+  tft_fem <- sum(tef_fem$TEF) * 5
+
+  # --- TEF e TFT Masculino ---
+  tef_masc <- nascimentos_masc %>%
+    inner_join(pop_masc, by = "Grupo_idade") %>%
+    mutate(TEF = nascimentos / Populacao)
+
+  tft_masc <- sum(tef_masc$TEF) * 5
+
+  # --- Salvar ---
+  teff_regioes[[nome_regiao]] <- tef_fem
+  tefm_regioes[[nome_regiao]] <- tef_masc
+  tftf_regioes[[nome_regiao]] <- tft_fem
+  tftm_regioes[[nome_regiao]] <- tft_masc
+
+  message("TFT feminino para ", nome_regiao, ": ", round(tft_fem, 2))
+  message("TFT masculino para ", nome_regiao, ": ", round(tft_masc, 2))
+}
+
+
+```
+
+
+## Para o Brasil
+```{r}
+# POPULAÇÃO BRASIL
+pop_fem_brasil <- populacao %>%
+  filter(SEXO == "Mulheres", SIGLA %in% ufs_all) %>%
+  pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+  mutate(
+    Ano = as.integer(Ano),
+    Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+  ) %>%
+  filter(!is.na(Grupo_idade)) %>%
+  group_by(Grupo_idade) %>%
+  summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+
+pop_masc_brasil <- populacao %>%
+  filter(SEXO == "Homens", SIGLA %in% ufs_all) %>%
+  pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+  mutate(
+    Ano = as.integer(Ano),
+    Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+  ) %>%
+  filter(!is.na(Grupo_idade)) %>%
+  group_by(Grupo_idade) %>%
+  summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+
+nasc_fem_brasil <- dados_brasil %>%
+  mutate(Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)) %>%
+  group_by(Grupo_idade) %>%
+  summarise(nascimentos = n(), .groups = "drop") %>%
+  filter(!is.na(Grupo_idade))
+
+nasc_masc_brasil <- dados_brasil %>%
+  mutate(Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)) %>%
+  group_by(Grupo_idade) %>%
+  summarise(nascimentos = n(), .groups = "drop") %>%
+  filter(!is.na(Grupo_idade))
+
+teff_brasil <- nasc_fem_brasil %>%
+  inner_join(pop_fem_brasil, by = "Grupo_idade") %>%
+  mutate(TEF = nascimentos / Populacao)
+
+tefm_brasil <- nasc_masc_brasil %>%
+  inner_join(pop_masc_brasil, by = "Grupo_idade") %>%
+  mutate(TEF = nascimentos / Populacao)
+
+tftf_brasil <- sum(teff_brasil$TEF) * 5
+tftm_brasil <- sum(tefm_brasil$TEF) * 5
+
+```
+
+
+unificando
+
+```{r}
+# Consolidar TFTs
+tabela_tft_completa <- bind_rows(
+  tabela_tft,  # já existente com UFs
+  tibble(UF = names(tftf_regioes), TFT_feminino = unlist(tftf_regioes), TFT_masculino = unlist(tftm_regioes)),
+  tibble(UF = "Brasil", TFT_feminino = tftf_brasil, TFT_masculino = tftm_brasil)
+)
+
+# Exportar
+write_xlsx(tabela_tft_completa, path = paste0(path_res, ano, "_TFT_por_UF_Regiao_Brasil.xlsx"))
+
+```
+

@@ -27,11 +27,16 @@ options(scipen = 999,
 
 
 # Caminho para salvar os gráficos
-path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
-path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+# path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+# path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
 
 # Caminho para salvar resultados
-path_res = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/202505_resultados/"
+# path_res = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/202505_resultados/"
+
+path = "D:/Mirna/ENCE/DISSERTACAO/Dissertacao_text/imagens/"
+path_font ="D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+path_res = "D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/202505_resultados/"
+
 
 library(extrafont)
 # Install **TTF** Latin Modern Roman fonts from www.fontsquirrel.com/fonts/latin-modern-roman
@@ -57,7 +62,7 @@ UFs <- c(
   "MG", "ES", "RJ", "SP", "PR", "SC", "RS",
   "MS", "MT", "GO", "DF"
 )
-ano = "2022"
+ano = "2012"
 
 ```
 
@@ -66,9 +71,9 @@ ano = "2022"
 ```{r}
 
 
-projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+#projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 
-
+projecoes_2024_tab1_idade_simples <- read_excel("D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 
 populacao <- projecoes_2024_tab1_idade_simples %>%
   filter(SIGLA %in% UFs) %>%
@@ -86,7 +91,7 @@ for (UF in UFs) {
   nome <- UF
   assign(nome, fetch_datasus(year_start = ano, year_end = ano, uf = UF, 
                              information_system = "SINASC", 
-                             vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC","TPFUNCRESP")))
+                             vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC")))#,"TPFUNCRESP"
  
 }
 # 
@@ -308,7 +313,7 @@ for (uf in UFs) {
     pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
     mutate(
       Ano = as.integer(Ano),
-      Grupo_idade = cut(IDADE, breaks = seq(15, 60, 5), right = FALSE)
+      Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
     ) %>%
     filter(!is.na(Grupo_idade)) %>%
     group_by(Grupo_idade) %>%
@@ -320,7 +325,7 @@ for (uf in UFs) {
   # Agrupa os nascimentos por grupo etário da mãe
   nascimentos_uf <- uf_imputado %>%
     mutate(
-      Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
+      Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)
     ) %>%
     group_by(Grupo_idade) %>%
     summarise(nascimentos = n(), .groups = "drop") %>%
