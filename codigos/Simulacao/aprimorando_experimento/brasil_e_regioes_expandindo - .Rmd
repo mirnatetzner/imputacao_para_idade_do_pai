@@ -26,16 +26,14 @@ options(scipen = 999,
         OutDec = ",")
 
 
-# Caminho para salvar os gráficos
-# path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
-# path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+# Caminhos
+path <- "/home/mramos/Documentos/Dissetacao/Dissertacao_text/imagens/"
+path_font = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+path_res = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/202505_resultados/"
 
-# Caminho para salvar resultados
-# path_res = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/202505_resultados/"
-
-path = "D:/Mirna/ENCE/DISSERTACAO/Dissertacao_text/imagens/"
-path_font ="D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
-path_res = "D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/202505_resultados/"
+# path = "D:/Mirna/ENCE/DISSERTACAO/Dissertacao_text/imagens/"
+# path_font ="D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/"
+# path_res = "D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/202505_resultados/"
 
 
 library(extrafont)
@@ -74,9 +72,9 @@ ano = "2012"
 ```{r}
 
 
-#projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+projecoes_2024_tab1_idade_simples <- read_excel("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 
-projecoes_2024_tab1_idade_simples <- read_excel("D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
+# projecoes_2024_tab1_idade_simples <- read_excel("D:/Mirna/ENCE/DISSERTACAO/imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx", skip = 5)
 
 populacao <- projecoes_2024_tab1_idade_simples %>%
   filter(SIGLA %in% brasil_regioes) %>%
@@ -97,7 +95,7 @@ for (UF in UFs) {
                              vars = c("IDADEMAE", "IDADEPAI",  "ESTCIVMAE", "HORANASC")))#,"TPFUNCRESP"
  
 }
-# 
+
 
 ```
 
@@ -178,6 +176,7 @@ regioes <- c("norte", "nordeste", "centro_oeste", "sudeste", "sul")
 
 ```
 
+## Função de imputação
 
 ```{r}
 library(dplyr)
