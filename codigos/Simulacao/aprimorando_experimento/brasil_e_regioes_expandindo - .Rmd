@@ -260,9 +260,11 @@ sink(con, type = "message")
 
 #-----------------------------------------
 # 1 - Imputando por UF e concatenando dados imputados depois da imputação:
+ Fluxo em que cada UF é imputada separadamente, e só depois os dados são agrupados por região e Brasil.
+
 ```{r}
 
-# --- 2. Definir UFs e regiões ---
+# Define as UFs e como elas se agrupam por região
 ufs_all <- c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", 
              "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", 
              "RS", "RO", "RR", "SC", "SP", "SE", "TO")
@@ -275,7 +277,7 @@ regioes <- list(
   sul = c("PR", "RS", "SC")
 )
 
-# --- 3. Loop para imputar por UF e armazenar ---
+# Inicializa listas que armazenarão os dados imputados e os dados de missings
 lista_imputados <- list()
 lista_missings <- list()
 
@@ -292,8 +294,6 @@ for (uf in ufs_all) {
 }
 
 
-
-
 ```
 
 
@@ -302,31 +302,33 @@ message(paste0("Concatenando UF imputadas: "))
 # --- 5. Juntar dados por região ---
 dados_regioes <- lapply(names(regioes), function(nome_regiao) {
   ufs <- regioes[[nome_regiao]]
-  dados <- bind_rows(lista_imputados[ufs], .id = "UF")
-  dados$REGIAO <- nome_regiao
-  return(dados)
+  dados_concatenados_depois_de_imputar <- bind_rows(lista_imputados[ufs], .id = "UF")
+  dados_concatenados_depois_de_imputar$REGIAO <- nome_regiao
+  return(dados_concatenados_depois_de_imputar)
 })
 message(paste0("Concatenando regiões com UFs imputadas: "))
-dados_brasil <- bind_rows(dados_regioes, .id = "REGIAO")
-message(paste0("----------------------------------- Fim do fluxo 1 -----------------------------------"))
+
+# Concatena todas as regiões para formar o Brasil
+dados_brasil_concatenado_depois_de_imputar <- bind_rows(dados_regioes, .id = "REGIAO")
+message(paste0("----------------------- Fim do fluxo 1 -----------------------------------"))
 ```
 #-----------------------------------------
 
 # 2 - Imputando por região concatenada antes da imputação:
 
-
+ Concatenação de dados antes da imputação (por Brasil ou por região)
 ```{r}
 
 # Concatenar todos os dataframes das UFs (originais, não imputados ainda)
-dados_brasil <- do.call(rbind, lapply(ufs_all, get))
+dados_brasil_concatenar_depois_imputar <- do.call(rbind, lapply(ufs_all, get))
 
 # (Opcional) adicionar coluna UF para controle
-dados_brasil$UF <- rep(ufs_all, sapply(lapply(ufs_all, get), nrow))
+dados_brasil_concatenar_depois_imputar$UF <- rep(ufs_all, sapply(lapply(ufs_all, get), nrow))
 
 
 message("Iniciando imputação para o Brasil concatenado")
-dados_brasil_imputado <- imputar_idadepai(dados_brasil)
-message("Finalizada imputação para o Brasil concatenado")
+dados_brasil_imputado <- imputar_idadepai(dados_brasil_concatenar_depois_imputar)
+message("Finalizada imputação para o Brasil primeiramente concatenado para depois imputar.")
 
 ```
 
@@ -343,15 +345,15 @@ imputar_regiao <- function(ufs) {
   df_regiao$UF <- rep(ufs, sapply(lapply(ufs, get), nrow))
   
   # Aplicar imputação no dataframe concatenado
-  df_regiao_imputado_depois_de_concatenar <- imputar_idadepai(df_regiao)
+  df_regiao_concatenar_depois_imputar <- imputar_idadepai(df_regiao)
   
    message("Finalizada imputação para a região")
   
-  return(df_regiao_imputado_depois_de_concatenar)
+  return(df_regiao_concatenar_depois_imputar)
 }
 
 # Aplicar por região
-dados_regioes_imputados_depois_de_concatenar <- lapply(regioes, imputar_regiao)
+dados_regioes_concatenar_depois_imputar <- lapply(regioes, imputar_regiao)
 message(paste0("----------------------------------- Fim do fluxo 2 -----------------------------------"))
 ```
 
