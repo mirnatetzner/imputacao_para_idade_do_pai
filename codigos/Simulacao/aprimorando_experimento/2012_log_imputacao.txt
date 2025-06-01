@@ -159,13 +159,13 @@ Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: TO
 Concatenando UF imputadas: 
 Concatenando regiões com UFs imputadas: 
------------------------------------ Fim do fluxo 1 -----------------------------------
+----------------------- Fim do fluxo 1 -----------------------------------
 Iniciando imputação para o Brasil concatenado
 Dataset com 2905789 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.475
 Variável TPFUNCRESP não encontrada. Usando apenas IDADEMAE para imputação.
 Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para o Brasil concatenado
+Finalizada imputação para o Brasil primeiramente concatenado para depois imputar.
 Iniciando concatenação --> imputação para as região, ufs: AC, AP, AM, PA, RO, RR, TO
 Dataset com 308375 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.574
