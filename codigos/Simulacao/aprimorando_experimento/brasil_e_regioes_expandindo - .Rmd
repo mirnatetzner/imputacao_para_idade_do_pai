@@ -12,9 +12,9 @@ date: "2025-05-13"
 # - Exportação para Excel
 
 ```{r}
-
+library(dplyr)
 pacotes <- c("microdatasus", "mice", "stringr", "ggmice", "lubridate", "readxl", 
-             "hms", "naniar", "future.apply", "data.table", "boot", "dplyr", 
+             "hms", "naniar", "future.apply", "data.table", "boot", 
              "tidyverse", "ggplot2", "writexl", "Amelia", "openxlsx", "extrafont")
 
 pacotes %>% purrr::walk(~ { if (!require(.x, character.only = TRUE)) install.packages(.x) })
@@ -465,19 +465,22 @@ for (uf in UFs) {
     filter(!is.na(Grupo_idade))
 
   # Junta população e nascimentos e calcula a TEF
-  tef_uf <- nascimentos_uf %>%
+  tefm_uf <- nascimentos_uf %>%
     inner_join(pop_uf, by = "Grupo_idade") %>%
-    mutate(TEF = nascimentos / Populacao)
+    mutate(TEFM = nascimentos / Populacao)
 
   # Calcula a Taxa de Fecundidade Total (TFT)
-  tft <- sum(tef_uf$TEF) * 5
-
+  tftm <- sum(tefm_uf$TEFM) * 5
+  tefm_uf$TEFM <- formatC(tefm_uf$TEFM, format = "f", digits = 4)
+  
+  tftm  <- formatC(tftm , format = "f", digits = 2)
   # Exibe os resultados
-  message("TFT para ", uf, ": ", round(tft, 2))
+  message("TFT para ", uf, ": ", tftm)
 
+  
   # Salva objetos com nomes específicos
-  assign(paste0("tefm_", uf), tef_uf)
-  assign(paste0("tftm_", uf), tft)
+  assign(paste0("tefm_", uf), tefm_uf)
+  assign(paste0("tftm_", uf), tftm)
   }
 
 ```
@@ -488,7 +491,7 @@ for (uf in UFs) {
 regioes_unicas <- unique(na.omit(dados_brasil_imputado_depois_concatenado$REGIAO))
 
 # Inicializa lista para armazenar resultados
-resultados_regioes <- list()
+fluxo_um_resultados_regioes <- list()
 
 for (reg in regioes_unicas) {
   message("Processando região: ", reg)
@@ -518,14 +521,16 @@ for (reg in regioes_unicas) {
     summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
 
   # Cálculo da TEF e TFT
-  tef_reg <- nascimentos_reg %>%
+  fluxo_um_tefm_reg <- nascimentos_reg %>%
     inner_join(pop_reg, by = "Grupo_idade") %>%
-    mutate(TEF = nascimentos / Populacao)
+    mutate(TEFM = nascimentos / Populacao)
 
-  tft <- sum(tef_reg$TEF) * 5
+     tftm <- sum(tefm_reg$TEFM) * 5
+     tftm  <- formatC(tftm , format = "f", digits = 2)
+     tefm_reg$TEFM <- formatC(tefm_reg$TEFM, format = "f", digits = 4)
 
-  resultados_regioes[[reg]] <- list(tef = tef_reg, tft = tft)
-  message("TFT para região (fluxo 1) ", reg, ": ", round(tft, 2))
+     fluxo_um_resultados_regioes[[reg]] <- list(tefm = tefm_reg, tft = tftm )
+  message("TFT para região (fluxo 1) ", reg, ": ", tftm )
 }
 
 ```
@@ -558,12 +563,19 @@ pop_br <- populacao %>%
   summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
 
 # Cálculo da TEF e TFT
-tef_br <- nascimentos_br %>%
+fluxo_um_tefm_br <- nascimentos_br %>%
   inner_join(pop_br, by = "Grupo_idade") %>%
-  mutate(TEF = nascimentos / Populacao)
+  mutate(TEFM = nascimentos / Populacao)
 
-tft_brasil <- sum(tef_br$TEF) * 5
-message("TFT Brasil (fluxo 1): ", round(tft_brasil, 2))
+   fluxo_um_tftm_brasil <- sum(fluxo_um_tefm_br$TEFM) * 5
+
+   fluxo_um_tftm_brasil  <- formatC( fluxo_um_tftm_brasil , format = "f", digits = 2)
+   
+   fluxo_um_tefm_br$TEFM <- formatC(fluxo_um_tefm_br$TEFM, format = "f", digits = 4)
+
+  
+
+message("TFT Brasil (fluxo 1): ", fluxo_um_tftm_brasil)
 
 ```
 
@@ -576,7 +588,7 @@ message("TFT Brasil (fluxo 1): ", round(tft_brasil, 2))
 regioes_unicas <- unique(na.omit(dados_brasil_concatenar_depois_imputar$REGIAO))
 
 # Inicializa lista para armazenar resultados
-resultados_regioes <- list()
+fluxo_dois_resultados_regioes <- list()
 
 for (reg in regioes_unicas) {
   message("Processando região: ", reg)
@@ -606,14 +618,16 @@ for (reg in regioes_unicas) {
     summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
 
   # Cálculo da TEF e TFT
-  tef_reg <- nascimentos_reg %>%
+  tefm_reg <- nascimentos_reg %>%
     inner_join(pop_reg, by = "Grupo_idade") %>%
-    mutate(TEF = nascimentos / Populacao)
+    mutate(TEFM = nascimentos / Populacao)
 
-  tft <- sum(tef_reg$TEF) * 5
+  tftm <- sum(tefm_reg$TEFM) * 5
+  tftm  <- formatC( tftm , format = "f", digits = 2)
+  tefm_reg$TEFM <- formatC(tefm_reg$TEFM, format = "f", digits = 4)
 
-  resultados_regioes[[reg]] <- list(tef = tef_reg, tft = tft)
-  message("TFT para região (fluxo 2) ", reg, ": ", round(tft, 2))
+  fluxo_dois_resultados_regioes[[reg]] <- list(tefm = tefm_reg, tftm = tftm)
+  message("TFT para região (fluxo 2) ", reg, ": ", tftm)
 }
 
 ```
@@ -646,12 +660,15 @@ pop_br <- populacao %>%
   summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
 
 # Cálculo da TEF e TFT
-tef_br <- nascimentos_br %>%
+fluxo_dois_tefm_br <- nascimentos_br %>%
   inner_join(pop_br, by = "Grupo_idade") %>%
-  mutate(TEF = nascimentos / Populacao)
+  mutate(TEFM = nascimentos / Populacao)
 
-tft_brasil <- sum(tef_br$TEF) * 5
-message("TFT Brasil (fluxo 2): ", round(tft_brasil, 2))
+fluxo_dois_tftm_brasil <- sum(fluxo_dois_tefm_br$TEFM) * 5
+fluxo_dois_tftm_brasil <- formatC(fluxo_dois_tftm_brasil, format = "f", digits = 2)
+fluxo_dois_tefm_br$TEFM <- formatC(fluxo_dois_tefm_br$TEFM, format = "f", digits = 4)
+
+message("TFT Brasil (fluxo 2): ",fluxo_dois_tftm_brasil)
 
 ```
 ### FLUXO 3
@@ -683,12 +700,16 @@ pop_br <- populacao %>%
   summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
 
 # Cálculo da TEF e TFT
-tef_br <- nascimentos_br %>%
+fluxo_tres_tefm_br <- nascimentos_br %>%
   inner_join(pop_br, by = "Grupo_idade") %>%
-  mutate(TEF = nascimentos / Populacao)
+  mutate(TEFM = nascimentos / Populacao)
 
-tft_brasil <- sum(tef_br$TEF) * 5
-message("TFT Brasil (fluxo 3): ", round(tft_brasil, 2))
+fluxo_tres_tftm_brasil <- sum(fluxo_tres_tefm_br$TEFM) * 5
+
+fluxo_tres_tftm_brasil <- formatC(fluxo_tres_tftm_brasil, format = "f", digits = 2)
+fluxo_tres_tefm_br$TEFM <- formatC(fluxo_tres_tefm_br$TEFM, format = "f", digits = 4)
+
+message("TFT Brasil (fluxo 3): ",fluxo_tres_tftm_brasil)
 
 ```
 
@@ -800,7 +821,6 @@ for (reg in regioes_unicas) {
 
 #### Brasil
 ```{r}
-message("Processando Brasil com dados imputados antes da concatenação")
 
 dados_brasil <- dados_brasil_imputado_depois_concatenado
 
@@ -843,60 +863,10 @@ message("TFTF Brasil: ", tftf_brasil)
 
 
 
-#------------------------------------
+#------------------------------------ refazer as tabelas para imputação
 
 
 
-taxas masculinas
-
-```{r, eval=FALSE}
-
-# Loop por UF
-for (uf in UFs) {
-  
-  message("Processando UF: ", uf)
-
-  # Subconjunto da população para a UF, sexo feminino, ano 2022
-  pop_uf <- populacao %>%
-    filter(SEXO == "Homens", SIGLA == uf) %>%
-    pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
-    mutate(
-      Ano = as.integer(Ano),
-      Grupo_idade = cut(IDADE, breaks = seq(15, 60, 5), right = FALSE)
-    ) %>%
-    filter(!is.na(Grupo_idade)) %>%
-    group_by(Grupo_idade) %>%
-    summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
-
-  # Carrega dados de nascimentos imputados
-  uf_imputado <- get(paste0(uf, "_imputado"))
-
-  # Agrupa os nascimentos por grupo etário da mãe
-  nascimentos_uf <- uf_imputado %>%
-    mutate(
-      Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 60, 5), right = FALSE)
-    ) %>%
-    group_by(Grupo_idade) %>%
-    summarise(nascimentos = n(), .groups = "drop") %>%
-    filter(!is.na(Grupo_idade))
-
-  # Junta população e nascimentos e calcula a TEF
-  tef_uf <- nascimentos_uf %>%
-    inner_join(pop_uf, by = "Grupo_idade") %>%
-    mutate(TEF = nascimentos / Populacao)
-
-  # Calcula a Taxa de Fecundidade Total (TFT)
-  tft <- sum(tef_uf$TEF) * 5
-
-  # Exibe os resultados
-  message("TFT para ", uf, ": ", round(tft, 2))
-
-  # Salva objetos com nomes específicos
-  assign(paste0("tefm_", uf), tef_uf)
-  assign(paste0("tftm_", uf), tft)
-}
-
-```
 
 ```{r, eval=FALSE}
 # Cria uma lista com os dataframes de cada estado e adiciona a coluna UF
