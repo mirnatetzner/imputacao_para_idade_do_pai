@@ -11,11 +11,11 @@ date: "2025-05-13"
 # - Geração de relatórios de missing
 # - Exportação para Excel
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(dplyr)
 pacotes <- c("microdatasus", "mice", "stringr", "ggmice", "lubridate", "readxl", 
              "hms", "naniar", "future.apply", "data.table", "boot", 
-             "tidyverse", "ggplot2", "writexl", "Amelia", "openxlsx", "extrafont")
+             "tidyverse", "ggplot2", "writexl", "Amelia", "openxlsx", "extrafont","rlang")
 
 pacotes %>% purrr::walk(~ { if (!require(.x, character.only = TRUE)) install.packages(.x) })
 
@@ -62,7 +62,7 @@ UFs <- c(
 
 brasil_regioes = c("BR","NO","ND","SD","SU","CO")
 
-ano = "2012"
+ano = "2022"
 
 ```
 
@@ -340,7 +340,7 @@ names(dados_regioes) <- regioes
 message("Concatenando regiões com UFs imputadas...")
 
 # Junta tudo em um único dataframe nacional
-dados_brasil_imputado_depois_concatenado <- bind_rows(dados_regioes, .id = "REGIAO")
+fluxo_um <- bind_rows(dados_regioes, .id = "REGIAO")
 rm(dados_regioes)
 message("----------------------- Fim do fluxo 1: imputação por UF -----------------------------------")
 
@@ -359,7 +359,7 @@ message("----------------------- Fim do fluxo 1: imputação por UF ------------
 message("Iniciando imputação por região, com concatenação antes da imputação...")
 
 # Lista para armazenar os dados imputados por região
-dados_regioes_concatenar_depois_imputar <- lapply(unique(na.omit(uf_regiao$SIGLA_regiao_lable)), function(sigla_regiao) {
+dado_regioes_concatenar_depois_imputar <- lapply(unique(na.omit(uf_regiao$SIGLA_regiao_lable)), function(sigla_regiao) {
   
   # Descobre as UFs dessa região
   ufs <- uf_regiao %>%
@@ -370,7 +370,7 @@ dados_regioes_concatenar_depois_imputar <- lapply(unique(na.omit(uf_regiao$SIGLA
   # Concatena os dados dessas UFs
   df_regiao <- bind_rows(lapply(ufs, get), .id = "UF")
   
-  # Adiciona coluna com a sigla da UF (caso necessário)
+  # Adiciona coluna com a sigla da UF 
   df_regiao$UF <- rep(ufs, sapply(lapply(ufs, get), nrow))
   
   # Imputa os dados concatenados da região
@@ -383,10 +383,10 @@ dados_regioes_concatenar_depois_imputar <- lapply(unique(na.omit(uf_regiao$SIGLA
 })
 
 # Nomeia cada lista com a sigla da região
-names(dados_regioes_concatenar_depois_imputar) <- unique(na.omit(uf_regiao$SIGLA_regiao_lable))
+names(dado_regioes_concatenar_depois_imputar) <- unique(na.omit(uf_regiao$SIGLA_regiao_lable))
 
 # Junta tudo em um único dataframe
-dados_brasil_concatenar_depois_imputar <- bind_rows(dados_regioes_concatenar_depois_imputar)
+fluxo_dois <- bind_rows(dado_regioes_concatenar_depois_imputar)
 
 message("--------------------- Fim  do fluxo 2: imputação por região ---------------------")
 
@@ -403,10 +403,10 @@ dados_brasil_tudo_antes_imputar <- bind_rows(lapply(UFs, get), .id = "UF")
 dados_brasil_tudo_antes_imputar$UF <- rep(UFs, sapply(lapply(UFs, get), nrow))
 
 # Aplica a imputação sobre o Brasil inteiro
-dados_brasil_tudo_antes_imputar_imputado <- imputar_idadepai(dados_brasil_tudo_antes_imputar)
+dado_brasil_tudo_antes_imputar_imputado <- imputar_idadepai(dados_brasil_tudo_antes_imputar)
 
 # Adiciona coluna REGIAO com base em tabela auxiliar
-dados_brasil_tudo_antes_imputar_imputado <- dados_brasil_tudo_antes_imputar_imputado %>%
+fluxo_tres <- dado_brasil_tudo_antes_imputar_imputado %>%
   left_join(uf_regiao %>% select(SIGLA, SIGLA_regiao_lable), by = c("UF" = "SIGLA")) %>%
   rename(REGIAO = SIGLA_regiao_lable)
 
@@ -448,11 +448,11 @@ for (uf in UFs) {
     ) %>%
     filter(!is.na(Grupo_idade)) %>%
     group_by(Grupo_idade) %>%
-    summarise(Populacao = sum(`2012`, na.rm = TRUE), .groups = "drop")
+    summarise(Populacao = sum(!!sym(as.character(ano)), na.rm = TRUE), .groups = "drop")
 
  
   # Filtra os dados imputados da UF
-  uf_imputado <- dados_brasil_imputado_depois_concatenado %>%
+  uf_imputado <- fluxo_um %>%
     filter(UF == uf)
 
   # Agrupa os nascimentos por grupo etário da mãe
@@ -488,7 +488,7 @@ for (uf in UFs) {
 #### Regiões
 ```{r}
 # Lista de regiões presentes no dataframe
-regioes_unicas <- unique(na.omit(dados_brasil_imputado_depois_concatenado$REGIAO))
+regioes_unicas <- unique(na.omit(fluxo_um$REGIAO))
 
 # Inicializa lista para armazenar resultados
 fluxo_um_resultados_regioes <- list()
@@ -496,7 +496,7 @@ fluxo_um_resultados_regioes <- list()
 for (reg in regioes_unicas) {
   message("Processando região: ", reg)
 
-  dados_regiao <- dados_brasil_imputado_depois_concatenado %>%
+  dados_regiao <- fluxo_um %>%
     filter(REGIAO == reg)
 
   # Nascimentos por grupo etário
@@ -521,7 +521,7 @@ for (reg in regioes_unicas) {
     summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
 
   # Cálculo da TEF e TFT
-  fluxo_um_tefm_reg <- nascimentos_reg %>%
+  tefm_reg <- nascimentos_reg %>%
     inner_join(pop_reg, by = "Grupo_idade") %>%
     mutate(TEFM = nascimentos / Populacao)
 
@@ -539,7 +539,7 @@ for (reg in regioes_unicas) {
 ```{r}
 message("Processando Brasil com dados imputados antes da concatenação")
 
-dados_brasil <- dados_brasil_imputado_depois_concatenado
+dados_brasil <- fluxo_um
 
 # Agrupamento por grupo etário da mãe
 nascimentos_br <- dados_brasil %>%
@@ -585,7 +585,7 @@ message("TFT Brasil (fluxo 1): ", fluxo_um_tftm_brasil)
 #### Regiões
 ```{r}
 # Lista de regiões presentes no dataframe
-regioes_unicas <- unique(na.omit(dados_brasil_concatenar_depois_imputar$REGIAO))
+regioes_unicas <- unique(na.omit(fluxo_dois$REGIAO))
 
 # Inicializa lista para armazenar resultados
 fluxo_dois_resultados_regioes <- list()
@@ -593,7 +593,7 @@ fluxo_dois_resultados_regioes <- list()
 for (reg in regioes_unicas) {
   message("Processando região: ", reg)
 
-  dados_regiao <- dados_brasil_concatenar_depois_imputar %>%
+  dados_regiao <- fluxo_dois %>%
     filter(REGIAO == reg)
 
   # Nascimentos por grupo etário
@@ -636,7 +636,7 @@ for (reg in regioes_unicas) {
 ```{r}
 message("Processando Brasil com dados concatenados antes da imputação")
 
-dados_brasil <- dados_brasil_concatenar_depois_imputar
+dados_brasil <- fluxo_dois
 
 # Agrupamento por grupo etário da mãe
 nascimentos_br <- dados_brasil %>%
@@ -676,7 +676,7 @@ message("TFT Brasil (fluxo 2): ",fluxo_dois_tftm_brasil)
 ```{r}
 message("Processando Brasil com dados todos (ufs e regioes) concatenados antes da imputação")
 
-dados_brasil <- dados_brasil_tudo_antes_imputar_imputado
+dados_brasil <- fluxo_tres
 
 # Agrupamento por grupo etário da mãe
 nascimentos_br <- dados_brasil %>%
@@ -730,11 +730,11 @@ for (uf in UFs) {
     ) %>%
     filter(!is.na(Grupo_idade)) %>%
     group_by(Grupo_idade) %>%
-    summarise(Populacao = sum(`2012`, na.rm = TRUE), .groups = "drop")
+    summarise(Populacao = sum(!!sym(as.character(ano)), na.rm = TRUE), .groups = "drop")
 
  
   # Filtra os dados imputados da UF
-  uf_imputado <- dados_brasil_imputado_depois_concatenado %>%
+  uf_imputado <- fluxo_um %>%
     filter(UF == uf)
 
   # Agrupa os nascimentos por grupo etário da mãe
@@ -769,14 +769,14 @@ for (uf in UFs) {
 #### Regiões
 ```{r}
 # Lista de regiões presentes no dataframe
-regioes_unicas <- unique(na.omit(dados_brasil_imputado_depois_concatenado$REGIAO))
+regioes_unicas <- unique(na.omit(fluxo_um$REGIAO))
 
 # Inicializa lista para armazenar resultados
-resultados_regioes <- list()
+resultados_regioes_tftf <- list()
 
 for (reg in regioes_unicas) {
 
-  dados_regiao <- dados_brasil_imputado_depois_concatenado %>%
+  dados_regiao <- fluxo_um %>%
     filter(REGIAO == reg)
 
   # Nascimentos por grupo etário
@@ -812,7 +812,7 @@ for (reg in regioes_unicas) {
    teff_reg$TEFF <- formatC(teff_reg$TEFF, format = "f", digits = 4)
  
 
-  resultados_regioes[[reg]] <- list(teff = teff_reg, tftf = tftf)
+  resultados_regioes_tftf[[reg]] <- list(teff = teff_reg, tftf = tftf)
   message("TFTF para região ", reg, ": ", tftf)
   
 }
@@ -822,7 +822,7 @@ for (reg in regioes_unicas) {
 #### Brasil
 ```{r}
 
-dados_brasil <- dados_brasil_imputado_depois_concatenado
+dados_brasil <- fluxo_um
 
 # Agrupamento por grupo etário da mãe
 nascimentos_br <- dados_brasil %>%
@@ -866,7 +866,223 @@ message("TFTF Brasil: ", tftf_brasil)
 #------------------------------------ refazer as tabelas para imputação
 
 
+TABELA FLUXO 1 TFTM
 
+```{r}
+# Nomes das regiões já presentes no objeto
+regioes <- names(fluxo_um_resultados_regioes)
+
+# Junta os dataframes TEFM de cada região e adiciona a coluna UF com o nome da região
+tefm_regioes <- map_dfr(regioes, function(reg) {
+  df <- fluxo_um_resultados_regioes[[reg]]$tefm
+  df$UF <- reg
+  df
+})
+
+# Adiciona o Brasil
+fluxo_um_tefm_br$UF <- "BR"
+tefm_regioes <- bind_rows(tefm_regioes, fluxo_um_tefm_br)
+
+# Dados dos estados (como você já tinha)
+tefm_estados <- map_dfr(UFs, function(uf) {
+  df <- get(paste0("tefm_", uf))
+  df$UF <- uf
+  df
+})
+
+tefm_todos <- bind_rows(tefm_estados, tefm_regioes)
+
+ordem_final <- c(
+  "BR", "NO", "ND", "SD", "SU", "CO",  # Regiões
+  "RO", "AC", "AM", "RR", "PA", "AP", "TO",  # Norte
+  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",  # Nordeste
+  "MG", "ES", "RJ", "SP",  # Sudeste
+  "PR", "SC", "RS",  # Sul
+  "MS", "MT", "GO", "DF"   # Centro-Oeste
+)
+tefm_tabela_larga <- tefm_todos %>%
+  select(-nascimentos, -Populacao) %>%
+  mutate(
+    UF = factor(UF, levels = ordem_final),
+    TEFM = as.numeric(sub(",", ".", TEFM))  # converte para número real
+  ) %>%
+  pivot_wider(
+    names_from = Grupo_idade,
+    values_from = TEFM  # move os valores de TEFM para as colunas
+  ) %>%
+  arrange(UF)
+
+openxlsx::write.xlsx(tefm_tabela_larga, paste0(path_res, ano, "_fluxo_UM_tefm.xlsx"), overwrite = TRUE)
+
+```
+
+
+
+
+TABELA FLUXO 2 e 3 TEFM e TFTM
+
+```{r}
+
+# Define nomes das regiões presentes no objeto
+regioes <- names(fluxo_dois_resultados_regioes)
+
+# Junta os dataframes TEFM de cada região e adiciona a coluna UF com o nome da região
+tefm_regioes <- map_dfr(regioes, function(reg) {
+  df <- fluxo_dois_resultados_regioes[[reg]]$tefm
+  df$UF <- reg
+  df
+})
+
+# Adiciona o Brasil
+fluxo_dois_tefm_br$UF <- "BR"
+tefm_todos <- bind_rows(tefm_regioes, fluxo_dois_tefm_br)
+
+ordem_regioes <- c("BR", "NO", "ND", "SD", "SU", "CO")
+
+tefm_fluxo_dois_larga <- tefm_todos %>%
+  select(-nascimentos, -Populacao) %>%
+  mutate(
+    UF = factor(UF, levels = ordem_regioes),
+    TEFM = as.numeric(sub(",", ".", TEFM))  
+  ) %>%
+  pivot_wider(names_from = Grupo_idade, values_from = TEFM) %>%
+  arrange(UF)
+
+#---------------
+
+fluxo_tres_tefm_br_larga <- fluxo_tres_tefm_br %>%
+  select(Grupo_idade, TEFM) %>%  # mantém só o necessário
+  pivot_wider(names_from = Grupo_idade, values_from = TEFM) %>%
+  mutate(UF = "BR") %>%
+  select(UF, everything())  # coloca UF na primeira coluna
+
+#---------------
+
+# Lista de regiões
+regioes <- names(fluxo_dois_resultados_regioes)
+
+# Extrai os TFTs das regiões em formato tidy
+tft_fluxo_dois_regioes <- map_dfr(regioes, function(reg) {
+  tibble(
+    UF = reg,
+    TFT = fluxo_dois_resultados_regioes[[reg]]$tftm)
+})
+# Cria tibble com TFT do Brasil (fluxo 2)
+tft_fluxo_dois_br <- tibble(
+  UF = "BR",
+  TFT = fluxo_dois_tftm_brasil[[1]])
+
+# Adiciona a linha do Brasil
+tft_fluxo_dois_todos <- bind_rows(
+  tibble(UF = "BR", TFT =  tft_fluxo_dois_br$TFT),
+  tft_fluxo_dois_regioes
+)
+
+fluxo_tres_tftm_brasil_trib <- tibble(
+  UF = "BR",
+  TFT = fluxo_tres_tftm_brasil[[2]]
+)
+
+caminho_arquivo <- paste0(path_res, ano, "_TEF_TFT_Fluxos.xlsx")
+
+
+write_xlsx(
+  list(
+    "Fluxo2_TEFM" = tefm_fluxo_dois_larga,
+    "Fluxo3_TEFM_BR" = fluxo_tres_tefm_br_larga,
+    "Fluxo2_TFTM_Regioes" = tft_fluxo_dois_todos,
+    "Fluxo3_TFTM_BR" = fluxo_tres_tftm_brasil_trib
+  ),
+  path = caminho_arquivo)
+
+
+
+```
+
+
+Femininas
+```{r}
+# Nomes das regiões já presentes no objeto
+regioes <- names(resultados_regioes_tftf)
+
+# Junta os dataframes TEFM de cada região e adiciona a coluna UF com o nome da região
+teff_regioes <- map_dfr(regioes, function(reg) {
+  df <-  resultados_regioes_tftf[[reg]]$teff
+  df$UF <- reg
+  df
+})
+
+# Adiciona o Brasil
+teff_br$UF <- "BR"
+teff_regioes_br <- bind_rows(teff_regioes, teff_br)
+
+# Dados dos estados teff
+teff_estados <- map_dfr(UFs, function(uf) {
+  df <- get(paste0("teff_", uf))
+  df$UF <- uf
+  df
+})
+
+
+teff_todos <- bind_rows(teff_estados, teff_regioes_br)
+
+
+ordem_final <- c(
+  "BR", "NO", "ND", "SD", "SU", "CO",  # Regiões
+  "RO", "AC", "AM", "RR", "PA", "AP", "TO",  # Norte
+  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",  # Nordeste
+  "MG", "ES", "RJ", "SP",  # Sudeste
+  "PR", "SC", "RS",  # Sul
+  "MS", "MT", "GO", "DF"   # Centro-Oeste
+)
+teff_tabela_larga <- teff_todos %>%
+  select(-nascimentos, -Populacao) %>%
+  mutate(
+    UF = factor(UF, levels = ordem_final),
+    TEFF =TEFF  
+  ) %>%
+  pivot_wider(
+    names_from = Grupo_idade,
+    values_from = TEFF  # move os valores de TEFM para as colunas
+  ) %>%
+  arrange(UF)
+
+
+tftf_estados <- map_dfr(UFs, function(uf) {
+  valor <- get(paste0("tftf_", uf))
+  tibble(
+    UF = uf,
+    TFTF = valor)
+})
+
+tftf_regioes <- map_dfr(regioes, function(reg) {
+  tibble(
+    UF = reg,
+    TFTF = resultados_regioes_tftf[[reg]]$tftf
+  )
+})
+
+valor_br_tftf = tftf_brasil
+tftf_brasil_uniao <- tibble(
+  UF = "BR",
+  TFTF = valor_br_tftf  
+)
+
+tftf_todos <- bind_rows(tftf_estados, tftf_regioes, tftf_brasil_uniao)
+
+tftf_todos<- tftf_todos %>%
+  mutate(UF = factor(UF, levels = ordem_final)) %>%
+  arrange(UF)
+
+write_xlsx(list(tefm_tabela_larga,tftf_todos), paste0(path_res, ano, "_taxas_femininas.xlsx"))
+
+```
+
+
+
+
+
+#--------- DEPRECADO
 
 ```{r, eval=FALSE}
 # Cria uma lista com os dataframes de cada estado e adiciona a coluna UF
@@ -876,12 +1092,12 @@ tefm_todos <- map_dfr(UFs, function(uf) {
   df
 })
 
-# Visualização organizada 
+
 tefm_todos <- tefm_todos %>%
   select(UF, everything()) %>%
   arrange(UF, Grupo_idade)
 
-# Vetor com a ordem desejada das UFs
+# Vetor com a ordem das UFs
 UFs <- c(
   "RO", "AC", "AM", "RR", "PA", "AP", "TO",
   "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",
@@ -962,6 +1178,10 @@ write_xlsx(tabela_tft, path = paste(path_res, ano, "_TFT_por_UF.xlsx"))
 
 
 
+
+
+
+
 ```{r}
 ## Pegar os nomes dos objetos *_miss
 # ufs_miss_names <- ls(pattern = "^[A-Z]{2}_miss$")
@@ -974,24 +1194,6 @@ write_xlsx(tabela_tft, path = paste(path_res, ano, "_TFT_por_UF.xlsx"))
 # })
 
 ```
-
-
-
-
-
-
-Conferindo o resultado das taxas femininas:
-
-```{r}
-
-# projecoes_2024_tab4_indicadores <- read_excel("Downloads/projecoes_2024_tab4_indicadores.xlsx", 
-#     sheet = "4) INDICADORES")
-# 
-# projecoes_2024_tab4_indicadores %>% 
-#   filter(SIGLA %in% UFs, ANO == ano) %>%
-#   print()
-```
-
 
 
 
@@ -1009,9 +1211,9 @@ library(naniar)  # para miss_var_summary
 miss_ufs <- list()
 
 # 1. Calcular miss por UF e guardar em lista
-ufs_all <- c(norte, nordeste, centro_oeste, sudeste, sul)
+ufs_all <- c(NO, ND, CO, SD, SU)
 
-for (uf in ufs_all) {
+for (uf in UFs) {
   temp <- get(uf)  # dataframe da UF
   mis <- miss_var_summary(temp)
   assign(paste0(uf,"_miss"), mis)   # opcional salvar no ambiente global
