@@ -1,0 +1,12 @@
+Error in `as.character()`:
+! Can't convert `x` <pillar_num> to <character>.
+Run `rlang::last_trace()` to see where the error occurred.
+Error in `as.character()`:
+! Can't convert `x` <pillar_num> to <character>.
+Run `rlang::last_trace()` to see where the error occurred.
+Error in `as.character()`:
+! Can't convert `x` <pillar_num> to <character>.
+Run `rlang::last_trace()` to see where the error occurred.
+Error in `as.character()`:
+! Can't convert `x` <pillar_num> to <character>.
+Run `rlang::last_trace()` to see where the error occurred.
