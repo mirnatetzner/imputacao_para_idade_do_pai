@@ -222,7 +222,8 @@ imputar_idadepai <- function(df) {
   
   message(sprintf("Dataset com %d linhas e %d colunas antes da imputação", n_linhas_antes, n_colunas_antes))
   message(sprintf("Proporção de missing IDADEPAI antes: %.3f", pct_miss))
-  
+
+    
   if (pct_miss > 0.79) {
     message("Proporção de missings em IDADEPAI > 79%. MCIM e ao turno")
     df_imputado <- df %>%
@@ -297,6 +298,24 @@ sink(con, type = "message")
 ```{r}
 library(dplyr)
 library(purrr)
+ 
+# Inicializa listas que armazenarão os dados imputados e os dados de missings
+lista_imputados <- list()
+lista_missings <- list()
+
+for (uf in UFs) {
+  message(paste0("Iniciando imputação para UF: ", uf))
+  temp <- get(uf)
+
+  temp_imputado <- imputar_idadepai(temp)
+
+  lista_imputados[[uf]] <- temp_imputado
+  lista_missings[[uf]] <- miss_var_summary(temp)
+
+  message(paste0("Finalizada imputação para UF: ", uf))
+}
+
+
 
 # 1. Unir os dados de missing por UF em um único data frame
 miss_df <- bind_rows(lista_missings, .id = "SIGLA")
@@ -346,38 +365,21 @@ miss_df_ordenado <- miss_df_ordenado %>%
     REGIAO = REGIAO
   )
 
-caminho = paste0( path_res,ano,"miss_brasil,_regioes.xlsx")
-
-# Exportar
-write.xlsx( list(
-  "Brasil" = miss_brasil,
-  "Regiões" = miss_regioes,
-  "Por UF" = miss_df_ordenado
-), file =caminho)
-
-
-
-
-
-
-
+# caminho = paste0( path_res,ano,"miss_brasil,_regioes.xlsx")
 # 
-# # Inicializa listas que armazenarão os dados imputados e os dados de missings
-# lista_imputados <- list()
-# lista_missings <- list()
+# # Exportar
+# write.xlsx( list(
+#   "Brasil" = miss_brasil,
+#   "Regiões" = miss_regioes,
+#   "Por UF" = miss_df_ordenado
+# ), file =caminho)
 # 
-# for (uf in UFs) {
-#   message(paste0("Iniciando imputação para UF: ", uf))
-#   temp <- get(uf)
-#   
-#   temp_imputado <- imputar_idadepai(temp)
-#   
-#   lista_imputados[[uf]] <- temp_imputado
-#   lista_missings[[uf]] <- miss_var_summary(temp)
-#   
-#   message(paste0("Finalizada imputação para UF: ", uf))
-# }
-# 
+
+
+
+
+
+
 
 ```
 
@@ -944,18 +946,53 @@ tefm_regioes <- map_dfr(regioes, function(reg) {
   df
 })
 
+tftm_regioes <- map_dfr(regioes, function(reg) {
+  tft <- fluxo_um_resultados_regioes[[reg]]$tft
+  tibble(
+    UF = reg,
+    TFTM = tft
+  )
+})
+
+
 # Adiciona o Brasil
 fluxo_um_tefm_br$UF <- "BR"
 tefm_regioes <- bind_rows(tefm_regioes, fluxo_um_tefm_br)
 
-# Dados dos estados (como você já tinha)
+fluxo_um_tftm_brasil$UF <- "BR"
+
+# Criar tibble
+tftm_brasil <- tibble(
+  UF = fluxo_um_tftm_brasil$UF,
+  TFTM = fluxo_um_tftm_brasil[[1]]
+)
+
+tftm_regioes <- bind_rows(tftm_regioes, tftm_brasil)
+
+
+
+
+# Dados dos estados
 tefm_estados <- map_dfr(UFs, function(uf) {
   df <- get(paste0("tefm_", uf))
   df$UF <- uf
   df
 })
 
+
+tftm_estados <- map_dfr(UFs, function(uf) {
+  df <- get(paste0("tftm_", uf))
+  valor = df
+  tibble(   
+  UF  = uf,
+  TFTM = valor
+)})
+
+ 
+
 tefm_todos <- bind_rows(tefm_estados, tefm_regioes)
+tftm_todos <- bind_rows(tftm_estados, tftm_regioes)
+
 
 ordem_final <- c(
   "BR", "NO", "ND", "SD", "SU", "CO",  # Regiões
@@ -969,7 +1006,7 @@ tefm_tabela_larga <- tefm_todos %>%
   select(-nascimentos, -Populacao) %>%
   mutate(
     UF = factor(UF, levels = ordem_final),
-    TEFM = as.numeric(sub(",", ".", TEFM))  # converte para número real
+    #TEFM = as.numeric(sub(",", ".", TEFM))  # converte para número real
   ) %>%
   pivot_wider(
     names_from = Grupo_idade,
@@ -977,7 +1014,15 @@ tefm_tabela_larga <- tefm_todos %>%
   ) %>%
   arrange(UF)
 
-openxlsx::write.xlsx(tefm_tabela_larga, paste0(path_res, ano, "_fluxo_UM_tefm.xlsx"), overwrite = TRUE)
+tftm_tabela_larga <- tftm_todos %>%
+  mutate(
+    UF = factor(UF, levels = ordem_final),
+  ) %>%
+  arrange(UF)
+
+
+
+# openxlsx::write.xlsx(tefm_tabela_larga, paste0(path_res, ano, "_fluxo_UM_tefm.xlsx"), overwrite = TRUE)
 
 ```
 
@@ -1053,10 +1098,12 @@ caminho_arquivo <- paste0(path_res, ano, "_TEF_TFT_Fluxos.xlsx")
 
 write_xlsx(
   list(
+    "Fluxo1_TEFM" = tefm_tabela_larga,
     "Fluxo2_TEFM" = tefm_fluxo_dois_larga,
-    "Fluxo3_TEFM_BR" = fluxo_tres_tefm_br_larga,
-    "Fluxo2_TFTM_Regioes" = tft_fluxo_dois_todos,
-    "Fluxo3_TFTM_BR" = fluxo_tres_tftm_brasil_trib
+    "Fluxo3_TEFM_br" = fluxo_tres_tefm_br_larga,
+    "Fluxo1_TFTM_uf_reg_br" = tftm_tabela_larga,
+    "Fluxo2_TFTM_reg_br" = tft_fluxo_dois_todos,
+    "Fluxo3_TFTM_br" = fluxo_tres_tftm_brasil_trib
   ),
   path = caminho_arquivo)
 
