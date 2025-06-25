@@ -385,34 +385,6 @@ simular_ausencia <- function(dt, proporcao, mecanismo) {
 
 ```
 
-Estrutura matrizes de preditores para método norm.nob
-
-```{r}
-library(mice)
-
-# Suponha que você já tenha o imp
-imp <- mice(amostracompleta, print = FALSE)
-
-# 1. predictorMatrix mae
-predictorMatrix_mae <- imp$predictorMatrix
-predictorMatrix_mae[,] <- 0
-predictorMatrix_mae["IDADEPAI", "IDADEMAE"] <- 1
-
-# 2. predictorMatrix todos
-predictorMatrix_todos <- imp$predictorMatrix
-predictorMatrix_todos[,] <- 0
-predictorMatrix_todos["IDADEPAI", "IDADEMAE"] <- 1
-predictorMatrix_todos["IDADEPAI", "ESTCIVMAE"] <- 1
-predictorMatrix_todos["IDADEPAI", "TPFUNCRESP"] <- 1
-predictorMatrix_todos["IDADEPAI", "HORANASC_turno"] <- 1
-
-# 3. Agora juntar as duas em uma lista
-lista_predictorMatrix <- list(
-  regressao_mae = predictorMatrix_mae,
-  regressao_todos = predictorMatrix_todos
-)
-
-```
 
 Define a função para a imputação
 
@@ -456,23 +428,7 @@ imputar_valores <- function(df, metodo) {
       group_by(IDADEMAE, HORANASC_turno) %>%
       mutate(IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI)) %>%
         ungroup()
-} else if (metodo == "pmm_mae") {
-    # atribui metodo para idade do pai
-  indice_idadepai <- which(names(imput) == "IDADEPAI")
-    method <- rep("", ncol(imput))
-    method[indice_idadepai] <- "pmm"
-    names(method) <- names(imput) 
-
-  imp <- mice(
-    imput, 
-    method = method, 
-    predictorMatrix = lista_predictorMatrix[["regressao_mae"]], 
-    print = FALSE,
-    m = 1 
-  )
-  imput <- complete(imp) # transformar em df
-  
-} 
+}
  else {
     stop("Método de imputação desconhecido")
   }
@@ -508,75 +464,7 @@ valores_dc_originais <- c(
 
 ```
 
-Simulações
-
-```{r, eval=FALSE}
-# 
-# 
-# # Definir o número de simulações
-# nsim <- 500
-# 
-# # Define as proporções de dados ausentes a serem testadas
-# proporcoes <- c(0.2, 0.4, 0.6, 0.8)
-# 
-# # Defina os mecanismos de ausência a serem simulados
-# mecanismos <- c("MCAR", "MAR", "MNAR")
-# 
-# # Defina o seed para garantir que os números aleatórios sejam consistentes
-# set.seed(123)
-# 
-# # Roda a função com lapply 
-# resultados_todos <- lapply(proporcoes, function(prop) {
-#   cat("Executando para proporção:", prop, "\n")
-#   
-#   resultados_completos <- lapply(mecanismos, function(mecanismo) {
-#     cat("Mecanismo:", mecanismo, "\n")
-#     
-#     # Executa para cada simulação
-#     resultados_simulacao <- lapply(1:nsim, function(i) {
-#       set.seed(i)
-#       
-#       # Gerar amostra e simular ausência de dados
-#       
-#       amostra <- amostracompleta[sample(nrow(amostracompleta), replace = TRUE), ]
-#       amostra_miss <- simular_ausencia(amostra, prop, mecanismo)
-#       
-#        # Rodar todos os métodos de imputação
-#           resultados_metodos <- lapply(c("Analise_de_casos_completos","media_simples", "mediana_simples", "mediana_condicional_IDADEMAE",
-#                                "mediana_condicional_IDADEMAE_e_ESTCIV",
-#                                "mediana_condicional_IDADEMAE_e_funcao_resp",
-#                                "mediana_condicional_IDADEMAE_e_HORANASC_turno"),
-#            function(metodo) {
-#         imputado <- imputar_valores(amostra_miss, metodo)
-#         
-#         
-#         # Extrair quantis (decis)
-#         decis_imput <- extrair_decis(imputado$IDADEPAI)
-#         
-#      # Montar os dados finais para essa simulação
-#         dados <- c(
-#           proporcao = prop,
-#           mecanismo = mecanismo,
-#           repeticao = i,
-#           metodo = metodo,
-#           imputado_media = mean(imputado$IDADEPAI, na.rm = TRUE),
-#           imputado_mediana = median(imputado$IDADEPAI, na.rm = TRUE),
-#           unlist(decis_imput)
-#         )
-#         return(as.data.frame(as.list(dados), stringsAsFactors = FALSE))
-#       })
-#       
-#       return(do.call(rbind, resultados_metodos))
-#     })
-#     
-#     return(bind_rows(resultados_simulacao))
-#   })
-#   
-#   return(bind_rows(resultados_completos))
-# }) %>% bind_rows()
-# 
-
-```
+## Simulações
 
 ```{r}
 # Definir o número de simulações
