@@ -23,8 +23,8 @@ pacotes %>% purrr::walk(~ { if (!require(.x, character.only = TRUE)) install.pac
 
 caminhos:
 ```{r}
- base_path <- "D:/Mirna/ENCE/DISSERTACAO/"
-#base_path <- "/home/mramos/Documentos/Dissetacao/"
+# base_path <- "D:/Mirna/ENCE/DISSERTACAO/"
+base_path <- "/home/mramos/Documentos/Dissetacao/"
 
 path <- file.path(base_path, "Dissertacao_text/imagens/")
 path_font <- file.path(base_path, "imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/")
@@ -481,4 +481,93 @@ save(list = ls(), file = nome_arquivo)
 
 
 
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggh4x)
 
+# Filtra dados e remove métodos simples
+dados_filtrados <- comparacao_tefm %>%
+  filter(!metodo %in% c("Análise de casos completos", "Média", "Mediana"))
+
+# Lista de proporções
+proporcoes <- unique(dados_filtrados$proporcao)
+
+# Loop para cada proporção
+for (p in proporcoes) {
+  
+  dados_p <- dados_filtrados %>% filter(proporcao == p)
+
+grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = RMSE_TEFM, color = metodo, group = metodo)) +
+  geom_line() +
+  geom_point() +
+  ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "free_y", strip.position = "top", axes = "all") +
+  labs(
+    title = paste("RMSE - TEFM por grupo de idade (Proporção", p, ")"),
+    x = "Grupo de Idade",
+    y = "RMSE - TEFM",
+    color = "Método"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    strip.placement = "outside",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.background = element_blank(),
+    panel.spacing = unit(1, "lines")
+  )+guides(color = guide_legend(ncol = 3))
+
+
+  # Nome do arquivo
+  nome_arquivo <- paste0("grafico_rmse_tefm_", gsub("%", "pct", p), "_facet1col_legendaembaixo.png")
+  
+  ggsave(nome_arquivo, plot = grafico, width = 6, height = 10, dpi = 300)
+}
+
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggh4x)
+
+# Filtra dados e remove métodos simples
+erros_filtrados <- erros_brutos %>%
+  filter(!metodo %in% c("Análise de casos completos", "Média", "Mediana"))
+
+# Lista de proporções
+proporcoes <- unique(erros_filtrados$proporcao)
+
+# Loop para cada proporção
+for (p in proporcoes) {
+  
+  dados_p <- erros_filtrados %>% filter(proporcao == p)
+
+grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = erro_bruto_TEFM, color = metodo, group = metodo)) +
+  geom_line() +
+  geom_point() +
+  ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "free_y", strip.position = "top", axes = "all") +
+  labs(
+    title = paste("erro_bruto_TEFM por grupo de idade (Proporção", p, ")"),
+    x = "Grupo de Idade",
+    y = "erro_bruto_TEFM",
+    color = "Método"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    strip.placement = "outside",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.background = element_blank(),
+    panel.spacing = unit(1, "lines")
+  )+guides(color = guide_legend(ncol = 3))
+
+
+  # Nome do arquivo
+  nome_arquivo <- paste0("grafico_rmse_tefm_", gsub("%", "pct", p), "_erros.png")
+  
+  ggsave(nome_arquivo, plot = grafico, width = 6, height = 10, dpi = 300)
+}
+
+```
