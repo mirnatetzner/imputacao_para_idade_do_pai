@@ -408,27 +408,49 @@ resultados <- purrr::map_dfr(proporcoes, function(prop) {
 Comparar TEFM imputada vs. real por grupo
 
 ```{r}
+# 
+# erros_brutos <- resultados %>%
+#   left_join(
+#     tefm_originais %>% select(Grupo_idade, TEFM_real = TEFM, TFTM_real = TFTM),
+#     by = "Grupo_idade"
+#   ) %>%
+#   group_by(proporcao, mecanismo, metodo, Grupo_idade, TEFM_real, TFTM_real) %>%
+#   summarise(
+#     media_TEFM = mean(TEFM),
+#     media_TFTM = mean(TFTM),
+#     erro_bruto_TEFM = media_TEFM - TEFM_real,
+#     erro_bruto_TFTM = media_TFTM - TFTM_real,
+#     .groups = "drop"
+#   )
+# 
+# comparacao_tefm <- erros_brutos %>%
+#   group_by(proporcao, mecanismo, metodo, Grupo_idade) %>%
+#   summarise(
+#     RMSE_TEFM = sqrt(sum(erro_bruto_TEFM^2) / (n() - 1)),
+#     RMSE_TFTM = sqrt(sum(erro_bruto_TFTM^2) / (n() - 1)),
+#     .groups = "drop"
+#   )
+#  
 
-erros_brutos  <- resultados %>%
-  group_by(proporcao, mecanismo, metodo, Grupo_idade) %>%
+
+# 1) Juntar valores reais, manter todas as repetições
+resultados_com_real <- resultados %>%
   left_join(
-    tefm_originais %>% select(Grupo_idade, TEFM_real = TEFM,  TFTM_real= TFTM),
+    tefm_originais %>% select(Grupo_idade, TEFM_real = TEFM, TFTM_real = TFTM),
     by = "Grupo_idade"
-  ) %>%
-  mutate(
-    erro_bruto_TEFM = mean(TEFM) - TEFM_real,
-    erro_bruto_TFTM = mean(TFTM) - TFTM_real
   )
 
-
-comparacao_tefm <- erros_brutos %>%
+# 2) Calcular RB (viés médio) e RMSE por grupo
+indicadores <- resultados_com_real %>%
   group_by(proporcao, mecanismo, metodo, Grupo_idade) %>%
   summarise(
-    RMSE_TEFM = sqrt(sum(erro_bruto_TEFM^2) / (n() - 1)),
-    RMSE_TFTM = sqrt(sum(erro_bruto_TFTM^2) / (n() - 1)),
+    RB_TEFM = mean(TEFM) - TEFM_real,                         # média dos erros = viés
+    RB_TFTM = mean(TFTM) - TFTM_real,
+    RMSE_TEFM = sqrt(mean((TEFM - TEFM_real)^2)),            # raiz da média dos quadrados dos erros
+    RMSE_TFTM = sqrt(mean((TFTM - TFTM_real)^2)),
     .groups = "drop"
   )
- 
+
 
 ```
 
@@ -458,14 +480,21 @@ padronizar_rotulos <- function(df) {
         proporcao == 0.6 ~ "60%",
         proporcao == 0.8 ~ "80%",
         TRUE ~ as.character(proporcao)
+      ),
+      mecanismo = case_when(
+        mecanismo == "MCAR" ~ "MCA",
+        mecanismo == "MAR" ~ "MA",
+        mecanismo == "MNAR" ~ "MNA",
+       TRUE ~ as.character(mecanismo)
       )
-    )
+      )
+    
 }
 
 resultados <- padronizar_rotulos(resultados)
 comparacao_tefm <- padronizar_rotulos(comparacao_tefm)
 erros_brutos <- padronizar_rotulos(erros_brutos)
-
+indicadores <- padronizar_rotulos(indicadores)
 ```
 
 
@@ -487,7 +516,7 @@ library(dplyr)
 library(ggh4x)
 
 # Filtra dados e remove métodos simples
-dados_filtrados <- comparacao_tefm %>%
+dados_filtrados <- indicadores %>%
   filter(!metodo %in% c("Análise de casos completos", "Média", "Mediana"))
 
 # Lista de proporções
@@ -519,7 +548,7 @@ grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = RMSE_TEFM, color = metodo, g
 
 
   # Nome do arquivo
-  nome_arquivo <- paste0("grafico_rmse_tefm_", gsub("%", "pct", p), "_facet1col_legendaembaixo.png")
+  nome_arquivo <- paste0("rmse_tefm_", gsub("%", "pct", p), ".png")
   
   ggsave(nome_arquivo, plot = grafico, width = 6, height = 10, dpi = 300)
 }
@@ -533,7 +562,7 @@ library(dplyr)
 library(ggh4x)
 
 # Filtra dados e remove métodos simples
-erros_filtrados <- erros_brutos %>%
+erros_filtrados <- indicadores %>%
   filter(!metodo %in% c("Análise de casos completos", "Média", "Mediana"))
 
 # Lista de proporções
@@ -544,7 +573,7 @@ for (p in proporcoes) {
   
   dados_p <- erros_filtrados %>% filter(proporcao == p)
 
-grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = erro_bruto_TEFM, color = metodo, group = metodo)) +
+grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = RB_TEFM, color = metodo, group = metodo)) +
   geom_line() +
   geom_point() +
   ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "free_y", strip.position = "top", axes = "all") +
@@ -565,9 +594,177 @@ grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = erro_bruto_TEFM, color = met
 
 
   # Nome do arquivo
-  nome_arquivo <- paste0("grafico_rmse_tefm_", gsub("%", "pct", p), "_erros.png")
+  nome_arquivo <- paste0("erros_tefm_", gsub("%", "pct", p), ".png")
   
   ggsave(nome_arquivo, plot = grafico, width = 6, height = 10, dpi = 300)
 }
 
 ```
+
+
+REQM
+```{r}
+library(tidyr)
+
+tabela_larga <- indicadores %>%
+  select(proporcao, mecanismo, metodo, RMSE_TFTM) %>%  # Seleciona as colunas relevantes
+  distinct() %>%  # Remove duplicatas (caso haja vários grupos_idade por combinação)
+  pivot_wider(
+    names_from = metodo,      # cada valor único de "metodo" vira uma coluna
+    values_from = RMSE_TFTM   # os valores vêm de "RMSE_TFTM"
+  ) %>%
+  arrange(proporcao, mecanismo)%>%
+  select(
+    mecanismo, proporcao,
+    `Análise de casos completos`,
+    `Média`,
+    `Mediana`,
+    `Mediana condicional\na idade da mãe`,
+    `Mediana condicional\n a idade da mãe\ne ao estado civil`,
+    `Mediana condicional\n a idade da mãe\ne ao turno de nascimento`,
+    `Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN`
+  ) %>% 
+    mutate(across(
+    where(is.numeric),
+    ~ formatC(.x, format = "f", digits = 4)
+  ))
+
+```
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+tabelas_por_idade <- indicadores %>%
+  select(proporcao, mecanismo, metodo, Grupo_idade, RMSE_TEFM) %>%
+  distinct() %>%
+  group_split(Grupo_idade) %>%
+  map(~ .x %>%
+        pivot_wider(
+          names_from = metodo,
+          values_from = RMSE_TEFM
+        ) %>%
+        arrange(proporcao, mecanismo) %>%
+        select(
+     mecanismo, proporcao,
+          `Análise de casos completos`,
+          `Média`,
+          `Mediana`,
+          `Mediana condicional\na idade da mãe`,
+          `Mediana condicional\n a idade da mãe\ne ao estado civil`,
+          `Mediana condicional\n a idade da mãe\ne ao turno de nascimento`,
+          `Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN`
+        ) %>%
+        mutate(across(where(is.numeric), ~ formatC(.x, format = "f", digits = 4)))
+  )
+# Pega os grupos de idade únicos na mesma ordem do split
+grupos_idade <- indicadores%>%
+  distinct(Grupo_idade) %>%
+  pull()
+
+# Atribui os nomes para a lista
+names(tabelas_por_idade) <- grupos_idade
+
+```
+
+
+
+```{r}
+# Criar pasta (opcional)
+dir.create("tabelas_rmse_tefm", showWarnings = FALSE)
+
+writexl::write_xlsx(tabela_larga, "tabelas_rmse_tefm/rmse_TFT_2022.xlsx")
+
+
+# Exportar cada tabela da lista
+walk2(tabelas_por_idade, names(tabelas_por_idade), function(tabela, nome_idade) {
+  # Criar nome limpo para arquivo
+  nome_arquivo <- paste0("tabelas_rmse_tefm/tabela_RMSE_TEFM_", gsub("\\[|\\]|,", "", nome_idade), ".xlsx")
+  write_xlsx(tabela, nome_arquivo)
+})
+```
+
+erro bruto
+```{r}
+
+tabela_larga_erro <- indicadores %>%
+  select(proporcao, mecanismo, metodo, RB_TFTM) %>%  # Seleciona as colunas relevantes
+  distinct() %>%  # Remove duplicatas (caso haja vários grupos_idade por combinação)
+  pivot_wider(
+    names_from = metodo,      # cada valor único de "metodo" vira uma coluna
+    values_from = RB_TFTM   # os valores vêm de "RB_TFTM"
+  ) %>%
+  arrange(proporcao, mecanismo)%>%
+  select(
+    mecanismo, proporcao,
+    `Análise de casos completos`,
+    `Média`,
+    `Mediana`,
+    `Mediana condicional\na idade da mãe`,
+    `Mediana condicional\n a idade da mãe\ne ao estado civil`,
+    `Mediana condicional\n a idade da mãe\ne ao turno de nascimento`,
+    `Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN`
+  ) %>% 
+    mutate(across(
+    where(is.numeric),
+    ~ formatC(.x, format = "f", digits = 4)
+  ))
+
+```
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+tabelas_por_idade_erro <- indicadores %>%
+  select(proporcao, mecanismo, metodo, Grupo_idade, RB_TEFM) %>%
+  distinct() %>%
+  group_split(Grupo_idade) %>%
+  map(~ .x %>%
+        pivot_wider(
+          names_from = metodo,
+          values_from = RB_TEFM
+        ) %>%
+        arrange(proporcao, mecanismo) %>%
+        select(
+           mecanismo, proporcao,
+          `Análise de casos completos`,
+          `Média`,
+          `Mediana`,
+          `Mediana condicional\na idade da mãe`,
+          `Mediana condicional\n a idade da mãe\ne ao estado civil`,
+          `Mediana condicional\n a idade da mãe\ne ao turno de nascimento`,
+          `Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN`
+        ) %>%
+        mutate(across(where(is.numeric), ~ formatC(.x, format = "f", digits = 4)))
+  )
+# Pega os grupos de idade únicos na mesma ordem do split
+grupos_idade <- indicadores %>%
+  distinct(Grupo_idade) %>%
+  pull()
+
+# Atribui os nomes para a lista
+names(tabelas_por_idade_erro) <- grupos_idade
+
+```
+
+
+```{r}
+
+
+writexl::write_xlsx(tabela_larga_erro, "tabelas_rmse_tefm/erro_TFT_2022.xlsx")
+
+
+# Exportar cada tabela da lista
+walk2(tabelas_por_idade_erro, names(tabelas_por_idade_erro), function(tabela, nome_idade) {
+  # Criar nome limpo para arquivo
+  nome_arquivo <- paste0("tabelas_rmse_tefm/Erro_TEFM_", gsub("\\[|\\]|,", "", nome_idade), ".xlsx")
+  write_xlsx(tabela, nome_arquivo)
+})
+```
+
