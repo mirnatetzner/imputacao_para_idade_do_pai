@@ -408,30 +408,6 @@ resultados <- purrr::map_dfr(proporcoes, function(prop) {
 Comparar TEFM imputada vs. real por grupo
 
 ```{r}
-# 
-# erros_brutos <- resultados %>%
-#   left_join(
-#     tefm_originais %>% select(Grupo_idade, TEFM_real = TEFM, TFTM_real = TFTM),
-#     by = "Grupo_idade"
-#   ) %>%
-#   group_by(proporcao, mecanismo, metodo, Grupo_idade, TEFM_real, TFTM_real) %>%
-#   summarise(
-#     media_TEFM = mean(TEFM),
-#     media_TFTM = mean(TFTM),
-#     erro_bruto_TEFM = media_TEFM - TEFM_real,
-#     erro_bruto_TFTM = media_TFTM - TFTM_real,
-#     .groups = "drop"
-#   )
-# 
-# comparacao_tefm <- erros_brutos %>%
-#   group_by(proporcao, mecanismo, metodo, Grupo_idade) %>%
-#   summarise(
-#     RMSE_TEFM = sqrt(sum(erro_bruto_TEFM^2) / (n() - 1)),
-#     RMSE_TFTM = sqrt(sum(erro_bruto_TFTM^2) / (n() - 1)),
-#     .groups = "drop"
-#   )
-#  
-
 
 # 1) Juntar valores reais, manter todas as repetições
 resultados_com_real <- resultados %>%
@@ -446,8 +422,10 @@ indicadores <- resultados_com_real %>%
   summarise(
     RB_TEFM = mean(TEFM) - TEFM_real,                         # média dos erros = viés
     RB_TFTM = mean(TFTM) - TFTM_real,
-    RMSE_TEFM = sqrt(mean((TEFM - TEFM_real)^2)),            # raiz da média dos quadrados dos erros
-    RMSE_TFTM = sqrt(mean((TFTM - TFTM_real)^2)),
+    PB_TEFM = 100 * abs((mean(TEFM) - TEFM_real) / TEFM_real),
+    PB_TFTM = 100 * abs((mean(TFTM) - TFTM_real) / TFTM_real),
+    REQM_TEFM = sqrt(mean((TEFM - TEFM_real)^2)),            # raiz da média dos quadrados dos erros
+    REQM_TFTM = sqrt(mean((TFTM - TFTM_real)^2)),
     .groups = "drop"
   )
 
@@ -527,14 +505,14 @@ for (p in proporcoes) {
   
   dados_p <- dados_filtrados %>% filter(proporcao == p)
 
-grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = RMSE_TEFM, color = metodo, group = metodo)) +
+grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = REQM_TEFM, color = metodo, group = metodo)) +
   geom_line() +
   geom_point() +
   ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "free_y", strip.position = "top", axes = "all") +
   labs(
-    title = paste("RMSE - TEFM por grupo de idade (Proporção", p, ")"),
+    title = paste("REQM - TEFM por grupo de idade (Proporção", p, ")"),
     x = "Grupo de Idade",
-    y = "RMSE - TEFM",
+    y = "REQM - TEFM",
     color = "Método"
   ) +
   theme_minimal() +
@@ -548,7 +526,7 @@ grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = RMSE_TEFM, color = metodo, g
 
 
   # Nome do arquivo
-  nome_arquivo <- paste0("rmse_tefm_", gsub("%", "pct", p), ".png")
+  nome_arquivo <- paste0("REQM_tefm_", gsub("%", "pct", p), ".png")
   
   ggsave(nome_arquivo, plot = grafico, width = 6, height = 10, dpi = 300)
 }
@@ -578,9 +556,9 @@ grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = RB_TEFM, color = metodo, gro
   geom_point() +
   ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "free_y", strip.position = "top", axes = "all") +
   labs(
-    title = paste("erro_bruto_TEFM por grupo de idade (Proporção", p, ")"),
+    title = paste("Erro bruto TEFM por grupo de idade (Proporção", p, ")"),
     x = "Grupo de Idade",
-    y = "erro_bruto_TEFM",
+    y = "Erro bruto TEFM",
     color = "Método"
   ) +
   theme_minimal() +
@@ -600,6 +578,54 @@ grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = RB_TEFM, color = metodo, gro
 }
 
 ```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggh4x)
+
+# Filtra dados e remove métodos simples
+pb_filtrados <- indicadores 
+# %>%
+#   filter(!metodo %in% c("Análise de casos completos", "Média", "Mediana"))
+
+# Lista de proporções
+proporcoes <- unique(pb_filtrados$proporcao)
+
+# Loop para cada proporção
+for (p in proporcoes) {
+  
+  dados_p <- pb_filtrados %>% filter(proporcao == p)
+
+grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = PB_TEFM, color = metodo, group = metodo)) +
+  geom_line() +
+  geom_point() +
+  ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "free_y", strip.position = "top", axes = "all") +
+  labs(
+    title = paste(""),
+    x = "Grupo de Idade",
+    y = "Viés relativo TEFM",
+    color = "Método"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    strip.placement = "outside",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.background = element_blank(),
+    panel.spacing = unit(1, "lines")
+  )+guides(color = guide_legend(ncol = 3))
+
+
+  # Nome do arquivo
+  nome_arquivo <- paste0("PB_tefm_", gsub("%", "pct", p), ".pdf")
+  
+  ggsave(nome_arquivo, plot = grafico, width = 6, height = 10, dpi = 300)
+}
+
+```
+
 
 
 REQM

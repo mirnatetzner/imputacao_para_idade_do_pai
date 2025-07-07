@@ -210,6 +210,73 @@ for (uf in UFs) {
 # Etapa 3 - Imputação
 * MCIM - Mediana Condicional a Idade da Mãe
 ```{r}
+# library(dplyr)
+# library(naniar)  # para miss_var_summary
+# 
+# # --- 1. Função para imputar IDADEPAI ---
+# imputar_idadepai <- function(df) {
+#   
+#   n_linhas_antes <- nrow(df)
+#   n_colunas_antes <- ncol(df)
+#   pct_miss <- mean(is.na(df$IDADEPAI))
+#   
+#   message(sprintf("Dataset com %d linhas e %d colunas antes da imputação", n_linhas_antes, n_colunas_antes))
+#   message(sprintf("Proporção de missing IDADEPAI antes: %.3f", pct_miss))
+# 
+#     
+#   if (pct_miss > 0.79) {
+#     message("Proporção de missings em IDADEPAI > 79%. MCIM e ao turno")
+#     df_imputado <- df %>%
+#       group_by(IDADEMAE, HORANASC_turno) %>%
+#       mutate(
+#         idadepai_foi_imputada = is.na(IDADEPAI),
+#         IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+#         metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM e ao turno", NA_character_)
+#       ) %>%
+#       ungroup()
+#   } else if (!"TPFUNCRESP" %in% names(df)) {
+#     message("Variável TPFUNCRESP não encontrada. Usando apenas IDADEMAE para imputação.")
+#     df_imputado <- df %>%
+#       group_by(IDADEMAE) %>%
+#       mutate(
+#         idadepai_foi_imputada = is.na(IDADEPAI),
+#         IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+#         metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM apenas idade mãe (TPFUNCRESP ausente)", NA_character_)
+#       ) %>%
+#       ungroup()
+#   } else {
+#     message("Imputação realizada com MCIM e função do responsável")
+#     df_imputado <- df %>%
+#       group_by(IDADEMAE, TPFUNCRESP) %>%
+#       mutate(
+#         idadepai_foi_imputada = is.na(IDADEPAI),
+#         IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+#         metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM e a função", NA_character_)
+#       ) %>%
+#       ungroup()
+#   }
+#   
+#   if (any(is.na(df_imputado$IDADEPAI))) {
+#     message("Realizando imputação complementar com MCIM apenas por IDADEMAE")
+#     df_imputado <- df_imputado %>%
+#       group_by(IDADEMAE) %>%
+#       mutate(
+#         idadepai_foi_imputada = ifelse(is.na(IDADEPAI), TRUE, idadepai_foi_imputada),
+#         IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+#         metodo_imputacao = ifelse(is.na(IDADEPAI) & idadepai_foi_imputada, "MCIM apenas idade mãe", metodo_imputacao)
+#       ) %>%
+#       ungroup()
+#   }
+#   
+#   return(df_imputado)
+# }
+# 
+
+```
+
+
+-----
+```{r}
 library(dplyr)
 library(naniar)  # para miss_var_summary
 
@@ -223,57 +290,23 @@ imputar_idadepai <- function(df) {
   message(sprintf("Dataset com %d linhas e %d colunas antes da imputação", n_linhas_antes, n_colunas_antes))
   message(sprintf("Proporção de missing IDADEPAI antes: %.3f", pct_miss))
 
+    df_imputado <- df %>%
+  group_by(IDADEMAE) %>%
+  mutate(idadepai_foi_imputada = is.na(IDADEPAI)) %>%
+  mutate(
+    IDADEPAI = ifelse(idadepai_foi_imputada, median(IDADEPAI, na.rm = TRUE), IDADEPAI),
+    metodo_imputacao = ifelse(idadepai_foi_imputada, 1, 0)
+  ) %>%
+  ungroup()
+
     
-  if (pct_miss > 0.79) {
-    message("Proporção de missings em IDADEPAI > 79%. MCIM e ao turno")
-    df_imputado <- df %>%
-      group_by(IDADEMAE, HORANASC_turno) %>%
-      mutate(
-        idadepai_foi_imputada = is.na(IDADEPAI),
-        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
-        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM e ao turno", NA_character_)
-      ) %>%
-      ungroup()
-  } else if (!"TPFUNCRESP" %in% names(df)) {
-    message("Variável TPFUNCRESP não encontrada. Usando apenas IDADEMAE para imputação.")
-    df_imputado <- df %>%
-      group_by(IDADEMAE) %>%
-      mutate(
-        idadepai_foi_imputada = is.na(IDADEPAI),
-        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
-        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM apenas idade mãe (TPFUNCRESP ausente)", NA_character_)
-      ) %>%
-      ungroup()
-  } else {
-    message("Imputação realizada com MCIM e função do responsável")
-    df_imputado <- df %>%
-      group_by(IDADEMAE, TPFUNCRESP) %>%
-      mutate(
-        idadepai_foi_imputada = is.na(IDADEPAI),
-        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
-        metodo_imputacao = ifelse(idadepai_foi_imputada, "MCIM e a função", NA_character_)
-      ) %>%
-      ungroup()
-  }
-  
-  if (any(is.na(df_imputado$IDADEPAI))) {
-    message("Realizando imputação complementar com MCIM apenas por IDADEMAE")
-    df_imputado <- df_imputado %>%
-      group_by(IDADEMAE) %>%
-      mutate(
-        idadepai_foi_imputada = ifelse(is.na(IDADEPAI), TRUE, idadepai_foi_imputada),
-        IDADEPAI = ifelse(is.na(IDADEPAI), median(IDADEPAI, na.rm = TRUE), IDADEPAI),
-        metodo_imputacao = ifelse(is.na(IDADEPAI) & idadepai_foi_imputada, "MCIM apenas idade mãe", metodo_imputacao)
-      ) %>%
-      ungroup()
-  }
-  
   return(df_imputado)
 }
 
 
 ```
 
+-----
 
 ```{r}
 # Abrir arquivo para capturar stdout e mensagens (console)
@@ -1194,6 +1227,252 @@ write_xlsx(list(teff_tabela_larga,tftf_todos), paste0(path_res, ano, "_taxas_fem
 
 
 
+```{r}
+library(dplyr)
+library(ggplot2)
+library(glue)
+library(purrr)
+
+
+plot_tef_por_uf <- function(uf) {
+  # Construir nomes dos objetos
+  nome_tefm <- glue("tefm_{uf}")
+  nome_teff <- glue("teff_{uf}")
+  
+  # Obter os data frames a partir do ambiente global
+  tefm <- get(nome_tefm, envir = .GlobalEnv)
+  teff <- get(nome_teff, envir = .GlobalEnv)
+
+  # Corrigir colunas TEF
+  tefm_proc <- tefm %>%
+    mutate(TEF = as.numeric(gsub(",", ".", TEFM)),
+           Tipo = "TEFM") %>%
+    select(Grupo_idade, TEF, Tipo)
+
+  teff_proc <- teff %>%
+    mutate(TEF = as.numeric(gsub(",", ".", TEFF)),
+           Tipo = "TEFF") %>%
+    select(Grupo_idade, TEF, Tipo)
+
+  # Juntar
+  tef_total <- bind_rows(tefm_proc, teff_proc)
+
+  # Ordenar faixas etárias
+  tef_total <- tef_total %>%
+    mutate(Grupo_idade = factor(Grupo_idade, levels = unique(Grupo_idade)))
+
+  # Gerar gráfico
+  ggplot(tef_total, aes(x = Grupo_idade, y = TEF, color = Tipo, group = Tipo)) +
+    geom_line(size = 1) +
+    geom_point(size = 2) +
+    labs(
+      #title = glue("{uf}"), #Taxa Específica de Fecundidade Masculina e Feminina por Faixa Etária - 
+      x = "Grupo de Idade",
+      y = "Taxa Específica de Fecundidade",
+      color = "Sexo"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),   
+          axis.text.y = element_text(size = 14),                          
+          axis.title.x = element_text(size = 14),          
+          axis.title.y = element_text(size = 14),          
+          legend.title = element_text(size = 13),          
+          legend.text = element_text(size = 12),                          
+          legend.position = "bottom")
+}
+
+
+library(fs)  # para criar diretórios
+
+salvar_graficos_por_regiao <- function(uf_regiao, path_base = ".") {
+  regioes <- na.omit(unique(uf_regiao$SIGLA_regiao_lable))
+  
+  for (reg in regioes) {
+    ufs_da_regiao <- uf_regiao %>%
+      filter(SIGLA_regiao_lable == reg) %>%
+      pull(SIGLA)
+    
+    # Criar pasta da região
+    path_regiao <- file.path(path_base, paste0("graficos_tef_", reg))
+    if (!dir_exists(path_regiao)) dir_create(path_regiao)
+    
+    for (uf in ufs_da_regiao) {
+      # Tenta gerar o gráfico
+      plot <- tryCatch({
+        plot_tef_por_uf(uf)
+      }, error = function(e) {
+        message(glue("❌ Erro ao gerar gráfico para {uf}: {e$message}"))
+        return(NULL)
+      })
+      
+      # Se gráfico foi gerado com sucesso, salvar
+      if (!is.null(plot)) {
+        nome_arquivo <- file.path(path_regiao, glue("TEF_{uf}.png"))
+        ggsave(filename = nome_arquivo, plot = plot, width = 6, height = 4, dpi = 300)
+        message(glue("✅ Gráfico salvo: {nome_arquivo}"))
+      }
+    }
+  }
+}
+
+
+
+salvar_graficos_por_regiao(uf_regiao, path_base = path)
+
+
+```
+
+# Brasil e regiões
+```{r}
+library(dplyr)
+library(ggplot2)
+library(purrr)
+library(glue)
+
+# Extrair e combinar os dados de cada região
+dados_regioes <- imap_dfr(fluxo_um_resultados_regioes, function(reg, nome_regiao) {
+  reg$tefm %>%
+    mutate(
+      TEF = as.numeric(gsub(",", ".", TEFM)),
+      UF = nome_regiao
+    ) %>%
+    select(Grupo_idade, TEF, UF)
+})
+
+# Incluir o Brasil
+dados_brasil <- fluxo_um_tefm_br %>%
+  mutate(
+    TEF = as.numeric(gsub(",", ".", TEFM)),
+    UF = "BR"
+  ) %>%
+  select(Grupo_idade, TEF, UF)
+
+# Juntar tudo
+dados_total <- bind_rows(dados_regioes, dados_brasil)
+
+# Corrigir ordem das faixas etárias
+dados_total <- dados_total %>%
+  mutate(Grupo_idade = factor(Grupo_idade, levels = unique(Grupo_idade)))
+
+# Gráfico
+ggplot(dados_total, aes(x = Grupo_idade, y = TEF, color = UF, group = UF)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(
+    # title = "Taxa Específica de Fecundidade Masculina por Faixa Etária – Brasil e Regiões",
+    x = "Grupo de Idade",
+    y = "Taxa Específica de Fecundidade Masculina",
+    color = "Região"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_text(size = 14, face = "bold"),
+    legend.title = element_text(size = 13, face = "bold"),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
+    legend.position = "bottom"
+  )
+
+# filename = paste0(path,"TEFM_Brasil_Regioes.png" )
+# ggsave(filename, width = 8, height = 6, dpi = 300)
+
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(glue)
+library(fs)
+library(purrr)
+
+# Função principal para região ou Brasil
+plot_teff_tefm_regiao <- function(regiao, teff_todos, fluxo_tefm, fluxo_tefm_br, uf_regiao) {
+  if (regiao == "BR") {
+    # --- Dados do Brasil ---
+    tefm <- fluxo_tefm_br %>%
+      mutate(
+        TEF = as.numeric(gsub(",", ".", TEFM)),
+        Tipo = "TEFM"
+      ) %>%
+      select(Grupo_idade, TEF, Tipo)
+    
+    teff <- teff_todos %>%
+      filter(UF == "BR") %>%
+      mutate(
+        TEF = as.numeric(gsub(",", ".", TEFF)),
+        Tipo = "TEFF"
+      ) %>%
+      select(Grupo_idade, TEF, Tipo)
+
+  } else {
+
+
+    teff <- teff_todos %>%
+      filter(UF == regiao) %>%
+      mutate(TEF = as.numeric(gsub(",", ".", TEFF)),
+        Tipo = "TEFF",
+        .groups = "drop"
+      )
+
+    # TEFM: vem da lista
+    tefm_raw <- fluxo_tefm[[regiao]]$tefm
+    tefm <- tefm_raw %>%
+      mutate(
+        TEF = as.numeric(gsub(",", ".", TEFM)),
+        Tipo = "TEFM"
+      ) %>%
+      select(Grupo_idade, TEF, Tipo)
+  }
+
+  # Combinar TEFM e TEFF
+  dados <- bind_rows(tefm, teff) %>%
+    mutate(
+      Grupo_idade = factor(Grupo_idade, levels = unique(Grupo_idade))
+    )
+
+  # Criar diretório
+  dir_create(path)
+
+  # Plot
+  grafico <- ggplot(dados, aes(x = Grupo_idade, y = TEF, color = Tipo, group = Tipo)) +
+    geom_line(size = 1) +
+    geom_point(size = 2) +
+    labs(
+      #title = glue("Taxa Específica de Fecundidade por Faixa Etária – {regiao}"),
+      x = "Grupo de Idade",
+      y = "Taxa Específica de Fecundidade",
+      color = "Sexo"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+      axis.text.y = element_text(size = 12),
+      axis.title = element_text(size = 14),
+      legend.title = element_text(size = 14),
+      legend.text = element_text(size = 12),
+      #plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
+      legend.position = "bottom"
+    )
+
+  # Salvar
+  nome_arquivo <- file.path(path, glue("TEF_{regiao}.png"))
+  ggsave(nome_arquivo, grafico, width = 7, height = 5, dpi = 300)
+
+  message(glue("✅ Gráfico salvo: {nome_arquivo}"))
+}
+
+
+# Rodar para cada região
+walk(c("NO", "ND", "CO", "SD", "SU", "BR"), ~ 
+  plot_teff_tefm_regiao(.x, teff_todos, fluxo_um_resultados_regioes, fluxo_um_tefm_br, uf_regiao)
+)
+
+```
+
+
 #--------- DEPRECADO
 
 
@@ -1246,151 +1525,151 @@ write_xlsx(list(teff_tabela_larga,tftf_todos), paste0(path_res, ano, "_taxas_fem
 ```{r}
 
 
-library(naniar)  # para miss_var_summary
-
-
-# Lista para armazenar resultados por UF
-miss_ufs <- list()
-
-# 1. Calcular miss por UF e guardar em lista
-ufs_all <- c(NO, ND, CO, SD, SU)
-
-for (uf in UFs) {
-  temp <- get(uf)  # dataframe da UF
-  mis <- miss_var_summary(temp)
-  assign(paste0(uf,"_miss"), mis)   # opcional salvar no ambiente global
-  miss_ufs[[uf]] <- mis              # salvar em lista para acesso rápido
-}
-
-# 2. Calcular miss para cada região concatenando os dataframes das UFs
-
-for (nome_regiao in names(regioes)) {
-  ufs <- regioes[[nome_regiao]]  # vetor de UFs da região
-
-  dados_regiao <- do.call(rbind, lapply(ufs, get))
-  
-  miss_regiao <- miss_var_summary(dados_regiao)
-  
-  assign(paste0(nome_regiao, "_miss"), miss_regiao)
-}
+# library(naniar)  # para miss_var_summary
+# 
+# 
+# # Lista para armazenar resultados por UF
+# miss_ufs <- list()
+# 
+# # 1. Calcular miss por UF e guardar em lista
+# ufs_all <- c(NO, ND, CO, SD, SU)
+# 
+# for (uf in UFs) {
+#   temp <- get(uf)  # dataframe da UF
+#   mis <- miss_var_summary(temp)
+#   assign(paste0(uf,"_miss"), mis)   # opcional salvar no ambiente global
+#   miss_ufs[[uf]] <- mis              # salvar em lista para acesso rápido
+# }
+# 
+# # 2. Calcular miss para cada região concatenando os dataframes das UFs
+# 
+# for (nome_regiao in names(regioes)) {
+#   ufs <- regioes[[nome_regiao]]  # vetor de UFs da região
+# 
+#   dados_regiao <- do.call(rbind, lapply(ufs, get))
+#   
+#   miss_regiao <- miss_var_summary(dados_regiao)
+#   
+#   assign(paste0(nome_regiao, "_miss"), miss_regiao)
+# }
 
 
 ```
 
 
 ```{r}
-library(dplyr)
-library(tidyr)
-
-# Função para agregar missings por região
-miss_regiao <- lapply(names(regioes), function(reg) {
-  ufs <- regioes[[reg]]
-  # Pegar os missings das UFs da região e concatenar
-  miss_ufs <- do.call(rbind, lista_missings[ufs])
-  
-  # Agrupar por variável e calcular soma de missing e média de pct_missing ponderada por tamanho?
-  # Se quiser média simples:
-  miss_agrup <- miss_ufs %>%
-    group_by(variable) %>%
-    summarise(
-      n_miss = sum(n_miss),
-      pct_miss = mean(pct_miss)
-    ) %>%
-    mutate(REGIAO = reg)
-  
-  return(miss_agrup)
-})
-
-# Dataframe único com missings por região
-miss_regioes_df <- bind_rows(miss_regiao)
+# library(dplyr)
+# library(tidyr)
+# 
+# # Função para agregar missings por região
+# miss_regiao <- lapply(names(regioes), function(reg) {
+#   ufs <- regioes[[reg]]
+#   # Pegar os missings das UFs da região e concatenar
+#   miss_ufs <- do.call(rbind, lista_missings[ufs])
+#   
+#   # Agrupar por variável e calcular soma de missing e média de pct_missing ponderada por tamanho?
+#   # Se quiser média simples:
+#   miss_agrup <- miss_ufs %>%
+#     group_by(variable) %>%
+#     summarise(
+#       n_miss = sum(n_miss),
+#       pct_miss = mean(pct_miss)
+#     ) %>%
+#     mutate(REGIAO = reg)
+#   
+#   return(miss_agrup)
+# })
+# 
+# # Dataframe único com missings por região
+# miss_regioes_df <- bind_rows(miss_regiao)
 
 ```
 
 
 ```{r}
-miss_brasil_df <- miss_var_summary(dados_brasil) %>%
-  mutate(REGIAO = "Brasil")
+# miss_brasil_df <- miss_var_summary(dados_brasil) %>%
+#   mutate(REGIAO = "Brasil")
 
 ```
 
 ```{r}
 # Adicionar coluna UF nas tabelas originais de missings
-ufs_miss_df <- do.call(rbind, lapply(names(lista_missings), function(uf) {
-  df <- lista_missings[[uf]]
-  df$UF <- uf
-  df
-}))
-
-# Concatenar todas as tabelas com coluna de origem
-miss_total <- bind_rows(
-  ufs_miss_df %>% mutate(NIVEL = "UF"),
-  miss_regioes_df %>% rename(UF = REGIAO) %>% mutate(NIVEL = "Região"),
-  miss_brasil_df %>% rename(UF = REGIAO) %>% mutate(NIVEL = "Brasil")
-)
+# ufs_miss_df <- do.call(rbind, lapply(names(lista_missings), function(uf) {
+#   df <- lista_missings[[uf]]
+#   df$UF <- uf
+#   df
+# }))
+# 
+# # Concatenar todas as tabelas com coluna de origem
+# miss_total <- bind_rows(
+#   ufs_miss_df %>% mutate(NIVEL = "UF"),
+#   miss_regioes_df %>% rename(UF = REGIAO) %>% mutate(NIVEL = "Região"),
+#   miss_brasil_df %>% rename(UF = REGIAO) %>% mutate(NIVEL = "Brasil")
+# )
 
 ```
 
 ```{r}
 
-
-# Dicionário com nomes originais e nomes novos
-mapeamento_nomes <- c(
-  IDADEPAI      = "Idade do pai",
-  ESTCIVMAE     = "Estado civil da mãe",
-  TPFUNCRESP    = "Função",
-  IDADEMAE      = "Idade da mãe",
-  HORANASC_turno = "Turno da hora do nascimento"
-)
-
-renomear_colunas_seguro <- function(df) {
-  nomes_atuais <- colnames(df)
-  nomes_novos <- nomes_atuais
-  for (i in seq_along(nomes_atuais)) {
-    if (nomes_atuais[i] %in% names(mapeamento_nomes)) {
-      nomes_novos[i] <- mapeamento_nomes[nomes_atuais[i]]
-    }
-  }
-  colnames(df) <- nomes_novos
-  return(df)
-}
-
-library(tidyr)
-library(scales)
-
-# Ajustar tipos e ordenar
-miss_total <- miss_total %>%
-  mutate(
-    n_miss = as.numeric(n_miss),
-    pct_miss = as.numeric(pct_miss)
-  ) %>%
-  select(UF, everything()) %>%
-  mutate(UF = factor(UF, levels = c("Brasil",names(regioes) , ufs_all))) %>%
-  arrange(UF)
-
-miss_total <- miss_total %>%
-  rename(codigo_lugar = UF) 
-
-# Tabela wide com percentuais formatados
-tabela_pct <- miss_total %>%
-  select(codigo_lugar, variable, pct_miss) %>%
-  pivot_wider(names_from = variable, values_from = pct_miss) %>%
-  mutate(across(where(is.numeric), ~ scales::percent(.x / 100, accuracy = 0.01)))
-
-
-# Tabela wide com números absolutos formatados
-tabela_abs <- miss_total %>%
-  select(codigo_lugar, variable, n_miss) %>%
-  pivot_wider(names_from = variable, values_from = n_miss) %>%
-  mutate(across(where(is.numeric), ~ format(.x, big.mark = ".", decimal.mark = ",")))
-
-# Renomear colunas (reaproveitando sua função)
-tabela_abs <- renomear_colunas_seguro(tabela_abs)
-tabela_pct <- renomear_colunas_seguro(tabela_pct)
-
-# Exportar XLSX
-openxlsx::write.xlsx(tabela_pct, paste0(path_res, ano, "_tabela_pct_miss.xlsx"), overwrite = TRUE)
-openxlsx::write.xlsx(tabela_abs, paste0(path_res, ano, "_tabela_n_miss.xlsx"), overwrite = TRUE)
-
+# 
+# # Dicionário com nomes originais e nomes novos
+# mapeamento_nomes <- c(
+#   IDADEPAI      = "Idade do pai",
+#   ESTCIVMAE     = "Estado civil da mãe",
+#   TPFUNCRESP    = "Função",
+#   IDADEMAE      = "Idade da mãe",
+#   HORANASC_turno = "Turno da hora do nascimento"
+# )
+# 
+# renomear_colunas_seguro <- function(df) {
+#   nomes_atuais <- colnames(df)
+#   nomes_novos <- nomes_atuais
+#   for (i in seq_along(nomes_atuais)) {
+#     if (nomes_atuais[i] %in% names(mapeamento_nomes)) {
+#       nomes_novos[i] <- mapeamento_nomes[nomes_atuais[i]]
+#     }
+#   }
+#   colnames(df) <- nomes_novos
+#   return(df)
+# }
+# 
+# library(tidyr)
+# library(scales)
+# 
+# # Ajustar tipos e ordenar
+# miss_total <- miss_total %>%
+#   mutate(
+#     n_miss = as.numeric(n_miss),
+#     pct_miss = as.numeric(pct_miss)
+#   ) %>%
+#   select(UF, everything()) %>%
+#   mutate(UF = factor(UF, levels = c("Brasil",names(regioes) , ufs_all))) %>%
+#   arrange(UF)
+# 
+# miss_total <- miss_total %>%
+#   rename(codigo_lugar = UF) 
+# 
+# # Tabela wide com percentuais formatados
+# tabela_pct <- miss_total %>%
+#   select(codigo_lugar, variable, pct_miss) %>%
+#   pivot_wider(names_from = variable, values_from = pct_miss) %>%
+#   mutate(across(where(is.numeric), ~ scales::percent(.x / 100, accuracy = 0.01)))
+# 
+# 
+# # Tabela wide com números absolutos formatados
+# tabela_abs <- miss_total %>%
+#   select(codigo_lugar, variable, n_miss) %>%
+#   pivot_wider(names_from = variable, values_from = n_miss) %>%
+#   mutate(across(where(is.numeric), ~ format(.x, big.mark = ".", decimal.mark = ",")))
+# 
+# # Renomear colunas (reaproveitando sua função)
+# tabela_abs <- renomear_colunas_seguro(tabela_abs)
+# tabela_pct <- renomear_colunas_seguro(tabela_pct)
+# 
+# # Exportar XLSX
+# openxlsx::write.xlsx(tabela_pct, paste0(path_res, ano, "_tabela_pct_miss.xlsx"), overwrite = TRUE)
+# openxlsx::write.xlsx(tabela_abs, paste0(path_res, ano, "_tabela_n_miss.xlsx"), overwrite = TRUE)
+# 
 
 
 ```
@@ -1400,51 +1679,51 @@ openxlsx::write.xlsx(tabela_abs, paste0(path_res, ano, "_tabela_n_miss.xlsx"), o
 
 ## Para o Brasil
 ```{r}
-# POPULAÇÃO BRASIL
-pop_fem_brasil <- populacao %>%
-  filter(SEXO == "Homens", SIGLA %in% ufs_all) %>%
-  pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
-  mutate(
-    Ano = as.integer(Ano),
-    Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
-  ) %>%
-  filter(!is.na(Grupo_idade)) %>%
-  group_by(Grupo_idade) %>%
-  summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
-
-pop_masc_brasil <- populacao %>%
-  filter(SEXO == "Homens", SIGLA %in% ufs_all) %>%
-  pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
-  mutate(
-    Ano = as.integer(Ano),
-    Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
-  ) %>%
-  filter(!is.na(Grupo_idade)) %>%
-  group_by(Grupo_idade) %>%
-  summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
-
-nasc_fem_brasil <- dados_brasil %>%
-  mutate(Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)) %>%
-  group_by(Grupo_idade) %>%
-  summarise(nascimentos = n(), .groups = "drop") %>%
-  filter(!is.na(Grupo_idade))
-
-nasc_masc_brasil <- dados_brasil %>%
-  mutate(Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)) %>%
-  group_by(Grupo_idade) %>%
-  summarise(nascimentos = n(), .groups = "drop") %>%
-  filter(!is.na(Grupo_idade))
-
-teff_brasil <- nasc_fem_brasil %>%
-  inner_join(pop_fem_brasil, by = "Grupo_idade") %>%
-  mutate(TEF = nascimentos / Populacao)
-
-tefm_brasil <- nasc_masc_brasil %>%
-  inner_join(pop_masc_brasil, by = "Grupo_idade") %>%
-  mutate(TEF = nascimentos / Populacao)
-
-tftf_brasil <- sum(teff_brasil$TEF) * 5
-tftm_brasil <- sum(tefm_brasil$TEF) * 5
+# # POPULAÇÃO BRASIL
+# pop_fem_brasil <- populacao %>%
+#   filter(SEXO == "Homens", SIGLA %in% ufs_all) %>%
+#   pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+#   mutate(
+#     Ano = as.integer(Ano),
+#     Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+#   ) %>%
+#   filter(!is.na(Grupo_idade)) %>%
+#   group_by(Grupo_idade) %>%
+#   summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+# 
+# pop_masc_brasil <- populacao %>%
+#   filter(SEXO == "Homens", SIGLA %in% ufs_all) %>%
+#   pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
+#   mutate(
+#     Ano = as.integer(Ano),
+#     Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
+#   ) %>%
+#   filter(!is.na(Grupo_idade)) %>%
+#   group_by(Grupo_idade) %>%
+#   summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
+# 
+# nasc_fem_brasil <- dados_brasil %>%
+#   mutate(Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)) %>%
+#   group_by(Grupo_idade) %>%
+#   summarise(nascimentos = n(), .groups = "drop") %>%
+#   filter(!is.na(Grupo_idade))
+# 
+# nasc_masc_brasil <- dados_brasil %>%
+#   mutate(Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)) %>%
+#   group_by(Grupo_idade) %>%
+#   summarise(nascimentos = n(), .groups = "drop") %>%
+#   filter(!is.na(Grupo_idade))
+# 
+# teff_brasil <- nasc_fem_brasil %>%
+#   inner_join(pop_fem_brasil, by = "Grupo_idade") %>%
+#   mutate(TEF = nascimentos / Populacao)
+# 
+# tefm_brasil <- nasc_masc_brasil %>%
+#   inner_join(pop_masc_brasil, by = "Grupo_idade") %>%
+#   mutate(TEF = nascimentos / Populacao)
+# 
+# tftf_brasil <- sum(teff_brasil$TEF) * 5
+# tftm_brasil <- sum(tefm_brasil$TEF) * 5
 
 ```
 
@@ -1452,15 +1731,15 @@ tftm_brasil <- sum(tefm_brasil$TEF) * 5
 unificando
 
 ```{r}
-# Consolidar TFTs
-tabela_tft_completa <- bind_rows(
-  tabela_tft,  # já existente com UFs
-  tibble(UF = names(tftf_regioes), TFT_feminino = unlist(tftf_regioes), TFT_masculino = unlist(tftm_regioes)),
-  tibble(UF = "Brasil", TFT_feminino = tftf_brasil, TFT_masculino = tftm_brasil)
-)
-
-# Exportar
-write_xlsx(tabela_tft_completa, path = paste0(path_res, ano, "_TFT_por_UF_Regiao_Brasil.xlsx"))
+# # Consolidar TFTs
+# tabela_tft_completa <- bind_rows(
+#   tabela_tft,  # já existente com UFs
+#   tibble(UF = names(tftf_regioes), TFT_feminino = unlist(tftf_regioes), TFT_masculino = unlist(tftm_regioes)),
+#   tibble(UF = "Brasil", TFT_feminino = tftf_brasil, TFT_masculino = tftm_brasil)
+# )
+# 
+# # Exportar
+# write_xlsx(tabela_tft_completa, path = paste0(path_res, ano, "_TFT_por_UF_Regiao_Brasil.xlsx"))
 
 ```
 

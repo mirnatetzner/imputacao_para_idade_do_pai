@@ -1,331 +1,110 @@
-# A tibble: 135 × 8
-   SIGLA variable       n_miss pct_miss    UF REGIAO SIGLA_regiao_lable     n
-   <chr> <chr>           <dbl>    <dbl> <dbl>  <dbl> <chr>              <num>
- 1 RConcatenando UF imputadas por região:
-Error in FUN(X[[i]], ...) : objeto 'lista_imputados' não encontrado
 Iniciando imputação para UF: RO
 Dataset com 24901 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.720
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: RO
 Iniciando imputação para UF: AC
 Dataset com 14483 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.853
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: AC
 Iniciando imputação para UF: AM
 Dataset com 72519 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.799
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: AM
 Iniciando imputação para UF: RR
 Dataset com 13091 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.917
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: RR
 Iniciando imputação para UF: PA
 Dataset com 128000 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.802
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: PA
 Iniciando imputação para UF: AP
 Dataset com 13615 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.955
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: AP
 Iniciando imputação para UF: TO
 Dataset com 22549 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.805
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: TO
 Iniciando imputação para UF: MA
 Dataset com 97964 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.885
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: MA
 Iniciando imputação para UF: PI
 Dataset com 42247 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.925
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: PI
 Iniciando imputação para UF: CE
 Dataset com 112308 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.890
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: CE
 Iniciando imputação para UF: RN
 Dataset com 40037 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.835
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: RN
 Iniciando imputação para UF: PB
 Dataset com 50892 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.833
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: PB
 Iniciando imputação para UF: PE
 Dataset com 117437 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.864
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: PE
 Iniciando imputação para UF: AL
 Dataset com 45742 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.904
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: AL
 Iniciando imputação para UF: SE
 Dataset com 28524 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.871
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: SE
 Iniciando imputação para UF: BA
 Dataset com 173824 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.785
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: BA
 Iniciando imputação para UF: MG
 Dataset com 235063 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.564
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: MG
 Iniciando imputação para UF: ES
 Dataset com 51729 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.634
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: ES
 Iniciando imputação para UF: RJ
 Dataset com 180369 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.559
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: RJ
 Iniciando imputação para UF: SP
 Dataset com 512520 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.513
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: SP
 Iniciando imputação para UF: PR
 Dataset com 140637 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.327
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: PR
 Iniciando imputação para UF: SC
 Dataset com 98202 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.637
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: SC
 Iniciando imputação para UF: RS
 Dataset com 120942 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.347
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: RS
 Iniciando imputação para UF: MS
 Dataset com 40485 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.396
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: MS
 Iniciando imputação para UF: MT
 Dataset com 58169 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.834
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: MT
 Iniciando imputação para UF: GO
 Dataset com 89745 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.673
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: GO
 Iniciando imputação para UF: DF
 Dataset com 35928 linhas e 5 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.665
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: DF
-Iniciando imputação para UF: RO
-Dataset com 24901 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.720
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: RO
-Iniciando imputação para UF: AC
-Dataset com 14483 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.853
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: AC
-Iniciando imputação para UF: AM
-Dataset com 72519 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.799
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: AM
-Iniciando imputação para UF: RR
-Dataset com 13091 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.917
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: RR
-Iniciando imputação para UF: PA
-Dataset com 128000 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.802
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: PA
-Iniciando imputação para UF: AP
-Dataset com 13615 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.955
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: AP
-Iniciando imputação para UF: TO
-Dataset com 22549 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.805
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: TO
-Iniciando imputação para UF: MA
-Dataset com 97964 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.885
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: MA
-Iniciando imputação para UF: PI
-Dataset com 42247 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.925
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: PI
-Iniciando imputação para UF: CE
-Dataset com 112308 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.890
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: CE
-Iniciando imputação para UF: RN
-Dataset com 40037 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.835
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: RN
-Iniciando imputação para UF: PB
-Dataset com 50892 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.833
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: PB
-Iniciando imputação para UF: PE
-Dataset com 117437 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.864
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: PE
-Iniciando imputação para UF: AL
-Dataset com 45742 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.904
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: AL
-Iniciando imputação para UF: SE
-Dataset com 28524 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.871
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: SE
-Iniciando imputação para UF: BA
-Dataset com 173824 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.785
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: BA
-Iniciando imputação para UF: MG
-Dataset com 235063 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.564
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: MG
-Iniciando imputação para UF: ES
-Dataset com 51729 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.634
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: ES
-Iniciando imputação para UF: RJ
-Dataset com 180369 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.559
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: RJ
-Iniciando imputação para UF: SP
-Dataset com 512520 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.513
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: SP
-Iniciando imputação para UF: PR
-Dataset com 140637 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.327
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: PR
-Iniciando imputação para UF: SC
-Dataset com 98202 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.637
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: SC
-Iniciando imputação para UF: RS
-Dataset com 120942 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.347
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: RS
-Iniciando imputação para UF: MS
-Dataset com 40485 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.396
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: MS
-Iniciando imputação para UF: MT
-Dataset com 58169 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.834
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: MT
-Iniciando imputação para UF: GO
-Dataset com 89745 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.673
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
-Finalizada imputação para UF: GO
-Iniciando imputação para UF: DF
-Dataset com 35928 linhas e 5 colunas antes da imputação
-Proporção de missing IDADEPAI antes: 0.665
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 Finalizada imputação para UF: DF
 Concatenando UF imputadas por região:
 Concatenando regiões com UFs imputadas...
@@ -334,32 +113,20 @@ Iniciando imputação por região, com concatenação antes da imputação...
   - Região: NO | UFs: AC, AM, AP, PA, RO, RR, TO
 Dataset com 289158 linhas e 6 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.809
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
   - Região: ND | UFs: AL, BA, CE, MA, PB, PE, PI, RN, SE
 Dataset com 708975 linhas e 6 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.854
-Proporção de missings em IDADEPAI > 79%. MCIM e ao turno
-Realizando imputação complementar com MCIM apenas por IDADEMAE
   - Região: CO | UFs: DF, GO, MS, MT
 Dataset com 224327 linhas e 6 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.663
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
   - Região: SD | UFs: ES, MG, RJ, SP
 Dataset com 979681 linhas e 6 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.540
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
   - Região: SU | UFs: PR, RS, SC
 Dataset com 359781 linhas e 6 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.418
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 --------------------- Fim  do fluxo 2: imputação por região ---------------------
 Iniciando fluxo 3.3: imputação única para o Brasil inteiro (concatenação antes da imputação)
 Dataset com 2561922 linhas e 6 colunas antes da imputação
 Proporção de missing IDADEPAI antes: 0.651
-Imputação realizada com MCIM e função do responsável
-Realizando imputação complementar com MCIM apenas por IDADEMAE
 --------------------- Fim do fluxo 3: Brasil imputado de uma vez só ---------------------
