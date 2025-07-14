@@ -274,7 +274,7 @@ for (uf in UFs) {
 
 ```
 
-
+Imputar apenas pela idade da mãe, MCIM
 -----
 ```{r}
 library(dplyr)
@@ -1225,7 +1225,7 @@ write_xlsx(list(teff_tabela_larga,tftf_todos), paste0(path_res, ano, "_taxas_fem
 
 
 
-
+# graficos das TEFs
 
 ```{r}
 library(dplyr)
@@ -1322,7 +1322,7 @@ salvar_graficos_por_regiao(uf_regiao, path_base = path)
 
 ```
 
-# Brasil e regiões
+# graficos das tefs Brasil e regiões
 ```{r}
 library(dplyr)
 library(ggplot2)
@@ -1473,51 +1473,57 @@ walk(c("NO", "ND", "CO", "SD", "SU", "BR"), ~
 ```
 
 
-#--------- DEPRECADO
-
-
-```{r, eval=FALSE}
-# 
-# # Cria um data.frame consolidado com TFTs
-# tabela_tft <- do.call(rbind, lapply(UFs, function(uf) {
-#   tftf <- get(paste0("tftf_", uf))
-#   tftm <- get(paste0("tftm_", uf))
-#   data.frame(
-#     UF = uf,
-#      TFT_feminino = round(tftf, 3),
-#     TFT_masculino = round(tftm, 3)
-#   )
-# }))
-# 
-# tabela_tft <- tabela_tft %>%
-#   mutate(UF = factor(UF, levels = UFs)) %>%
-#   arrange(UF)
-# 
-# 
-# # Visualiza a tabela
-# print(tabela_tft)
-# 
-# write_xlsx(tabela_tft, path = paste(path_res, ano, "_TFT_por_UF.xlsx"))
-# 
-
-```
-
+## Razão das TFTs
 
 ```{r}
-## Pegar os nomes dos objetos *_miss
-# ufs_miss_names <- ls(pattern = "^[A-Z]{2}_miss$")
+library(dplyr)
+library(ggplot2)
 
-## Carregar os objetos e adicionar a coluna UF em cada um
-# ufs_miss_df <- purrr::map_dfr(ufs_miss_names, function(nome) {
-#  df <- get(nome)
-#  df$UF <- gsub("_miss$", "", nome)
-#  df
-# })
+# Juntar as tabelas
+tft_merged <- left_join(tftm_tabela_larga, tftf_todos, by = "UF") %>%
+  mutate(
+    TFTM = as.numeric(gsub(",", ".", TFTM)),
+    TFTF = as.numeric(gsub(",", ".", TFTF))
+  )
+
+# Plotar
+RTFT = ggplot(tft_merged, aes(x = TFTM, y = TFTF, label = UF)) +
+  geom_point(size = 1, color = "red") +
+  geom_text(vjust = -0.8, size = 3.5) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    x = "Taxa de Fecundidade Total Masculina (TFTM)",
+    y = "Taxa de Fecundidade Total Feminina (TFTF)"
+    #,title = "Comparação entre TFTM e TFTF por UF"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 11)
+  )
+
+  ggsave(paste0(path_res, "RTFT.pdf"), RTFT, width = 7, height = 5, dpi = 300)
+```
+
+```{r}
+tft_merged = tft_merged %>% 
+  mutate(RTFT = TFTM/TFTF)
+
+
+write_xlsx(tft_merged,
+  path = paste0(path_res, "Razao_TFTs.xlsx"))
+
 
 ```
 
 
 
+
+
+
+
+#--------- DEPRECADO
 
 # Missing
 
@@ -1675,71 +1681,4 @@ walk(c("NO", "ND", "CO", "SD", "SU", "BR"), ~
 ```
 
 
-
-
-## Para o Brasil
-```{r}
-# # POPULAÇÃO BRASIL
-# pop_fem_brasil <- populacao %>%
-#   filter(SEXO == "Homens", SIGLA %in% ufs_all) %>%
-#   pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
-#   mutate(
-#     Ano = as.integer(Ano),
-#     Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
-#   ) %>%
-#   filter(!is.na(Grupo_idade)) %>%
-#   group_by(Grupo_idade) %>%
-#   summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
-# 
-# pop_masc_brasil <- populacao %>%
-#   filter(SEXO == "Homens", SIGLA %in% ufs_all) %>%
-#   pivot_longer(cols = as.character(ano), names_to = "Ano", values_to = "Populacao") %>%
-#   mutate(
-#     Ano = as.integer(Ano),
-#     Grupo_idade = cut(IDADE, breaks = seq(15, 50, 5), right = FALSE)
-#   ) %>%
-#   filter(!is.na(Grupo_idade)) %>%
-#   group_by(Grupo_idade) %>%
-#   summarise(Populacao = sum(Populacao, na.rm = TRUE), .groups = "drop")
-# 
-# nasc_fem_brasil <- dados_brasil %>%
-#   mutate(Grupo_idade = cut(as.numeric(IDADEMAE), breaks = seq(15, 50, 5), right = FALSE)) %>%
-#   group_by(Grupo_idade) %>%
-#   summarise(nascimentos = n(), .groups = "drop") %>%
-#   filter(!is.na(Grupo_idade))
-# 
-# nasc_masc_brasil <- dados_brasil %>%
-#   mutate(Grupo_idade = cut(as.numeric(IDADEPAI), breaks = seq(15, 50, 5), right = FALSE)) %>%
-#   group_by(Grupo_idade) %>%
-#   summarise(nascimentos = n(), .groups = "drop") %>%
-#   filter(!is.na(Grupo_idade))
-# 
-# teff_brasil <- nasc_fem_brasil %>%
-#   inner_join(pop_fem_brasil, by = "Grupo_idade") %>%
-#   mutate(TEF = nascimentos / Populacao)
-# 
-# tefm_brasil <- nasc_masc_brasil %>%
-#   inner_join(pop_masc_brasil, by = "Grupo_idade") %>%
-#   mutate(TEF = nascimentos / Populacao)
-# 
-# tftf_brasil <- sum(teff_brasil$TEF) * 5
-# tftm_brasil <- sum(tefm_brasil$TEF) * 5
-
-```
-
-
-unificando
-
-```{r}
-# # Consolidar TFTs
-# tabela_tft_completa <- bind_rows(
-#   tabela_tft,  # já existente com UFs
-#   tibble(UF = names(tftf_regioes), TFT_feminino = unlist(tftf_regioes), TFT_masculino = unlist(tftm_regioes)),
-#   tibble(UF = "Brasil", TFT_feminino = tftf_brasil, TFT_masculino = tftm_brasil)
-# )
-# 
-# # Exportar
-# write_xlsx(tabela_tft_completa, path = paste0(path_res, ano, "_TFT_por_UF_Regiao_Brasil.xlsx"))
-
-```
 

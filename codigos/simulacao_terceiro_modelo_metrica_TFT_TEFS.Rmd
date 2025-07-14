@@ -587,8 +587,7 @@ library(ggh4x)
 
 # Filtra dados e remove métodos simples
 pb_filtrados <- indicadores 
-# %>%
-#   filter(!metodo %in% c("Análise de casos completos", "Média", "Mediana"))
+# %>%   filter(!metodo %in% c("Análise de casos completos", "Média", "Mediana"))
 
 # Lista de proporções
 proporcoes <- unique(pb_filtrados$proporcao)
@@ -615,7 +614,7 @@ grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = PB_TEFM, color = metodo, gro
     axis.text.x = element_text(angle = 45, hjust = 1),
     strip.background = element_blank(),
     panel.spacing = unit(1, "lines")
-  )+guides(color = guide_legend(ncol = 3))
+  )+guides(color = guide_legend(ncol = 2))
 
 
   # Nome do arquivo
@@ -626,6 +625,52 @@ grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = PB_TEFM, color = metodo, gro
 
 ```
 
+
+```{r}
+# Vetor de cores personalizadas por método
+
+
+# Exemplo no gráfico
+grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = PB_TEFM,
+                               color = metodo,
+                               linetype = metodo,
+                               group = interaction(metodo, mecanismo))) +
+  geom_line(size = 0.9) +
+  geom_point(size = 1.8) +
+  ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "free_y",
+                     strip.position = "top", axes = "all") +
+  scale_color_manual(values = cores_metodos) +  # aplica as cores
+  labs(
+    x = "Grupo de Idade",
+    y = "Viés relativo TEFM",
+    color = "Método",
+    linetype = "Método"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(size = 11, face = "bold"),
+    legend.text = element_text(size = 10),
+    strip.placement = "outside",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title = element_text(size = 12, face = "bold"),
+    strip.background = element_blank(),
+    panel.spacing = unit(1, "lines")
+  ) +
+  guides(color = guide_legend(ncol = 2), linetype = guide_legend(ncol = 2)) +
+  scale_linetype_manual(
+    values = c(
+      "Análise de casos completos" = "dashed",
+      "Média" = "dotdash",
+      "Mediana" = "twodash",
+      "Mediana condicional\na idade da mãe" = "solid",
+      "Mediana condicional\n a idade da mãe\ne ao estado civil" = "solid",
+      "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" = "solid",
+      "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" = "solid"
+    )
+  )
+
+```
 
 
 REQM
