@@ -963,9 +963,6 @@ message("TFTF Brasil: ", tftf_brasil)
 
 
 
-#------------------------------------ refazer as tabelas para imputação
-
-
 TABELA FLUXO 1 TFTM
 
 ```{r}
@@ -1269,9 +1266,11 @@ plot_tef_por_uf <- function(uf) {
       #title = glue("{uf}"), #Taxa Específica de Fecundidade Masculina e Feminina por Faixa Etária - 
       x = "Grupo de Idade",
       y = "Taxa Específica de Fecundidade",
-      color = "Sexo"
-    ) +
-    theme_minimal() +
+      color = ""
+    ) + scale_y_continuous(
+    limits = c(0, 0.15),
+    labels = scales::number_format(accuracy = 0.001, decimal.mark = ",") # 3 casas e vírgula
+)+theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),   
           axis.text.y = element_text(size = 14),                          
           axis.title.x = element_text(size = 14),          
@@ -1321,6 +1320,117 @@ salvar_graficos_por_regiao(uf_regiao, path_base = path)
 
 
 ```
+### grafico por região
+```{r}
+
+
+library(dplyr)
+library(ggplot2)
+library(glue)
+library(purrr)
+library(fs)
+
+plot_tef_por_regiao <- function(ufs) {
+  lista_tef <- map(ufs, function(uf) {
+    nome_tefm <- glue("tefm_{uf}")
+    nome_teff <- glue("teff_{uf}")
+    
+    tefm <- get(nome_tefm, envir = .GlobalEnv)
+    teff <- get(nome_teff, envir = .GlobalEnv)
+    
+    tefm_proc <- tefm %>%
+      mutate(
+        TEF = as.numeric(gsub(",", ".", TEFM)),
+        Tipo = "TEFM",
+        UF = uf
+      ) %>%
+      select(UF, Grupo_idade, TEF, Tipo)
+    
+    teff_proc <- teff %>%
+      mutate(
+        TEF = as.numeric(gsub(",", ".", TEFF)),
+        Tipo = "TEFF",
+        UF = uf
+      ) %>%
+      select(UF, Grupo_idade, TEF, Tipo)
+    
+    bind_rows(tefm_proc, teff_proc)
+  })
+  
+  tef_total <- bind_rows(lista_tef) %>%
+    mutate(Grupo_idade = factor(Grupo_idade, levels = unique(Grupo_idade)))
+  
+  # Gráfico único: uma cor para TEFM/TEFF, e linhas separadas por UF
+  ggplot(tef_total, aes(x = Grupo_idade, y = TEF, color = Tipo, group = interaction(UF, Tipo))) +
+    geom_line(aes(linetype = UF), size = 1) +     # linhas com padrão por UF
+    geom_point(aes(shape = UF), size = 3) +       # pontos com símbolo por UF
+    labs(
+      x = "Grupo de Idade",
+      y = "Taxa Específica de Fecundidade",
+      color = "Tipo",
+      linetype = "UF",
+      shape = "UF"
+    ) +
+    scale_y_continuous(
+      limits = c(0, 0.15),
+      labels = scales::number_format(accuracy = 0.001, decimal.mark = ",")
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+      axis.text.y = element_text(size = 12),
+      axis.title.x = element_text(size = 14),
+      axis.title.y = element_text(size = 14),
+      legend.title = element_text(size = 13),
+      legend.text = element_text(size = 12),
+      legend.position = "bottom"
+    )
+}
+
+
+
+
+salvar_graficos_por_regiao <- function(uf_regiao, path_base = ".") {
+  regioes <- na.omit(unique(uf_regiao$SIGLA_regiao_lable))
+  
+  for (reg in regioes) {
+    ufs_da_regiao <- uf_regiao %>%
+      filter(SIGLA_regiao_lable == reg) %>%
+      pull(SIGLA)
+    
+    # Criar pasta da região
+    path_regiao <- file.path(path_base, paste0("graficos_tef_", reg))
+    if (!dir_exists(path_regiao)) dir_create(path_regiao)
+    
+    # Dividir UFs em grupos de no máximo 4
+    grupos <- split(ufs_da_regiao, ceiling(seq_along(ufs_da_regiao) / 4))
+    
+    for (i in seq_along(grupos)) {
+      ufs_lote <- grupos[[i]]
+      
+      plot <- tryCatch({
+        plot_tef_por_regiao(ufs_lote)
+      }, error = function(e) {
+        message(glue("❌ Erro ao gerar gráfico para região {reg} parte {i}: {e$message}"))
+        return(NULL)
+      })
+      
+      if (!is.null(plot)) {
+        nome_arquivo <- file.path(path_regiao, glue("TEF_{reg}_parte{i}.png"))
+        ggsave(filename = nome_arquivo, plot = plot, width = 9, height = 6, dpi = 300)
+        message(glue("✅ Gráfico salvo: {nome_arquivo}"))
+      }
+    }
+  }
+}
+
+salvar_graficos_por_regiao(uf_regiao, path_base = path)
+
+```
+
+
+
+
 
 # graficos das tefs Brasil e regiões
 ```{r}

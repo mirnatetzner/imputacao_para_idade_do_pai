@@ -788,6 +788,33 @@ tabela_larga_erro <- indicadores %>%
 
 
 ```{r}
+
+tabela_larga_REQM <- indicadores %>%
+  select(proporcao, mecanismo, metodo, REQM_TFTM) %>%  # Seleciona as colunas relevantes
+  distinct() %>%  # Remove duplicatas (caso haja vários grupos_idade por combinação)
+  pivot_wider(
+    names_from = metodo,      # cada valor único de "metodo" vira uma coluna
+    values_from = REQM_TFTM   # os valores vêm de "REQM_TFTM"
+  ) %>%
+  arrange(proporcao, mecanismo)%>%
+  select(
+    mecanismo, proporcao,
+    `Análise de casos completos`,
+    `Média`,
+    `Mediana`,
+    `Mediana condicional\na idade da mãe`,
+    `Mediana condicional\n a idade da mãe\ne ao estado civil`,
+    `Mediana condicional\n a idade da mãe\ne ao turno de nascimento`,
+    `Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN`
+  ) %>% 
+    mutate(across(
+    where(is.numeric),
+    ~ formatC(.x, format = "f", digits = 4)
+  ))
+```
+
+
+```{r}
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -826,9 +853,15 @@ names(tabelas_por_idade_erro) <- grupos_idade
 
 
 ```{r}
-
-
 writexl::write_xlsx(tabela_larga_erro, "tabelas_rmse_tefm/erro_TFT_2022.xlsx")
+
+writexl::write_xlsx(tabela_larga_REQM, "tabelas_rmse_tefm/REQM_TFT_2022.xlsx")
+
+```
+
+
+```{r}
+
 
 
 # Exportar cada tabela da lista
