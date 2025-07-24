@@ -593,7 +593,7 @@ regioes_unicas <- unique(na.omit(fluxo_um$REGIAO))
 # Inicializa lista para armazenar resultados
 fluxo_um_resultados_regioes <- list()
 
-for (reg in regioes_unicas) {
+for (reg in regioes) {
   message("Processando região: ", reg)
 
   dados_regiao <- fluxo_um %>%
@@ -963,7 +963,7 @@ message("TFTF Brasil: ", tftf_brasil)
 
 
 
-TABELA FLUXO 1 TFTM
+### organiza para exportação taxas masculinas tabelas fluxo 1 
 
 ```{r}
 # Nomes das regiões já presentes no objeto
@@ -1051,15 +1051,12 @@ tftm_tabela_larga <- tftm_todos %>%
   arrange(UF)
 
 
-
-# openxlsx::write.xlsx(tefm_tabela_larga, paste0(path_res, ano, "_fluxo_UM_tefm.xlsx"), overwrite = TRUE)
-
 ```
 
 
 
 
-TABELA FLUXO 2 e 3 TEFM e TFTM
+### Exporta taxas masculinas tabelas TEFM e TFTM de todos os fluxos 
 
 ```{r}
 
@@ -1142,7 +1139,7 @@ write_xlsx(
 ```
 
 
-Femininas
+### Exporta taxas Femininas
 ```{r}
 # Nomes das regiões já presentes no objeto
 regioes <- names(resultados_regioes_tftf)
@@ -1170,12 +1167,12 @@ teff_todos <- bind_rows(teff_estados, teff_regioes_br)
 
 
 ordem_final <- c(
-  "BR", "NO", "ND", "SD", "SU", "CO",  # Regiões
-  "RO", "AC", "AM", "RR", "PA", "AP", "TO",  # Norte
-  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",  # Nordeste
-  "MG", "ES", "RJ", "SP",  # Sudeste
-  "PR", "SC", "RS",  # Sul
-  "MS", "MT", "GO", "DF"   # Centro-Oeste
+  "BR", "NO", "ND", "SD", "SU", "CO",  
+  "RO", "AC", "AM", "RR", "PA", "AP", "TO", 
+  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA", 
+  "MG", "ES", "RJ", "SP",  
+  "PR", "SC", "RS",  
+  "MS", "MT", "GO", "DF"   
 )
 teff_tabela_larga <- teff_todos %>%
   select(-nascimentos, -Populacao) %>%
@@ -1185,7 +1182,7 @@ teff_tabela_larga <- teff_todos %>%
   ) %>%
   pivot_wider(
     names_from = Grupo_idade,
-    values_from = TEFF  # move os valores de TEFM para as colunas
+    values_from = TEFF  
   ) %>%
   arrange(UF)
 
@@ -1221,8 +1218,78 @@ write_xlsx(list(teff_tabela_larga,tftf_todos), paste0(path_res, ano, "_taxas_fem
 ```
 
 
+#### Incluir diferença entre as TFTs
+```{r}
+tft_fem_mas_e_dif = left_join(tftf_todos, tftm_tabela_larga, by="UF")
 
-# graficos das TEFs
+# Passo 1: converter para número e calcular diferença
+tft_fem_mas_e_dif <- tft_fem_mas_e_dif %>%
+  mutate(
+    TFTF = as.numeric(gsub(",", ".", TFTF)),
+    TFTM = as.numeric(gsub(",", ".", TFTM)),
+    Diferença = TFTM - TFTF
+  )
+
+
+# Passo 2: converter novamente para string com vírgula
+tft_fem_mas_e_dif <- tft_fem_mas_e_dif %>%
+  mutate(
+    TFTF = gsub("\\.", ",", format(round(TFTF, 2), nsmall = 2)),
+    TFTM = gsub("\\.", ",", format(round(TFTM, 2), nsmall = 2)),
+    Diferença = gsub("\\.", ",", format(round(Diferença, 2), nsmall = 2))
+  )
+
+write_xlsx(tft_fem_mas_e_dif, paste0(path_res, ano, "_tft_fem_mas_e_dif.xlsx"))
+
+```
+
+
+### Idade média da fecundidade
+```{r}
+
+
+# Filtrar valores válidos
+fluxo_validado <- fluxo_um %>%
+  mutate(
+    IDADEMAE = as.numeric(IDADEMAE),
+    IDADEPAI = as.numeric(IDADEPAI)
+  )
+
+# Calcular por REGIÃO
+idade_media_regiao <- fluxo_validado %>%
+  filter(!is.na(IDADEMAE), IDADEMAE >= 15, IDADEMAE <= 50,
+         !is.na(IDADEPAI), IDADEPAI >= 15, IDADEPAI <= 60) %>%
+  group_by(REGIAO) %>%
+  summarise(
+    idade_media_mae = mean(IDADEMAE, na.rm = TRUE),
+    idade_media_pai = mean(IDADEPAI, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Calcular para o BRASIL
+idade_media_brasil <- fluxo_validado %>%
+  filter(!is.na(IDADEMAE), IDADEMAE >= 15, IDADEMAE <= 50,
+         !is.na(IDADEPAI), IDADEPAI >= 15, IDADEPAI <= 60) %>%
+  summarise(
+    REGIAO = "BRASIL",
+    idade_media_mae = mean(IDADEMAE, na.rm = TRUE),
+    idade_media_pai = mean(IDADEPAI, na.rm = TRUE)
+  )
+
+# Juntar os resultados
+idade_media_total <- bind_rows(idade_media_regiao, idade_media_brasil)
+
+idade_media_total
+
+
+write_xlsx(idade_media_total, paste0(path_res, ano, "_idade_media_a_fecundidade.xlsx"))
+
+
+```
+
+
+
+### graficos das TEFs
 
 ```{r}
 library(dplyr)
