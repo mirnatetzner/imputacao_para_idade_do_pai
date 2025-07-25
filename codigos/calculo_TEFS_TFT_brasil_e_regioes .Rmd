@@ -1541,6 +1541,10 @@ ggplot(dados_total, aes(x = Grupo_idade, y = TEF, color = UF, group = UF)) +
     y = "Taxa Específica de Fecundidade Masculina",
     color = "Região"
   ) +
+   scale_y_continuous(
+    limits = c(0, 0.15),
+    labels = scales::number_format(accuracy = 0.001, decimal.mark = ",") # 3 casas e vírgula
+)+
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
@@ -1552,8 +1556,8 @@ ggplot(dados_total, aes(x = Grupo_idade, y = TEF, color = UF, group = UF)) +
     legend.position = "bottom"
   )
 
-# filename = paste0(path,"TEFM_Brasil_Regioes.png" )
-# ggsave(filename, width = 8, height = 6, dpi = 300)
+ filename = paste0(path,"TEFM_Brasil_Regioes.png" )
+ ggsave(filename, width = 8, height = 6, dpi = 300)
 
 ```
 
@@ -1621,8 +1625,10 @@ plot_teff_tefm_regiao <- function(regiao, teff_todos, fluxo_tefm, fluxo_tefm_br,
       #title = glue("Taxa Específica de Fecundidade por Faixa Etária – {regiao}"),
       x = "Grupo de Idade",
       y = "Taxa Específica de Fecundidade",
-      color = "Sexo"
-    ) +
+      color = ""
+    ) + scale_y_continuous(
+    limits = c(0, 0.15),
+    labels = scales::number_format(accuracy = 0.001, decimal.mark = ","))+    
     theme_minimal() +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
@@ -1661,7 +1667,9 @@ tft_merged <- left_join(tftm_tabela_larga, tftf_todos, by = "UF") %>%
   mutate(
     TFTM = as.numeric(gsub(",", ".", TFTM)),
     TFTF = as.numeric(gsub(",", ".", TFTF))
-  )
+  ) %>% 
+  filter(!(UF %in% c("BR","NO", "ND", "SU", "SD", "CO")) )
+
 
 # Plotar
 RTFT = ggplot(tft_merged, aes(x = TFTM, y = TFTF, label = UF)) +
@@ -1674,14 +1682,45 @@ RTFT = ggplot(tft_merged, aes(x = TFTM, y = TFTF, label = UF)) +
     #,title = "Comparação entre TFTM e TFTF por UF"
   ) +
   theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
-    axis.title = element_text(face = "bold", size = 12),
-    axis.text = element_text(size = 11)
+   theme(
+    axis.title = element_text( size = 14),
+    axis.text = element_text(size = 12)
   )
 
-  ggsave(paste0(path_res, "RTFT.pdf"), RTFT, width = 7, height = 5, dpi = 300)
+  ggsave(paste0(path, "RTFT.pdf"), RTFT, width = 7, height = 5, dpi = 300)
 ```
+
+
+
+
+```{r}
+RTFT_zoom = ggplot(tft_merged, aes(x = TFTM, y = TFTF, label = UF)) +
+  geom_point(size = 1, color = "red") +
+  geom_text(vjust = -0.8, size = 3.5) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    x = "Taxa de Fecundidade Total Masculina (TFTM)",
+    y = "Taxa de Fecundidade Total Feminina (TFTF)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text( size = 14),
+    axis.text = element_text(size = 12)
+  ) +
+  coord_cartesian(xlim = c(1.4, 1.7), ylim = c(1.4, 1.7))  
+
+ggsave(paste0(path, "zoom_RTFT.pdf"), RTFT_zoom, width = 7, height = 5, dpi = 300)
+RTFT
+
+```
+
+
+
+
+
+
+
+
 
 ```{r}
 tft_merged = tft_merged %>% 
