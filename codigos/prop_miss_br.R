@@ -31,7 +31,6 @@ dados_brasil <- bind_rows(lapply(UFs, function(UF) {
 
 
 
-# Certifique-se de que o campo de data está em formato Date
 dados_brasil$Ano <- year(as.Date(dados_brasil$DTNASC))
 
 library(dplyr)
