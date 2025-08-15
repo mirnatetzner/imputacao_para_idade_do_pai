@@ -296,9 +296,120 @@ res <- residuals(modelo_idade)
 hist(res, breaks = 30, main = "Histograma dos Resíduos", xlab = "Resíduos")
 
 # Q-Q plot
-qqnorm(res)
+#qqnorm(res)
+#qqline(res, col = "red")
+
+# Ajusta o modelo
+modelo_idade <- lm(IDADEPAI ~ IDADEMAE, data = amostracompleta)
+
+# Resumo do modelo
+summary(modelo_idade)
+
+# Resíduos do modelo
+#res <- residuals(modelo_idade)
+
+# --- Histograma dos resíduos com curva normal ---
+hist(res, breaks = 30, probability = TRUE,
+     main = "Histograma dos Resíduos com Curva Normal",
+     xlab = "Resíduos",
+     ylab = "Densidade")
+curve(dnorm(x, mean = mean(res), sd = sd(res)),
+      col = "red", lwd = 2, add = TRUE)
+
+# --- Q–Q plot dos resíduos ---
+qqnorm(res,
+       main = NULL,
+       xlab = "Quantis Teóricos",
+       ylab = "Quantis Amostrais")
 qqline(res, col = "red")
+
+
 ```
+
+```{r}
+# Ajusta o modelo
+modelo_idade <- lm(IDADEPAI ~ IDADEMAE, data = amostracompleta)
+
+# Valores ajustados e resíduos
+ajustados <- fitted(modelo_idade)
+residuos <- residuals(modelo_idade)
+
+# Gráfico Resíduos vs Valores Ajustados
+plot(ajustados, residuos,
+     main =NULL,
+     xlab = "Valores Ajustados",
+     ylab = "Resíduos",
+     pch = 19, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+
+```
+
+
+```{r}
+# Pacotes necessários
+install.packages(c("moments", "nortest", "tseries"))
+library(moments)
+library(nortest)
+library(tseries)
+
+# --- Seleciona a variável ---
+idade_pai <- amostracompleta$IDADEPAI
+
+# --- Shapiro–Wilk (com subamostragem) ---
+set.seed(123)
+if (length(idade_pai) > 5000) {
+  idade_shapiro <- sample(idade_pai, 5000)
+} else {
+  idade_shapiro <- idade_pai
+}
+
+cat("\n### Teste de Shapiro–Wilk ###\n")
+print(shapiro.test(idade_shapiro))
+
+# --- Jarque–Bera ---
+cat("\n### Teste de Jarque–Bera ###\n")
+print(jarque.bera.test(idade_pai))
+
+# --- Anderson–Darling ---
+cat("\n### Teste de Anderson–Darling ###\n")
+print(ad.test(idade_pai))
+
+# --- Assimetria e curtose ---
+cat("\n### Assimetria e Curtose ###\n")
+cat("Assimetria:", skewness(idade_pai), "\n")
+cat("Curtose:", kurtosis(idade_pai), "\n")
+
+# --- Histograma com curva normal ---
+hist(idade_pai, breaks = 30, probability = TRUE,
+     main = "Histograma da Idade do Pai com Curva Normal",
+     xlab = "Idade do Pai")
+curve(dnorm(x, mean = mean(idade_pai), sd = sd(idade_pai)),
+      col = "red", lwd = 2, add = TRUE)
+
+# --- Q–Q plot ---
+qqnorm(idade_pai, main = "Q–Q Plot da Idade do Pai")
+qqline(idade_pai, col = "red")
+
+```
+```{r}
+# --- Histograma com curva normal ---
+hist(idade_pai, breaks = 30, probability = TRUE,
+     main = "Histograma da Idade do Pai com Curva Normal",
+     xlab = "Idade do Pai (anos)",
+     ylab = "Densidade")
+curve(dnorm(x, mean = mean(idade_pai), sd = sd(idade_pai)),
+      col = "red", lwd = 2, add = TRUE)
+
+# --- Q–Q plot ---
+qqnorm(idade_pai,
+       main = "Q–Q Plot da Idade do Pai",
+       xlab = "Quantis Teóricos",
+       ylab = "Quantis Amostrais")
+qqline(idade_pai, col = "red")
+
+```
+
+
 
 ## Reproduz mecanismos de ausência:
 

@@ -6,7 +6,6 @@ library(openxlsx)
 library(knitr)
 library(naniar)
 options(OutDec = ",", scipen=999)
-library(tictoc)  # para medir o tempo de execução
 library(boot)
 #library(truncnorm)
 
