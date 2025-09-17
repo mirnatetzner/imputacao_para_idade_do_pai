@@ -1,0 +1,281 @@
+---
+title: "expandindo_a_imputacao"
+output: html_document
+date: "2025-05-13"
+---
+# Este script realiza:
+# - Leitura de microdados SINASC
+# - Padronização de variáveis e hora de nascimento
+# - Imputação de IDADEPAI com diferentes estratégias (condicional por IDADEMAE, TPFUNCRESP, turno)
+# - Cálculo de TEF e TFT por UF, região e Brasil (masculina e feminina)
+# - Geração de relatórios de missing
+# - Exportação para Excel
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+pacotes <- c("microdatasus", "mice", "stringr", "ggmice", "lubridate", "readxl", 
+             "hms", "naniar", "future.apply", "data.table", "boot", 
+             "tidyverse", "ggplot2", "writexl", "Amelia", "openxlsx", "extrafont","rlang")
+
+pacotes %>% purrr::walk(~ { if (!require(.x, character.only = TRUE)) install.packages(.x) })
+
+```
+
+caminhos:
+```{r}
+# base_path <- "D:/Mirna/ENCE/DISSERTACAO/"
+base_path <- "/home/mramos/Documentos/Dissetacao/"
+
+path <- file.path(base_path, "Dissertacao_text/imagens/")
+path_font <- file.path(base_path, "imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/")
+path_res <- file.path(base_path, "imputacao_para_idade_do_pai/202505_resultados/")
+
+```
+
+ Após instalar **TTF** Latin Modern Roman fonts baixado de:
+ www.fontsquirrel.com/fonts/latin-modern-roman
+ Importação da fonte "LModern", para adequar ao documento LateX
+```{r}
+# font_import(paths = path_font,pattern = "lmroman10.*\\.ttf")
+# loadfonts(device = "pdf")
+# library(showtext)
+# showtext_auto()
+```
+ 
+
+```{r,warning=FALSE,message=FALSE}
+
+
+options(scipen = 999, 
+        OutDec = ",")
+
+```
+
+```{r}
+
+UFs <- c(
+  "RO", "AC", "AM", "RR", "PA", "AP", "TO",
+  "MA", "PI", "CE", "RN", "PB", "PE", "AL", "SE", "BA",
+  "MG", "ES", "RJ", "SP", "PR", "SC", "RS",
+  "MS", "MT", "GO", "DF"
+)
+
+brasil_regioes = c("BR","NO","ND","SD","SU","CO")
+
+ano = "2022"
+
+```
+
+
+
+
+```{r}
+
+# Regiões do Brasil com suas respectivas UFs
+
+uf_regiao <- tibble::tibble(
+  UF = c(0,1,2,3,4,5,12, 27, 13, 16, 29, 23, 53, 32, 52, 21, 31, 50, 51, 15, 25,
+         26, 22, 41, 33, 24, 11, 14, 43, 42, 28, 35, 17),
+  SIGLA = c("BR","NO","ND","SD","SU","CO","AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB",
+               "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"),
+  REGIAO = c(NA,NA,NA,NA,NA,NA,1, 2, 1, 1, 2, 2, 5, 3, 5, 2, 3, 5, 5, 1, 2,2, 2, 4, 3, 2, 1, 1, 4, 4, 2, 3, 1),
+  SIGLA_regiao_lable = c(NA,NA,NA,NA,NA,NA,"NO", "ND", "NO", "NO", "ND", "ND", "CO", "SD", "CO", "ND", "SD", "CO", "CO", "NO", "ND",
+                   "ND", "ND", "SU", "SD", "ND", "NO", "NO", "SU", "SU", "ND", "SD", "NO")
+)
+
+
+```
+
+## DENOMINADOR - projecao de populacao de 2024
+
+```{r}
+
+projecoes_2024_tab1_idade_simples <- read_excel(paste0(base_path, "imputacao_para_idade_do_pai/projecoes_2024/projecoes_2024_tab1_idade_simples.xlsx"), skip = 5)
+
+
+populacao <- projecoes_2024_tab1_idade_simples %>%
+  select(`SEXO`,`IDADE`,as.character(ano),"LOCAL", "SIGLA")
+
+table(populacao$LOCAL)
+```
+
+# Numerador, numero de nascimentos por idade:
+
+# Etapa 1 - Download de dados do Sinasc
+```{r, warning=FALSE, message=FALSE }
+
+
+ano <- as.numeric(ano)
+
+for (UF in UFs) {
+  message("Buscando dados para: ", UF)
+  
+  nome <- UF
+  
+  # Tentativa 1: com TPFUNCRESP
+  temp <- tryCatch({
+    fetch_datasus(
+      year_start = ano,
+      year_end = ano,
+      uf = UF,
+      information_system = "SINASC",
+      vars = c("IDADEMAE", "IDADEPAI", "ESTCIVMAE", "HORANASC", "TPFUNCRESP")
+    )
+  }, error = function(e) {
+    message("Variável TPFUNCRESP indisponível para ", UF, " em ", ano, ". Buscando sem ela...")
+    # Tentativa 2: sem TPFUNCRESP
+    fetch_datasus(
+      year_start = ano,
+      year_end = ano,
+      uf = UF,
+      information_system = "SINASC",
+      vars = c("IDADEMAE", "IDADEPAI", "ESTCIVMAE", "HORANASC")
+    )
+  })
+  
+  assign(nome, temp)
+}
+
+```
+
+# Etapa 2 - Pré-processamento
+```{r}
+for (uf in UFs) {
+  
+  dados_processados <- process_sinasc(get(uf), municipality_data = FALSE)
+  assign(uf, dados_processados)
+  
+}
+
+```
+
+
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) %>%
+    mutate(IDADEMAE = as.numeric(IDADEMAE),
+           IDADEPAI = as.numeric(IDADEPAI)) |> 
+     mutate(
+    # Filtra valores inválidos ou transforma em NA
+    HORANASC = ifelse(
+      grepl("^[0-9]{1,4}$", HORANASC), # Verifica se HORANASC contém apenas números (1-4 dígitos)
+      str_pad(HORANASC, width = 4, pad = "0"), # Preenche com zeros à esquerda se necessário
+      NA_character_ # Define como NA se for inválido
+    )
+  ) %>%
+  mutate(
+    HORANASC = ifelse(
+      is.na(HORANASC),
+      NA, # Mantém NA para valores inválidos
+      parse_hms(paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4), ":00"))
+    ),
+    HORANASC = hms::hms(HORANASC)
+    )
+  
+assign(uf, temp)
+  
+}
+```
+
+```{r}
+
+for (uf in UFs) {
+  temp <- get(uf) %>%
+    mutate(
+      HORANASC_seconds = as.numeric(as_hms(HORANASC)),
+      HORANASC_turno = cut(
+        HORANASC_seconds,
+        breaks = c(0, 21600, 43200, 64800, 86400),
+        labels = c("Madrugada", "Manhã", "Tarde", "Noite"),
+        include.lowest = TRUE
+      ),
+      ESTCIVMAE = as.factor(ESTCIVMAE)
+    ) %>%
+    {
+        if ("TPFUNCRESP" %in% names(.)) {
+        mutate(., TPFUNCRESP = as.factor(TPFUNCRESP))
+      } else {
+        .
+      }
+    } %>%
+    select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`,HORANASC, HORANASC_seconds))
+
+  assign(uf, temp)
+}
+
+
+```
+
+
+```{r}
+table(PR$falta_idadepai, PR$TPFUNCRESP)
+prop.table(table(PR$falta_idadepai, PR$TPFUNCRESP), margin = 2) 
+
+```
+
+```{r}
+library(dplyr)
+library(logistf)
+library(ggplot2)
+
+# Lista para armazenar resultados
+odds_list <- list()
+
+# Loop por cada UF
+for(uf in UFs){
+
+  # Pega o dataframe da UF
+  df <- get(uf)
+  
+  # Criar variável binária falta_idadepai
+  df <- df %>%
+    mutate(falta_idadepai = if_else(is.na(IDADEPAI), 1, 0))
+  
+modelo <- logistf(falta_idadepai ~ ESTCIVMAE + TPFUNCRESP + HORANASC_turno + IDADEMAE,
+                  data = df)
+
+# Extrair OR e IC 95%
+OR <- modelo$coefficients %>% exp()
+IC_inf <- modelo$ci.lower %>% exp()
+IC_sup <- modelo$ci.upper %>% exp()
+
+# Criar data frame
+df_or <- data.frame(
+  UF = "XX",          # substitua pela UF real no loop
+  Variavel = names(modelo$coefficients),
+  OR = OR,
+  IC_inf = IC_inf,
+  IC_sup = IC_sup
+)
+
+
+  
+  # Armazenar na lista
+  odds_list[[uf]] <- df_or
+}
+
+# Juntar todos em um único data frame
+odds_total <- do.call(rbind, odds_list)
+
+# Logar os ORs para facilitar visualização
+odds_total <- odds_total %>%
+  mutate(logOR = log(OR),
+         logIC_inf = log(IC_inf),
+         logIC_sup = log(IC_sup))
+
+
+```
+```{r}
+
+# Visualização de TPFUNCRESP por UF (quem erra mais)
+ggplot(subset(odds_total, grepl("ESTCIVMAE", Variavel)), 
+       aes(x = Variavel, y = logOR, ymin = logIC_inf, ymax = logIC_sup, color = UF)) +
+  geom_pointrange(position = position_dodge(width = 0.7)) +
+  coord_flip() +
+  theme_minimal() +
+  labs(y = "log(Odds Ratio)", x = "Profissional responsável", 
+       title = "Impacto do profissional no preenchimento da idade do pai")
+```
+
