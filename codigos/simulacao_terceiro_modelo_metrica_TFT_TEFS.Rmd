@@ -13,12 +13,11 @@ date: "2025-05-13"
 
 ```{r, warning=FALSE, message=FALSE}
 library(dplyr)
-pacotes <- c("microdatasus", "mice", "stringr", "ggmice", "lubridate", "readxl", 
+pacotes <- c( "mice", "stringr", "ggmice", "lubridate", "readxl", 
              "hms", "naniar", "future.apply", "data.table", "boot", 
-             "tidyverse", "ggplot2", "writexl", "Amelia", "openxlsx", "extrafont","rlang")
+              "ggplot2", "writexl", "openxlsx") # "microdatasus","tidyverse", "extrafont","rlang"
 
-pacotes %>% purrr::walk(~ { if (!require(.x, character.only = TRUE)) install.packages(.x) })
-
+pacotes %>% purrr::walk(~ library(.x, character.only = TRUE))
 ```
 
 caminhos:
@@ -589,6 +588,10 @@ library(ggh4x)
 pb_filtrados <- indicadores 
 # %>%   filter(!metodo %in% c("Análise de casos completos", "Média", "Mediana"))
 
+# Calcula o valor máximo global de PB_TEFM
+y_max_global <- max(pb_filtrados$PB_TEFM, na.rm = TRUE)
+
+
 # Lista de proporções
 proporcoes <- unique(pb_filtrados$proporcao)
 
@@ -600,7 +603,7 @@ for (p in proporcoes) {
 grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = PB_TEFM, color = metodo, group = metodo)) +
   geom_line() +
   geom_point() +
-  ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "free_y", strip.position = "top", axes = "all") +
+  ggh4x::facet_wrap2(~ mecanismo, ncol = 1, scales = "fixed", strip.position = "top", axes = "all") +
   labs(
     title = paste(""),
     x = "Grupo de Idade",
@@ -614,13 +617,14 @@ grafico <- ggplot(dados_p, aes(x = Grupo_idade, y = PB_TEFM, color = metodo, gro
     axis.text.x = element_text(angle = 45, hjust = 1),
     strip.background = element_blank(),
     panel.spacing = unit(1, "lines")
-  )+guides(color = guide_legend(ncol = 2))
+  )+guides(color = guide_legend(ncol = 2))+
+    coord_cartesian(ylim = c(0, y_max_global))  # usa o máximo global
 
 
   # Nome do arquivo
   nome_arquivo <- paste0("PB_tefm_", gsub("%", "pct", p), ".pdf")
   
-  ggsave(nome_arquivo, plot = grafico, width = 6, height = 10, dpi = 300)
+   ggsave(nome_arquivo, plot = grafico, width = 6, height = 10, dpi = 300)
 }
 
 ```
