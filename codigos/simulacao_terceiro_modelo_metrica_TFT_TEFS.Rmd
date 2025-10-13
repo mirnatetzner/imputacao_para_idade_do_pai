@@ -15,7 +15,7 @@ date: "2025-05-13"
 library(dplyr)
 pacotes <- c( "mice", "stringr", "ggmice", "lubridate", "readxl", 
              "hms", "naniar", "future.apply", "data.table", "boot", 
-              "ggplot2", "writexl", "openxlsx") # "microdatasus","tidyverse", "extrafont","rlang"
+              "ggplot2", "writexl", "openxlsx", "microdatasus") # ,"tidyverse", "extrafont","rlang"
 
 pacotes %>% purrr::walk(~ library(.x, character.only = TRUE))
 ```
@@ -24,7 +24,6 @@ caminhos:
 ```{r}
 # base_path <- "D:/Mirna/ENCE/DISSERTACAO/"
 base_path <- "/home/mramos/Documentos/Dissetacao/"
-
 path <- file.path(base_path, "Dissertacao_text/imagens/")
 path_font <- file.path(base_path, "imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/")
 path_res <- file.path(base_path, "imputacao_para_idade_do_pai/202505_resultados/")
@@ -41,6 +40,8 @@ options(scipen = 999, OutDec = ",")
 ```{r}
 
 UFs <- c("PR")
+#UFs <- c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO")
+
 ano <- 2022
 
 ```
@@ -146,9 +147,15 @@ preprocessar_dados_sinasc <- function(df) {
 
 ```
 
+Baixa
 ```{r}
-amostra_completa = baixar_dados_sinasc(UFs, ano) %>%
-preprocessar_dados_sinasc(.)
+amostra_completa = baixar_dados_sinasc(UFs, ano) 
+
+```
+
+Processa
+```{r}
+amostra_completa = preprocessar_dados_sinasc(amostra_completa)
 
 ```
 
