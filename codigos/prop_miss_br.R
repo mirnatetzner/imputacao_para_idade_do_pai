@@ -6,7 +6,13 @@ library(dplyr)
 require(tidyverse)
 library(ggplot2)
 library(lubridate)
+library(readr)
+library(hms)
+library(tidyverse)
+library(lubridate) # Para trabalhar com data/hora, se necessário
 
+
+# load("/media/mramos/MIRNA UN/SINASC2022.RData")
 
 options(scipen = 999, 
         OutDec = ",")
@@ -24,10 +30,10 @@ UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", 
 listauf <- list()
 
 # 3. Preenche a lista usando o código da UF como índice (name)
-for (UF in UFs) {
-  listauf[[UF]] <- fetch_datasus(year_start = 2022, year_end = 2022, uf = UF,c("IDADEMAE", "IDADEPAI", "ESTCIVMAE", "HORANASC", "TPFUNCRESP"),
-                                 information_system = "SINASC")
-}
+# for (UF in UFs) {
+#   listauf[[UF]] <- fetch_datasus(year_start = 2022, year_end = 2022, uf = UF, vars=c("IDADEMAE", "IDADEPAI", "ESTCIVMAE", "HORANASC", "TPFUNCRESP"),
+#                                  information_system = "SINASC")
+# }
 
 
 preprocessar_dados_sinasc <- function(df) {
@@ -123,6 +129,450 @@ print(tabela_final_completa)
 
 
 write_csv(tabela_final_completa, "resumo_sinasc_por_uf_2022.csv")
+
+
+
+
+
+# 1. Combina a lista em um único dataframe (mantendo a UF original)
+dados_sinasc_br <- listauf %>%
+  bind_rows(.id = "UF")
+
+# 2. Converte as variáveis para os tipos corretos
+dados_sinasc_limpos <- dados_sinasc_br %>%
+  mutate(
+    # Conversão de Idades (com ifelse para tratar NAs)
+    IDADEMAE = as.numeric(IDADEMAE),
+    IDADEPAI = as.numeric(IDADEPAI),
+    
+    # Conversão de Hora (se precisar de cálculos de tempo)
+    HORANASC = ifelse(
+      grepl("^[0-9]{1,4}$", HORANASC),
+      str_pad(HORANASC, width = 4, pad = "0"),
+      NA_character_
+    ),
+    HORANASC = ifelse(
+      is.na(HORANASC),
+      NA_character_,
+      paste0(substr(HORANASC, 1, 2), ":", substr(HORANASC, 3, 4), ":00")
+    ),
+    HORANASC = hms::as_hms(parse_hms(HORANASC)),
+    HORANASC_seconds = as.numeric(HORANASC),
+    HORANASC_turno = cut(
+      HORANASC_seconds,
+      breaks = c(0, 21600, 43200, 64800, 86400),
+      labels = c("Madrugada", "Manhã", "Tarde", "Noite"),
+      include.lowest = TRUE
+    ),
+    
+    # Conversão da Variável Categórica (ESTCIVMAE) para Fator
+    ESTCIVMAE = factor(ESTCIVMAE),
+    
+    # TPFUNCRESP deve ser tratada como Categórica Nominal (Fator)
+    TPFUNCRESP = factor(TPFUNCRESP)
+  ) %>% select(-c("HORANASC_seconds", "HORANASC"))
+  
+
+
+
+resumo_numerico <- dados_sinasc_limpos %>%
+  summarise(
+    N_Total = n(),
+    
+    # IDADEMAE
+    N_Mae = sum(!is.na(IDADEMAE)),
+    Min_Mae = min(IDADEMAE, na.rm = TRUE),
+    Media_Mae = mean(IDADEMAE, na.rm = TRUE),
+    Mediana_Mae = median(IDADEMAE, na.rm = TRUE),
+    DP_Mae = sd(IDADEMAE, na.rm = TRUE),
+    Max_Mae = max(IDADEMAE, na.rm = TRUE),
+    
+    # IDADEPAI (Foco no missing e nas estatísticas)
+    N_Pai = sum(!is.na(IDADEPAI)),
+    Missing_Pai = sum(is.na(IDADEPAI)),
+    Pct_Missing_Pai = (Missing_Pai / N_Total) * 100,
+    Min_Pai = min(IDADEPAI, na.rm = TRUE),
+    Media_Pai = mean(IDADEPAI, na.rm = TRUE),
+    Mediana_Pai = median(IDADEPAI, na.rm = TRUE),
+    DP_Pai = sd(IDADEPAI, na.rm = TRUE),
+    Max_Pai = max(IDADEPAI, na.rm = TRUE)
+  ) %>%
+  # Formatação (opcional)
+  mutate(across(where(is.numeric), ~ round(., 2))) %>% 
+  mutate(across(where(is.numeric), 
+                ~ format(., 
+                         decimal.mark = ",", 
+                         big.mark = ".", 
+                         scientific = FALSE, 
+                         trim = TRUE)))
+
+print(resumo_numerico)
+
+
+
+# ESTCIVMAE (Estado Civil da Mãe)
+resumo_estciv <- dados_sinasc_limpos %>%
+  count(ESTCIVMAE, sort = TRUE) %>%
+  mutate(
+    Porcentagem = (n / sum(n))
+  ) %>% mutate(across(where(is.numeric), 
+                ~ format(., 
+                         decimal.mark = ",", 
+                         big.mark = ".", # Adiciona ponto como separador de milhar
+                         scientific = FALSE, 
+                         trim = TRUE)))
+
+# TPFUNCRESP (Tipo de Função do Responsável pelo Preenchimento)
+resumo_funcrep <- dados_sinasc_limpos %>%
+  count(TPFUNCRESP, sort = TRUE) %>%
+  mutate(
+    Porcentagem = (n / sum(n)) 
+  ) %>% mutate(across(where(is.numeric), 
+                      ~ format(., 
+                               decimal.mark = ",", 
+                               big.mark = ".", # Adiciona ponto como separador de milhar
+                               scientific = FALSE, 
+                               trim = TRUE)))
+
+resumo_turno <- dados_sinasc_limpos %>%
+  count(HORANASC_turno, sort = TRUE) %>%
+  mutate(
+    Porcentagem = (n / sum(n)) 
+  ) %>% mutate(across(where(is.numeric), 
+                      ~ format(., 
+                               decimal.mark = ",", 
+                               big.mark = ".", # Adiciona ponto como separador de milhar
+                               scientific = FALSE, 
+                               trim = TRUE)))
+
+
+
+lista_para_excel <- list(
+  Resumo_Numerico = resumo_numerico,
+  Estado_Civil = resumo_estciv,
+  Funcao_Responsavel = resumo_funcrep,
+  Turno_Nascimento = resumo_turno
+)
+
+writexl::write_xlsx(
+  lista_para_excel, 
+  path = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/Resumos_Descritivos_SINASC_Brasil.xlsx"
+)
+
+
+
+
+
+# --- Estatísticas da Idade da Mãe ---
+media_mae_valor <- mean(dados_sinasc_limpos$IDADEMAE, na.rm = TRUE)
+mediana_mae_valor <- median(dados_sinasc_limpos$IDADEMAE, na.rm = TRUE)
+
+altura_anotacao_mae <- 250000 
+altura_anotacao_pai <- 38000 
+# --- Estatísticas da Idade do Pai ---
+media_pai_valor <- mean(dados_sinasc_limpos$IDADEPAI, na.rm = TRUE)
+mediana_pai_valor <- median(dados_sinasc_limpos$IDADEPAI, na.rm = TRUE)
+
+# Imprimir os resultados: Anote esses valores!
+print(paste("Idade da Mãe: Média =", round(media_mae, 2), "| Mediana =", round(mediana_mae, 2)))
+print(paste("Idade do Pai: Média =", round(media_pai, 2), "| Mediana =", round(mediana_pai, 2)))
+
+# 
+# # ==============================================================================
+# # GRÁFICO 1: Idade da Mãe (com Média e Mediana)
+# # ==============================================================================
+# grafico_idade_mae_freq <- dados_sinasc_limpos %>%
+#   filter(!is.na(IDADEMAE)) %>%
+#   ggplot(aes(x = IDADEMAE)) +
+#   
+#   # Histograma
+#   geom_histogram(
+#     binwidth = 1,
+#     fill = "#4E79A7",
+#     color = "white"
+#   ) +
+#   
+#   # Adiciona Média (Linha Vermelha)
+#   geom_vline(
+#     xintercept = media_mae_valor,
+#     color = "red",
+#     linewidth = 1.2
+#   ) +
+#   # Adiciona Mediana (Linha Laranja tracejada)
+#   geom_vline(
+#     xintercept = mediana_mae_valor,
+#     color = "darkorange",
+#     linetype = "dashed",
+#     linewidth = 1.2
+#   ) +
+#   
+#   # Adiciona Anotação da Média
+#   annotate(
+#     "text",
+#     x = media_mae_valor + 1.5,
+#     y = altura_anotacao_mae,
+#     label = paste0("Média: ", format(round(media_mae_valor, 1), nsmall=1)),
+#     color = "red",
+#     size = 4,
+#     fontface = "bold"
+#   ) +
+#   # Adiciona Anotação da Mediana
+#   annotate(
+#     "text",
+#     x = mediana_mae_valor - 1.5,
+#     y = altura_anotacao_mae * 0.90,
+#     label = paste0("Mediana: ", format(round(mediana_mae_valor, 1), nsmall=1)),
+#     color = "darkorange",
+#     size = 4,
+#     fontface = "bold"
+#   ) +
+#   
+#   # Títulos e Rótulos
+#   labs(
+#     title = "Distribuição de Frequência da Idade da Mãe (SINASC 2022)",
+#     x = "Idade da Mãe (Anos)",
+#     y = "Frequência (Contagem de Nascimentos)"
+#   ) +
+#   
+#   # Ajuste de Eixos
+#   scale_x_continuous(breaks = seq(10, 50, by = 5)) +
+#   scale_y_continuous(labels = label_number(big.mark = ".")) + # Separador de milhar
+#   
+#   # Tema
+#   theme_minimal()
+# 
+#  print(grafico_idade_mae_freq)
+# 
+# 
+# # ==============================================================================
+# # GRÁFICO 2: Idade do Pai (com Média e Mediana)
+# # ==============================================================================
+# grafico_idade_pai_freq <- dados_sinasc_limpos %>%
+#   filter(!is.na(IDADEPAI)) %>%
+#   ggplot(aes(x = IDADEPAI)) +
+#   
+#   # Histograma
+#   geom_histogram(
+#     binwidth = 1,
+#     fill = "#76B7B2",
+#     color = "white"
+#   ) +
+#   
+#   # Adiciona Média (Linha Vermelha)
+#   geom_vline(
+#     xintercept = media_pai_valor,
+#     color = "red",
+#     linewidth = 1.2
+#   ) +
+#   # Adiciona Mediana (Linha Laranja tracejada)
+#   geom_vline(
+#     xintercept = mediana_pai_valor,
+#     color = "darkorange",
+#     linetype = "dashed",
+#     linewidth = 1.2
+#   ) +
+#   
+#   # Adiciona Anotação da Média
+#   annotate(
+#     "text",
+#     x = media_pai_valor + 1.5,
+#     y = altura_anotacao_pai,
+#     label = paste0("Média: ", format(round(media_pai_valor, 1), nsmall=1)),
+#     color = "red",
+#     size = 4,
+#     fontface = "bold"
+#   ) +
+#   # Adiciona Anotação da Mediana
+#   annotate(
+#     "text",
+#     x = mediana_pai_valor - 1.5,
+#     y = altura_anotacao_pai * 0.90,
+#     label = paste0("Mediana: ", format(round(mediana_pai_valor, 1), nsmall=1)),
+#     color = "darkorange",
+#     size = 4,
+#     fontface = "bold"
+#   ) +
+#   
+#   # Títulos e Rótulos
+#   labs(
+#     title = "Distribuição de Frequência da Idade do Pai (SINASC 2022)",
+#     x = "Idade do Pai (Anos)",
+#     y = "Frequência (Contagem de Nascimentos)",
+#     caption = paste0("Nº de Registros Válidos: ",
+#                      format(sum(!is.na(dados_sinasc_limpos$IDADEPAI)), big.mark = "."))
+#   ) +
+#   
+#   # Ajuste de Eixos
+#   scale_x_continuous(breaks = seq(15, 75, by = 5)) +
+#   scale_y_continuous(labels = label_number(big.mark = ".")) + # Separador de milhar
+#   
+#   # Tema
+#   theme_minimal()
+# 
+#  print(grafico_idade_pai_freq)
+
+
+
+
+
+
+
+
+
+
+library(ggplot2)
+library(dplyr)
+library(scales) # Certifique-se de que o pacote 'scales' está carregado para usar label_number()
+
+
+# Gráfico 1: Distribuição de Frequência da Idade da Mãe (IDADEMAE)
+grafico_idade_mae_freq <- dados_sinasc_limpos %>%
+  # Remove NAs para garantir um gráfico limpo
+  filter(!is.na(IDADEMAE)) %>%
+  ggplot(aes(x = IDADEMAE)) +
+
+  # Histograma (Omitimos aes(y=...) para usar o padrão: Frequência/Contagem)
+  geom_histogram(
+    binwidth = 1,              # Agrupa as idades por ano
+    fill = "gray",          # Cor da barra
+    color = "white"            # Borda branca para as barras
+  ) +
+  # Títulos e Rótulos
+  labs(
+    title = "",
+    x = "Idade da Mãe (Anos)",
+    y = "Frequência"
+  ) +
+
+  # Ajuste de Eixos
+  scale_x_continuous(breaks = seq(10, 50, by = 5), limits = c(10, 50)) +
+  # ADICIONA SEPARADOR DE MILHAR NO EIXO Y
+  scale_y_continuous(
+    labels = label_number(big.mark = "."),
+    limits = c(0, 150000) # <-- LIMITE MÁXIMO ADICIONADO AQUI
+  )  +
+
+  # Tema (Visual Limpo)
+  theme_minimal()+
+  theme(
+  plot.title = element_text(hjust = 0.5))
+
+
+print(grafico_idade_mae_freq)
+
+
+# Gráfico 2: Distribuição de Frequência da Idade do Pai (IDADEPAI)
+grafico_idade_pai_freq <- dados_sinasc_limpos %>%
+  # Remove NAs para garantir um gráfico limpo
+  filter(!is.na(IDADEPAI)) %>%
+  ggplot(aes(x = IDADEPAI)) +
+
+  # Histograma (Omitimos aes(y=...) para usar o padrão: Frequência/Contagem)
+  geom_histogram(
+    binwidth = 1,
+    fill = "gray",          # Cor diferente para contraste
+    color = "white"
+  ) +
+
+  # Títulos e Rótulos
+  labs(
+    title = "",
+    x = "Idade do Pai (Anos)",
+    y = "Frequência"
+  ) +
+
+  # Ajuste de Eixos (geralmente mais amplo para o pai)
+  scale_x_continuous(breaks = seq(15, 60, by = 5), limits = c(10, 60)) +
+  # ADICIONA SEPARADOR DE MILHAR NO EIXO Y
+  scale_y_continuous(
+    labels = label_number(big.mark = "."),
+    limits = c(0, 150000) # <-- LIMITE MÁXIMO ADICIONADO AQUI
+  ) +
+
+  # Tema
+  theme_minimal()+
+  theme(
+  plot.title = element_text(hjust = 0.5))
+
+
+print(grafico_idade_pai_freq)
+
+base_path <- "/home/mramos/Documentos/Dissetacao/"
+path <- file.path(base_path, "Dissertacao_text/imagens/")
+
+# 1. Salvar o Histograma da Idade da Mãe como PNG
+ggsave(
+  filename = "histograma_idade_mae_2022.pdf",
+  plot = grafico_idade_mae_freq,
+  path=path,
+
+  units = "in", # Unidades podem ser "in" (polegadas), "cm", ou "mm"
+  dpi = 300     # Resolução, 300 é o padrão para qualidade de publicação
+)
+
+# 2. Salvar o Histograma da Idade do Pai como PDF
+ggsave(
+  filename = "histograma_idade_pai_2022.pdf",
+  plot = grafico_idade_pai_freq,
+  path=path,
+
+  units = "in"
+)
+
+
+
+
+
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+# 1. Cria a variável de status de missing para IDADEPAI
+dados_padrao_missing <- dados_sinasc_limpos %>%
+  filter(!is.na(IDADEMAE)) %>% # Remove mães com idade NA (se houver)
+  mutate(
+    idade_pai_status = factor(
+      ifelse(is.na(IDADEPAI), "Faltante", "Observada"),
+      levels = c("Observada", "Faltante")
+    )
+  )
+
+# 2. Gera o Violin Plot da IDADEMAE por status de IDADEPAI
+grafico_padrao_condicional <- dados_padrao_missing %>%
+  ggplot(aes(x = idade_pai_status, y = IDADEMAE, fill = idade_pai_status)) +
+  
+  # Adiciona o Violin Plot para mostrar a densidade da distribuição
+  geom_violin(trim = TRUE, alpha = 0.5, draw_quantiles = c(0.5)) + 
+  
+  # Adiciona o Box Plot (diagrama de caixas) para os quartis
+  geom_boxplot(width = 0.1, outlier.shape = NA) +
+  
+  # Adiciona a Média (opcional)
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
+  
+  # Títulos e Rótulos
+  labs(
+    title = "Distribuição da Idade da Mãe Condicional ao Status da Idade do Pai",
+    subtitle = "Comparação da IDADEMAE em casos observados vs. faltantes (SINASC 2022)",
+    x = "Status da Idade do Pai (IDADEPAI)",
+    y = "Idade da Mãe (Anos)",
+    fill = "Status da IDADEPAI"
+  ) +
+  
+  # Tema e Estética
+  scale_fill_manual(values = c("Observada" = "#4E79A7", "Faltante" = "#E15759")) +
+  theme_minimal() +
+  theme(legend.position = "none") # A legenda é redundante com o eixo X
+
+print(grafico_padrao_condicional)
+
+
+
+
+
+
+
 
 
 
