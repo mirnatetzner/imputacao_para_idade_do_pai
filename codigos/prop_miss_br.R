@@ -12,7 +12,7 @@ library(tidyverse)
 library(lubridate) # Para trabalhar com data/hora, se necessário
 
 
-# load("/media/mramos/MIRNA UN/SINASC2022.RData")
+#load("/media/mramos/MIRNA UN/SINASC2022.RData")
 
 options(scipen = 999, 
         OutDec = ",")
@@ -486,7 +486,7 @@ grafico_idade_pai_freq <- dados_sinasc_limpos %>%
   # ADICIONA SEPARADOR DE MILHAR NO EIXO Y
   scale_y_continuous(
     labels = label_number(big.mark = "."),
-    limits = c(0, 150000) # <-- LIMITE MÁXIMO ADICIONADO AQUI
+    limits = c(0, 1000) # <-- LIMITE MÁXIMO ADICIONADO AQUI
   ) +
 
   # Tema
@@ -569,6 +569,51 @@ print(grafico_padrao_condicional)
 
 
 
+##############################
+#  correlação
+#######################3
+
+# Filtra apenas os registros completos para IDADEMAE e IDADEPAI
+# para garantir que o mapa de calor represente as observações reais
+dados_completos <- dados_sinasc_limpos[!is.na(dados_sinasc_limpos$IDADEPAI) & !is.na(dados_sinasc_limpos$IDADEMAE), ]
+
+# Cria o mapa de calor de densidade 2D em tons de cinza
+ggplot(PA, aes(x = IDADEPAI, y = IDADEMAE)) +
+  # geom_bin_2d divide o plano em bins e conta os pontos em cada um
+  geom_bin_2d(bins = 70) + # Aumente 'bins' para maior resolução, diminua para menor
+  # Aplica uma escala de cinza do branco para o preto, onde o preto é a maior densidade
+  scale_fill_gradient(low = "gray", high = "black", name = "Contagem") +
+  labs(
+    title = "Densidade de Nascimentos por Idade do Pai e Idade da Mãe (2022)",
+    x = "Idade do Pai (Anos)",
+    y = "Idade da Mãe (Anos)"
+  ) +
+  # Define os limites dos eixos para focar na distribuição principal
+  coord_cartesian(xlim = c(15, 60), ylim = c(10, 50)) +
+  theme_minimal()
+
+
+
+# Certifique-se de ter o pacote instalado
+# install.packages("naniar")
+library(naniar)
+
+
+# # Cria o gráfico de dispersão com geom_miss_point()
+# ggplot(dados_sinasc_limpos, aes(x = IDADEPAI, y = IDADEMAE)) +
+#   # Substitui os valores NA de IDADEPAI por um ponto na base
+#   geom_miss_point(size = 0.5) +
+#   # geom_point() plota os dados não faltantes.
+#   # Use alfa baixo (transparência) devido ao grande volume de dados completos.
+#   geom_point(alpha = 0.05, size = 0.8) +
+#   labs(
+#     title = "Idade do Pai vs. Idade da Mãe com Faltantes (NA para IDADEPAI)",
+#     subtitle = "Pontos cinzas (NA) mostram registros onde a Idade do Pai está faltando.",
+#     x = "Idade do Pai (Anos) [NA's são plotados no limite inferior]",
+#     y = "Idade da Mãe (Anos)"
+#   ) +
+#   theme_minimal()
+
 
 
 
@@ -634,3 +679,6 @@ grap_plot_missing <- ggplot(proporcao_por_ano, aes(x = as.factor(Ano), y = propo
   )
 grap_plot_missing
 ggsave("faltantes_brasil.png",plot = grap_plot_missing, width = 10, height = 6, path = "D:/Mirna/ENCE/DISSERTACAO/Dissertacao_text/imagens", dpi = 300)
+
+
+
