@@ -1,4 +1,4 @@
-# PACOTES NECESSÁRIOS --------------------------------------------------------
+# CARREGA PACOTES NECESSÁRIOS --------------------------------------------------------
 library(data.table)
 library(dplyr)
 library(mice)

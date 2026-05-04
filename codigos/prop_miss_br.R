@@ -26,10 +26,9 @@ UFs = c("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", 
 # }
 
 
-# 2. Inicializa a lista
 listauf <- list()
 
-# 3. Preenche a lista usando o código da UF como índice (name)
+# Preenche a lista usando o código da UF como índice (name)
 # for (UF in UFs) {
 #   listauf[[UF]] <- fetch_datasus(year_start = 2022, year_end = 2022, uf = UF, vars=c("IDADEMAE", "IDADEPAI", "ESTCIVMAE", "HORANASC", "TPFUNCRESP"),
 #                                  information_system = "SINASC")
@@ -37,7 +36,6 @@ listauf <- list()
 
 
 preprocessar_dados_sinasc <- function(df) {
-  # Assumindo que process_sinasc está disponível e recebe um dataframe
   df <- process_sinasc(df, municipality_data = FALSE) 
   return(df)
 }
@@ -45,8 +43,7 @@ preprocessar_dados_sinasc <- function(df) {
 listauf<- lapply(listauf, preprocessar_dados_sinasc)
 
 
-# 1. Definição do mapeamento de códigos para nomes completos
-# É fundamental para a coluna "Nome Completo" na sua tabela
+# Definição do mapeamento de códigos para nomes completos
 mapa_uf <- c(
   "AC" = "Acre", "AL" = "Alagoas", "AP" = "Amapá", "AM" = "Amazonas", 
   "BA" = "Bahia", "CE" = "Ceará", "DF" = "Distrito Federal", "ES" = "Espírito Santo", 
@@ -57,12 +54,9 @@ mapa_uf <- c(
   "SP" = "São Paulo", "SE" = "Sergipe", "TO" = "Tocantins"
 )
 
-library(tidyverse)
-# O mapa_uf permanece o mesmo
 
-# 2. Extração dos dados e cálculo das Contagens 
 tabela_resumo <- listauf_processada %>%
-  # 2.1. Aplica uma função a cada elemento (UF) que calcula N e Faltantes
+  # Aplica uma função a cada elemento (UF) que calcula N e Faltantes
   map_dfr(~ {
     N_total <- nrow(.x)
     N_missing <- sum(is.na(.x$IDADEPAI))
@@ -123,13 +117,7 @@ total_row <- tabela_resumo %>%
 # Combina o resumo por UF com a linha de Total
 tabela_final_completa <- bind_rows(tabela_resumo, total_row)
 
-# Exibe a tabela final
-print(tabela_final_completa)
-
-
 write_csv(tabela_final_completa, "resumo_sinasc_por_uf_2022.csv")
-
-
 
 
 
@@ -169,8 +157,6 @@ dados_sinasc_limpos <- dados_sinasc_br %>%
   ) %>% select(-c("HORANASC_seconds", "HORANASC"))
   
 
-
-
 resumo_numerico <- dados_sinasc_limpos %>%
   summarise(
     N_Total = n(),
@@ -193,7 +179,6 @@ resumo_numerico <- dados_sinasc_limpos %>%
     DP_Pai = sd(IDADEPAI, na.rm = TRUE),
     Max_Pai = max(IDADEPAI, na.rm = TRUE)
   ) %>%
-  # Formatação (opcional)
   mutate(across(where(is.numeric), ~ round(., 2))) %>% 
   mutate(across(where(is.numeric), 
                 ~ format(., 
@@ -201,9 +186,6 @@ resumo_numerico <- dados_sinasc_limpos %>%
                          big.mark = ".", 
                          scientific = FALSE, 
                          trim = TRUE)))
-
-
-
 
 
 # ESTCIVMAE (Estado Civil da Mãe)
@@ -214,7 +196,7 @@ resumo_estciv <- dados_sinasc_limpos %>%
   ) %>% mutate(across(where(is.numeric), 
                 ~ format(., 
                          decimal.mark = ",", 
-                         big.mark = ".", # Adiciona ponto como separador de milhar
+                         big.mark = ".", 
                          scientific = FALSE, 
                          trim = TRUE)))
 
@@ -226,7 +208,7 @@ resumo_funcrep <- dados_sinasc_limpos %>%
   ) %>% mutate(across(where(is.numeric), 
                       ~ format(., 
                                decimal.mark = ",", 
-                               big.mark = ".", # Adiciona ponto como separador de milhar
+                               big.mark = ".",
                                scientific = FALSE, 
                                trim = TRUE)))
 
@@ -237,7 +219,7 @@ resumo_turno <- dados_sinasc_limpos %>%
   ) %>% mutate(across(where(is.numeric), 
                       ~ format(., 
                                decimal.mark = ",", 
-                               big.mark = ".", # Adiciona ponto como separador de milhar
+                               big.mark = ".",
                                scientific = FALSE, 
                                trim = TRUE)))
 
@@ -255,10 +237,6 @@ writexl::write_xlsx(
   path = "/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/Resumos_Descritivos_SINASC_Brasil.xlsx"
 )
 
-
-
-
-
 # --- Estatísticas da Idade da Mãe ---
 media_mae_valor <- mean(dados_sinasc_limpos$IDADEMAE, na.rm = TRUE)
 mediana_mae_valor <- median(dados_sinasc_limpos$IDADEMAE, na.rm = TRUE)
@@ -274,63 +252,42 @@ print(paste("Idade do Pai: Média =", round(media_pai, 2), "| Mediana =", round(
 
 
 
-# Gráfico 1: Distribuição de Frequência da Idade da Mãe (IDADEMAE)
+# Distribuição da Idade da Mãe (IDADEMAE)
 grafico_idade_mae_freq <- dados_sinasc_limpos %>%
-  # Remove NAs para garantir um gráfico limpo
   filter(!is.na(IDADEMAE)) %>%
   ggplot(aes(x = IDADEMAE)) +
-
-  # Histograma (Omitimos aes(y=...) para usar o padrão: Frequência/Contagem)
   geom_histogram(
-    binwidth = 1,              # Agrupa as idades por ano
-    fill = "gray",          # Cor da barra
-    color = "white"            # Borda branca para as barras
-  ) +
-  # Títulos e Rótulos
+    binwidth = 1, fill = "gray",color = "white"  ) +
   labs(
     title = "",
     x = "Idade da Mãe (Anos)",
     y = "Frequência"
   ) +
-
-  # Ajuste de Eixos
   scale_x_continuous(breaks = seq(10, 50, by = 5), limits = c(10, 50)) +
-  # ADICIONA SEPARADOR DE MILHAR NO EIXO Y
   scale_y_continuous(
     labels = label_number(big.mark = "."),
-    limits = c(0, 150000) # <-- LIMITE MÁXIMO ADICIONADO AQUI
-  )  +
-
-  # Tema (Visual Limpo)
-  theme_minimal()+
+    limits = c(0, 150000) )  +
+theme_minimal()+
   theme(
   plot.title = element_text(hjust = 0.5))
-
-
 print(grafico_idade_mae_freq)
 
 
-# Gráfico 2: Distribuição de Frequência da Idade do Pai (IDADEPAI)
+# Distribuição da Idade do Pai (IDADEPAI)
 grafico_idade_pai_freq <- dados_sinasc_limpos %>%
-  # Remove NAs para garantir um gráfico limpo
   filter(!is.na(IDADEPAI)) %>%
   ggplot(aes(x = IDADEPAI)) +
-
-  # Histograma (Omitimos aes(y=...) para usar o padrão: Frequência/Contagem)
   geom_histogram(
     binwidth = 1,
     fill = "gray",         
     color = "white"
   ) +
-
-  # Títulos e Rótulos
   labs(
     title = "",
     x = "Idade do Pai (Anos)",
     y = "Frequência"
   ) +
   scale_x_continuous(breaks = seq(15, 60, by = 5), limits = c(10, 60)) +
-  # ADICIONA SEPARADOR DE MILHAR NO EIXO Y
   scale_y_continuous(
     labels = label_number(big.mark = "."),
     limits = c(0, 1000) 
@@ -347,17 +304,14 @@ print(grafico_idade_pai_freq)
 base_path <- "/home/mramos/Documentos/Dissetacao/"
 path <- file.path(base_path, "Dissertacao_text/imagens/")
 
-# 1. Salvar o Histograma da Idade da Mãe como PNG
 ggsave(
   filename = "histograma_idade_mae_2022.pdf",
   plot = grafico_idade_mae_freq,
   path=path,
-
   units = "in", 
   dpi = 300   
 )
 
-# 2. Salvar o Histograma da Idade do Pai como PDF
 ggsave(
   filename = "histograma_idade_pai_2022.pdf",
   plot = grafico_idade_pai_freq,
@@ -367,11 +321,9 @@ ggsave(
 )
 
 
-
-
-# 1. Cria a variável de status de missing para IDADEPAI
+# Cria a variável de status de missing para IDADEPAI
 dados_padrao_missing <- dados_sinasc_limpos %>%
-  filter(!is.na(IDADEMAE)) %>% # Remove mães com idade NA (se houver)
+  filter(!is.na(IDADEMAE)) 
   mutate(
     idade_pai_status = factor(
       ifelse(is.na(IDADEPAI), "Faltante", "Observada"),
@@ -379,20 +331,12 @@ dados_padrao_missing <- dados_sinasc_limpos %>%
     )
   )
 
-# 2. Gera o Violin Plot da IDADEMAE por status de IDADEPAI
+#  Gera o Violin Plot da IDADEMAE por status de IDADEPAI
 grafico_padrao_condicional <- dados_padrao_missing %>%
   ggplot(aes(x = idade_pai_status, y = IDADEMAE, fill = idade_pai_status)) +
-  
-  # Adiciona o Violin Plot para mostrar a densidade da distribuição
   geom_violin(trim = TRUE, alpha = 0.5, draw_quantiles = c(0.5)) + 
-  
-  # Adiciona o Box Plot (diagrama de caixas) para os quartis
   geom_boxplot(width = 0.1, outlier.shape = NA) +
-  
-  # Adiciona a Média (opcional)
   stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
-  
-  # Títulos e Rótulos
   labs(
     title = "Distribuição da Idade da Mãe Condicional ao Status da Idade do Pai",
     subtitle = "Comparação da IDADEMAE em casos observados vs. faltantes (SINASC 2022)",
@@ -412,60 +356,22 @@ print(grafico_padrao_condicional)
 
 ##############################
 #  correlação
-#######################3
+#######################
 
 # Filtra apenas os registros completos para IDADEMAE e IDADEPAI
-# para garantir que o mapa de calor represente as observações reais
 dados_completos <- dados_sinasc_limpos[!is.na(dados_sinasc_limpos$IDADEPAI) & !is.na(dados_sinasc_limpos$IDADEMAE), ]
 
-# Cria o mapa de calor de densidade 2D em tons de cinza
+# Mapa de calor Paraná
 ggplot(PA, aes(x = IDADEPAI, y = IDADEMAE)) +
-  # geom_bin_2d divide o plano em bins e conta os pontos em cada um
-  geom_bin_2d(bins = 70) + # Aumente 'bins' para maior resolução, diminua para menor
-  # Aplica uma escala de cinza do branco para o preto, onde o preto é a maior densidade
+  geom_bin_2d(bins = 70) + 
   scale_fill_gradient(low = "gray", high = "black", name = "Contagem") +
   labs(
     title = "Densidade de Nascimentos por Idade do Pai e Idade da Mãe (2022)",
     x = "Idade do Pai (Anos)",
     y = "Idade da Mãe (Anos)"
   ) +
-  # Define os limites dos eixos para focar na distribuição principal
   coord_cartesian(xlim = c(15, 60), ylim = c(10, 50)) +
   theme_minimal()
-
-
-
-# Certifique-se de ter o pacote instalado
-# install.packages("naniar")
-library(naniar)
-
-
-# # Cria o gráfico de dispersão com geom_miss_point()
-# ggplot(dados_sinasc_limpos, aes(x = IDADEPAI, y = IDADEMAE)) +
-#   # Substitui os valores NA de IDADEPAI por um ponto na base
-#   geom_miss_point(size = 0.5) +
-#   # geom_point() plota os dados não faltantes.
-#   # Use alfa baixo (transparência) devido ao grande volume de dados completos.
-#   geom_point(alpha = 0.05, size = 0.8) +
-#   labs(
-#     title = "Idade do Pai vs. Idade da Mãe com Faltantes (NA para IDADEPAI)",
-#     subtitle = "Pontos cinzas (NA) mostram registros onde a Idade do Pai está faltando.",
-#     x = "Idade do Pai (Anos) [NA's são plotados no limite inferior]",
-#     y = "Idade da Mãe (Anos)"
-#   ) +
-#   theme_minimal()
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -478,11 +384,7 @@ dados_brasil <- bind_rows(lapply(UFs, function(UF) {
 }))
 
 
-
-
 dados_brasil$Ano <- year(as.Date(dados_brasil$DTNASC))
-
-library(dplyr)
 
 proporcao_por_ano <- dados_brasil %>%
   group_by(Ano) %>%
@@ -491,15 +393,11 @@ proporcao_por_ano <- dados_brasil %>%
 print(proporcao_por_ano)
 
 
-library(ggplot2)
 
-
-
-
-# Gráfico de linha do tempo
+# Gráfico de linha do tempo dados faltantes para o Brasil
 grap_plot_missing <- ggplot(proporcao_por_ano, aes(x = as.factor(Ano), y = proporcao_faltantes, group = 1)) +
-  geom_line(size = 1) +  # Linhas conectando os pontos
-  geom_point(size = 2) + # Pontos sobre as linhas
+  geom_line(size = 1) + 
+  geom_point(size = 2) +
   scale_y_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +  # Define os limites do eixo y
   labs(
     title = "",
