@@ -1,0 +1,111 @@
+---
+title: "visualizacoes_artigo"
+author: "mimi"
+date: "2026-05-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+load("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/resultados_todos_20250706.RData")
+```
+
+
+tabela_po_idade  > RMSE_TEFM
+tabela_larga >RMSE_TFTM
+
+tabelas_por_idade_erro > RB_TEFM
+tabela_larga_erro > RB_TFTM
+
+tabela_larga_REQM > REQM_TFTM
+
+
+```{r}
+
+
+library(tidyverse)
+
+dados_plot <- tabelas_por_idade %>%
+  bind_rows(.id = "faixa_idade") %>%
+  pivot_longer(
+    cols = -c(faixa_idade, mecanismo, proporcao),
+    names_to = "metodo",
+    values_to = "valor"
+  ) %>%
+  mutate(
+    valor = as.numeric(str_replace(valor, ",", ".")),
+    cenario = paste(mecanismo, proporcao)
+  )
+
+ggplot(dados_plot,
+       aes(x = metodo,
+           y = faixa_idade,
+           fill = valor)) +
+  geom_tile(color = "white") +
+  facet_wrap(~ cenario) +
+  scale_fill_viridis_c() +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+
+```{r}
+ggplot(
+  dados_plot,
+  aes(x = valor,
+      y = reorder(metodo, valor),
+      color = metodo)
+) +
+  geom_point(size = 2) +
+  facet_wrap(~ faixa_idade) +
+  theme_minimal()
+```
+```{r}
+library(tidyverse)
+
+dados_longos <- tabelas_por_idade %>%
+  bind_rows(.id = "faixa_idade") %>%
+  pivot_longer(
+    cols = -c(faixa_idade, mecanismo, proporcao),
+    names_to = "metodo",
+    values_to = "erro"
+  ) %>%
+  mutate(
+    erro = as.numeric(str_replace(erro, ",", ".")),
+    cenario = paste(mecanismo, proporcao)
+  )
+```
+
+```{r}
+melhores_metodos <- dados_longos %>%
+  group_by(faixa_idade, mecanismo, proporcao) %>%
+  slice_min(erro, n = 1, with_ties = FALSE) %>%
+  ungroup()
+```
+
+```{r}
+ggplot(
+  melhores_metodos,
+  aes(
+    x = paste(mecanismo, proporcao),
+    y = faixa_idade,
+    fill = metodo
+  )
+) +
+  geom_tile(color = "white") +
+  theme_minimal() +
+  labs(
+    x = "Cenário",
+    y = "Faixa etária",
+    fill = "Melhor método"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+

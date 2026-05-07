@@ -689,7 +689,7 @@ REQM
 library(tidyr)
 
 tabela_larga <- indicadores %>%
-  select(proporcao, mecanismo, metodo, RMSE_TFTM) %>%  # Seleciona as colunas relevantes
+  select(proporcao, mecanismo, metodo, RMSE_TFTM) %>%  
   distinct() %>%  # Remove duplicatas (caso haja vários grupos_idade por combinação)
   pivot_wider(
     names_from = metodo,      # cada valor único de "metodo" vira uma coluna
@@ -755,7 +755,7 @@ names(tabelas_por_idade) <- grupos_idade
 
 
 ```{r}
-# Criar pasta (opcional)
+# Criar pasta 
 dir.create("tabelas_rmse_tefm", showWarnings = FALSE)
 
 writexl::write_xlsx(tabela_larga, "tabelas_rmse_tefm/rmse_TFT_2022.xlsx")
