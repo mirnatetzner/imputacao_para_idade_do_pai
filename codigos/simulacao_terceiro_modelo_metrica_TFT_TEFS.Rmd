@@ -22,8 +22,8 @@ pacotes %>% purrr::walk(~ library(.x, character.only = TRUE))
 
 caminhos:
 ```{r}
-# base_path <- "D:/Mirna/ENCE/DISSERTACAO/"
-base_path <- "/home/mramos/Documentos/Dissetacao/"
+base_path <- "D:/Mirna/ENCE/DISSERTACAO/"
+#base_path <- "/home/mramos/Documentos/Dissetacao/"
 path <- file.path(base_path, "Dissertacao_text/imagens/")
 path_font <- file.path(base_path, "imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/")
 path_res <- file.path(base_path, "imputacao_para_idade_do_pai/202505_resultados/")
@@ -95,7 +95,7 @@ baixar_dados_sinasc <- function(uf, ano) {
 
 ```
 
-🧼 preprocessar_dados_sinasc()
+🧼 processar_dados_sinasc()
 ```{r}
 
 preprocessar_dados_sinasc <- function(df) {
@@ -713,10 +713,36 @@ tabela_larga <- indicadores %>%
 
 ```
 
+viés relativo
+```{r}
+
+tabela_larga_PB <- indicadores %>%
+  select(proporcao, mecanismo, metodo, PB_TFTM) %>%  
+  distinct() %>%  # Remove duplicatas (caso haja vários grupos_idade por combinação)
+  pivot_wider(
+    names_from = metodo,      # cada valor único de "metodo" vira uma coluna
+    values_from = PB_TFTM   # os valores vêm de "RMSE_TFTM"
+  ) %>%
+  arrange(proporcao, mecanismo)%>%
+  select(
+    mecanismo, proporcao,
+    `Análise de casos completos`,
+    `Média`,
+    `Mediana`,
+    `Mediana condicional\na idade da mãe`,
+    `Mediana condicional\n a idade da mãe\ne ao estado civil`,
+    `Mediana condicional\n a idade da mãe\ne ao turno de nascimento`,
+    `Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN`
+  ) %>% 
+    mutate(across(
+    where(is.numeric),
+    ~ formatC(.x, format = "f", digits = 4)
+  ))
+
+```
 
 
 ```{r}
-library(dplyr)
 library(tidyr)
 library(purrr)
 
@@ -752,6 +778,39 @@ names(tabelas_por_idade) <- grupos_idade
 
 ```
 
+```{r}
+
+tabelas_por_idade_PB <- indicadores %>%
+  select(proporcao, mecanismo, metodo, Grupo_idade, PB_TEFM) %>%
+  distinct() %>%
+  group_split(Grupo_idade) %>%
+  map(~ .x %>%
+        pivot_wider(
+          names_from = metodo,
+          values_from = PB_TEFM
+        ) %>%
+        arrange(proporcao, mecanismo) %>%
+        select(
+     mecanismo, proporcao,
+          `Análise de casos completos`,
+          `Média`,
+          `Mediana`,
+          `Mediana condicional\na idade da mãe`,
+          `Mediana condicional\n a idade da mãe\ne ao estado civil`,
+          `Mediana condicional\n a idade da mãe\ne ao turno de nascimento`,
+          `Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN`
+        ) %>%
+        mutate(across(where(is.numeric), ~ formatC(.x, format = "f", digits = 4)))
+  )
+# Pega os grupos de idade únicos na mesma ordem do split
+grupos_idade <- indicadores%>%
+  distinct(Grupo_idade) %>%
+  pull()
+
+# Atribui os nomes para a lista
+names(tabelas_por_idade_PB) <- grupos_idade
+
+```
 
 
 ```{r}

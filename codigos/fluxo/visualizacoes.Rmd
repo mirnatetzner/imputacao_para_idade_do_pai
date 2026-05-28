@@ -9,24 +9,30 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+
 ```{r}
-load("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/codigos/resultados_todos_20250706.RData")
+library(here)
+
+load(paste0(here(),"/codigos/resultados_todos_20250706.RData"))
+
 ```
 
 
 tabela_po_idade  > RMSE_TEFM
-tabela_larga >RMSE_TFTM
-
 tabelas_por_idade_erro > RB_TEFM
-tabela_larga_erro > RB_TFTM
 
-tabela_larga_REQM > REQM_TFTM
+
+tabela_larga_erro > RB_TFTM
+tabela_larga > RMSE_TFTM
+tabela_larga_PB > PB_TFT
 
 
 ```{r}
 
 
 library(tidyverse)
+library(stringr)
 
 dados_plot <- tabelas_por_idade %>%
   bind_rows(.id = "faixa_idade") %>%
@@ -38,74 +44,304 @@ dados_plot <- tabelas_por_idade %>%
   mutate(
     valor = as.numeric(str_replace(valor, ",", ".")),
     cenario = paste(mecanismo, proporcao)
+  ) %>%
+   mutate(
+    metodo = case_when(
+      metodo == "Mediana condicional\na idade da mãe" ~ "MCIM",
+      metodo == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCIMEC",
+      metodo == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCIMTN",
+      metodo == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCIMFR",
+      metodo == "Análise de casos completos"~ "ACC",
+      TRUE ~ metodo
+    )
   )
 
-ggplot(dados_plot,
-       aes(x = metodo,
-           y = faixa_idade,
+REQM_TEFM = ggplot(dados_plot,
+       aes(x =faixa_idade,
+           y =  metodo,
            fill = valor)) +
   geom_tile(color = "white") +
+  labs(title = "REQM TEFM",
+       y= "Método de imputação",
+       x= "Faixa etária")+
   facet_wrap(~ cenario) +
-  scale_fill_viridis_c() +
+  scale_fill_gradient2(
+    low = "#B2182B",    # negativos
+    mid = "white",      # próximo de 0
+    high = "#2166AC",   # positivos
+    midpoint = 0,
+    name = "REQM"
+  ) +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.text.x = element_text(angle = 90, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)
   )
+
+ggsave("REQM_TEFM.png",REQM_TEFM, width = 15.5,
+  height = 12, units = "cm", path = here(),  dpi=300)
 ```
 
 
-```{r}
-ggplot(
-  dados_plot,
-  aes(x = valor,
-      y = reorder(metodo, valor),
-      color = metodo)
-) +
-  geom_point(size = 2) +
-  facet_wrap(~ faixa_idade) +
-  theme_minimal()
-```
-```{r}
-library(tidyverse)
 
-dados_longos <- tabelas_por_idade %>%
+
+```{r}
+
+dados_plot_erro <- tabelas_por_idade_erro %>%
   bind_rows(.id = "faixa_idade") %>%
   pivot_longer(
     cols = -c(faixa_idade, mecanismo, proporcao),
     names_to = "metodo",
-    values_to = "erro"
+    values_to = "valor"
   ) %>%
   mutate(
-    erro = as.numeric(str_replace(erro, ",", ".")),
+    valor = as.numeric(str_replace(valor, ",", ".")),
     cenario = paste(mecanismo, proporcao)
+  ) %>%
+   mutate(
+    metodo = case_when(
+      metodo == "Mediana condicional\na idade da mãe" ~ "MCIM",
+      metodo == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCIMEC",
+      metodo == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCIMTN",
+      metodo == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCIMFR",
+      metodo == "Análise de casos completos"~ "ACC",
+      TRUE ~ metodo
+    )
   )
-```
 
-```{r}
-melhores_metodos <- dados_longos %>%
-  group_by(faixa_idade, mecanismo, proporcao) %>%
-  slice_min(erro, n = 1, with_ties = FALSE) %>%
-  ungroup()
-```
-
-```{r}
-ggplot(
-  melhores_metodos,
-  aes(
-    x = paste(mecanismo, proporcao),
-    y = faixa_idade,
-    fill = metodo
-  )
-) +
+rb_TEFM = ggplot(dados_plot_erro,
+       aes(x =faixa_idade,
+           y =  metodo,
+           fill = valor)) +
   geom_tile(color = "white") +
-  theme_minimal() +
-  labs(
-    x = "Cenário",
-    y = "Faixa etária",
-    fill = "Melhor método"
+  labs(title = "Erro bruto TEFM",
+       y= "Método de imputação",
+       x= "Faixa etária")+
+  facet_wrap(~ cenario) +
+   scale_fill_gradient2(
+    low = "#B2182B",    
+    mid = "white",      
+    high = "#2166AC",   
+    midpoint = 0,
+    name = "Erro bruto"
   ) +
+
+  theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.text.x = element_text(angle = 90, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)
   )
+
+ggsave("EB_TEFM.png",rb_TEFM, width = 15.5,
+  height = 12, units = "cm", path = here(),  dpi=300)
 ```
+
+
+
+```{r}
+
+dados_plot_PB <- tabelas_por_idade_PB %>%
+  bind_rows(.id = "faixa_idade") %>%
+  pivot_longer(
+    cols = -c(faixa_idade, mecanismo, proporcao),
+    names_to = "metodo",
+    values_to = "valor"
+  ) %>%
+  mutate(
+    valor = as.numeric(str_replace(valor, ",", ".")),
+    cenario = paste(mecanismo, proporcao)
+  ) %>%
+   mutate(
+    metodo = case_when(
+      metodo == "Mediana condicional\na idade da mãe" ~ "MCIM",
+      metodo == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCIMEC",
+      metodo == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCIMTN",
+      metodo == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCIMFR",
+      metodo == "Análise de casos completos"~ "ACC",
+      TRUE ~ metodo
+    )
+  )
+
+PB_TEFM = ggplot(dados_plot_PB,
+       aes(x =faixa_idade,
+           y =  metodo,
+           fill = valor)) +
+  geom_tile(color = "white") +
+  labs(title = "Viés relativo TEFM",
+       y= "Método de imputação",
+       x= "Faixa etária")+
+  facet_wrap(~ cenario) +
+   scale_fill_gradient2(
+    low = "#B2182B",    
+    mid = "white",      
+    high = "#2166AC",   
+    midpoint = 0,
+    name = "Viés relativo"
+  ) +
+
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+ggsave("PB_TEFM.png",PB_TEFM, width = 15.5,
+  height = 12, units = "cm", path = here(),  dpi=300)
+```
+
+
+
+
+
+
+
+
+```{r}
+library(patchwork)
+
+padroniza_metodo <- function(df){
+
+  df %>%
+pivot_longer(
+      cols = -c(mecanismo, proporcao),
+      names_to = "metodo",
+      values_to = "valor"
+    ) %>%
+mutate(
+      valor = as.numeric(str_replace(valor, ",", ".")),
+
+      metodo = case_when(
+        metodo == "Mediana condicional\na idade da mãe" ~ "MCIM",
+        metodo == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCIMEC",
+        metodo == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCIMTN",
+        metodo == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCIMFR",
+        metodo == "Análise de casos completos" ~ "ACC",
+        TRUE ~ metodo
+      )
+    ) |> 
+    filter( metodo != "ACC")
+  
+}
+
+#-----------------------------
+# REQM
+#-----------------------------
+
+dados_REQM <- padroniza_metodo(tabela_larga) %>%
+  mutate(indicador = "REQM")
+
+#-----------------------------
+# Erro bruto
+#-----------------------------
+
+dados_RB <- padroniza_metodo(tabela_larga_erro) %>%
+  mutate(indicador = "Erro bruto")
+
+#-----------------------------
+# Viés relativo
+#-----------------------------
+
+dados_PB <- padroniza_metodo(tabela_larga_PB) %>%
+  mutate(indicador = "Viés relativo")
+
+#-----------------------------
+# Junta tudo
+#-----------------------------
+
+dados_final <- bind_rows(
+  dados_REQM,
+  dados_RB,
+  dados_PB
+)
+
+
+
+faz_grafico <- function(dados, titulo, legenda, titulo_x,titulo_y){
+
+  ggplot(
+    dados,
+    aes(
+      x = proporcao,
+      y = metodo,
+      fill = valor
+    )
+  ) +
+
+    geom_tile(color = "white") +
+
+    facet_wrap(~ mecanismo) +
+
+    scale_fill_gradient2(
+      low = "#B2182B",
+      mid = "white",
+      high = "#2166AC",
+      midpoint = 0,
+      name = legenda
+    ) +
+
+    labs(
+      title = titulo,
+      x = titulo_x,
+      y = titulo_y
+    ) +
+
+    theme_minimal() +
+
+    theme(
+      axis.text.x = element_text(
+        angle = 90,
+        hjust = 0.5
+      ),
+
+      plot.title = element_text(
+        hjust = 0.5
+      )
+    )
+}
+
+
+g_REQM <- faz_grafico(
+  dados_REQM,
+   titulo= "",
+  "REQM",
+  titulo_x= "",
+  titulo_y =""
+)
+
+g_RB <- faz_grafico(
+  dados_RB,
+   titulo="",
+  "Erro bruto",
+  titulo_x= "",
+  titulo_y = "Métodos de imputação"
+)
+
+g_PB <- faz_grafico(
+  dados_PB,
+   titulo ="",
+  "Viés relativo",
+  titulo_x = "Percentual de dados faltantes",
+  titulo_y =""
+)
+
+
+
+g_final <- (
+  g_REQM /
+  g_RB /
+  g_PB
+)
+
+
+
+
+ggsave("Indicadores_TFTM.png",g_final,path = here(),width = 15,height = 15,units = "cm",dpi = 300)
+```
+
+
+
+
+
+
+
 
