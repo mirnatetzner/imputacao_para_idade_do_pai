@@ -198,7 +198,7 @@ for (uf in UFs) {
         .
       }
     } %>%
-    select(-c(`ESTCIVMAE <- as.factor(.data$ESTCIVMAE)`,`IDADEMAE <- as.factor(.data$IDADEMAE)`,HORANASC, HORANASC_seconds))
+    select(-c(HORANASC, HORANASC_seconds))
 
   assign(uf, temp)
 }
@@ -1123,16 +1123,16 @@ fluxo_tres_tftm_brasil_trib <- tibble(
 caminho_arquivo <- paste0(path_res, ano, "_TEF_TFT_Fluxos.xlsx")
 
 
-write_xlsx(
-  list(
-    "Fluxo1_TEFM" = tefm_tabela_larga,
-    "Fluxo2_TEFM" = tefm_fluxo_dois_larga,
-    "Fluxo3_TEFM_br" = fluxo_tres_tefm_br_larga,
-    "Fluxo1_TFTM_uf_reg_br" = tftm_tabela_larga,
-    "Fluxo2_TFTM_reg_br" = tft_fluxo_dois_todos,
-    "Fluxo3_TFTM_br" = fluxo_tres_tftm_brasil_trib
-  ),
-  path = caminho_arquivo)
+# write_xlsx(
+#   list(
+#     "Fluxo1_TEFM" = tefm_tabela_larga,
+#     "Fluxo2_TEFM" = tefm_fluxo_dois_larga,
+#     "Fluxo3_TEFM_br" = fluxo_tres_tefm_br_larga,
+#     "Fluxo1_TFTM_uf_reg_br" = tftm_tabela_larga,
+#     "Fluxo2_TFTM_reg_br" = tft_fluxo_dois_todos,
+#     "Fluxo3_TFTM_br" = fluxo_tres_tftm_brasil_trib
+#   ),
+#   path = caminho_arquivo)
 
 
 
@@ -1213,7 +1213,7 @@ tftf_todos<- tftf_todos %>%
   mutate(UF = factor(UF, levels = ordem_final)) %>%
   arrange(UF)
 
-write_xlsx(list(teff_tabela_larga,tftf_todos), paste0(path_res, ano, "_taxas_femininas.xlsx"))
+# write_xlsx(list(teff_tabela_larga,tftf_todos), paste0(path_res, ano, "_taxas_femininas.xlsx"))
 
 ```
 
@@ -1239,7 +1239,7 @@ tft_fem_mas_e_dif <- tft_fem_mas_e_dif %>%
     Diferença = gsub("\\.", ",", format(round(Diferença, 2), nsmall = 2))
   )
 
-write_xlsx(tft_fem_mas_e_dif, paste0(path_res, ano, "_tft_fem_mas_e_dif.xlsx"))
+# write_xlsx(tft_fem_mas_e_dif, paste0(path_res, ano, "_tft_fem_mas_e_dif.xlsx"))
 
 ```
 
@@ -1282,7 +1282,7 @@ idade_media_total <- bind_rows(idade_media_regiao, idade_media_brasil)
 idade_media_total
 
 
-write_xlsx(idade_media_total, paste0(path_res, ano, "_idade_media_a_fecundidade.xlsx"))
+# write_xlsx(idade_media_total, paste0(path_res, ano, "_idade_media_a_fecundidade.xlsx"))
 
 
 ```
@@ -1659,8 +1659,6 @@ walk(c("NO", "ND", "CO", "SD", "SU", "BR"), ~
 ## Razão das TFTs
 
 ```{r}
-library(dplyr)
-library(ggplot2)
 
 # Juntar as tabelas
 tft_merged <- left_join(tftm_tabela_larga, tftf_todos, by = "UF") %>%
@@ -1687,7 +1685,7 @@ RTFT = ggplot(tft_merged, aes(x = TFTM, y = TFTF, label = UF)) +
     axis.text = element_text(size = 12)
   )
 
-  ggsave(paste0(path, "RTFT.pdf"), RTFT, width = 7, height = 5, dpi = 300)
+  # ggsave(paste0(path, "RTFT.pdf"), RTFT, width = 7, height = 5, dpi = 300)
 ```
 
 
@@ -1736,165 +1734,68 @@ write_xlsx(tft_merged,
 
 
 
-
-
-
-#--------- DEPRECADO
-
-# Missing
-
-
 ```{r}
 
-
-# library(naniar)  # para miss_var_summary
-# 
-# 
-# # Lista para armazenar resultados por UF
-# miss_ufs <- list()
-# 
-# # 1. Calcular miss por UF e guardar em lista
-# ufs_all <- c(NO, ND, CO, SD, SU)
-# 
-# for (uf in UFs) {
-#   temp <- get(uf)  # dataframe da UF
-#   mis <- miss_var_summary(temp)
-#   assign(paste0(uf,"_miss"), mis)   # opcional salvar no ambiente global
-#   miss_ufs[[uf]] <- mis              # salvar em lista para acesso rápido
-# }
-# 
-# # 2. Calcular miss para cada região concatenando os dataframes das UFs
-# 
-# for (nome_regiao in names(regioes)) {
-#   ufs <- regioes[[nome_regiao]]  # vetor de UFs da região
-# 
-#   dados_regiao <- do.call(rbind, lapply(ufs, get))
-#   
-#   miss_regiao <- miss_var_summary(dados_regiao)
-#   
-#   assign(paste0(nome_regiao, "_miss"), miss_regiao)
-# }
+# Juntar as tabelas
+tft_merged_regi <- left_join(tftm_tabela_larga, tftf_todos, by = "UF") %>%
+  mutate(
+    TFTM = as.numeric(gsub(",", ".", TFTM)),
+    TFTF = as.numeric(gsub(",", ".", TFTF))
+  ) %>% 
+  filter((UF %in% c("BR","NO", "ND", "SU", "SD", "CO")) )
 
 
-```
+# Plotar
+RTFT_reigi = ggplot(tft_merged_regi, aes(x = TFTM, y = TFTF, label = UF)) +
+  geom_point(size = 1, color = "red") +
+  geom_text(vjust = -0.8, size = 3.5) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    x = "Taxa de Fecundidade Total Masculina (TFTM)",
+    y = "Taxa de Fecundidade Total Feminina (TFTF)"
+    #,title = "Comparação entre TFTM e TFTF por UF"
+  ) +
+  theme_minimal() +
+   theme(
+    axis.title = element_text( size = 14),
+    axis.text = element_text(size = 12)
+  )
 
-
-```{r}
-# library(dplyr)
-# library(tidyr)
-# 
-# # Função para agregar missings por região
-# miss_regiao <- lapply(names(regioes), function(reg) {
-#   ufs <- regioes[[reg]]
-#   # Pegar os missings das UFs da região e concatenar
-#   miss_ufs <- do.call(rbind, lista_missings[ufs])
-#   
-#   # Agrupar por variável e calcular soma de missing e média de pct_missing ponderada por tamanho?
-#   # Se quiser média simples:
-#   miss_agrup <- miss_ufs %>%
-#     group_by(variable) %>%
-#     summarise(
-#       n_miss = sum(n_miss),
-#       pct_miss = mean(pct_miss)
-#     ) %>%
-#     mutate(REGIAO = reg)
-#   
-#   return(miss_agrup)
-# })
-# 
-# # Dataframe único com missings por região
-# miss_regioes_df <- bind_rows(miss_regiao)
-
-```
-
-
-```{r}
-# miss_brasil_df <- miss_var_summary(dados_brasil) %>%
-#   mutate(REGIAO = "Brasil")
-
+  # ggsave(paste0(path, "RTFT.pdf"), RTFT, width = 7, height = 5, dpi = 300)
 ```
 
 ```{r}
-# Adicionar coluna UF nas tabelas originais de missings
-# ufs_miss_df <- do.call(rbind, lapply(names(lista_missings), function(uf) {
-#   df <- lista_missings[[uf]]
-#   df$UF <- uf
-#   df
-# }))
-# 
-# # Concatenar todas as tabelas com coluna de origem
-# miss_total <- bind_rows(
-#   ufs_miss_df %>% mutate(NIVEL = "UF"),
-#   miss_regioes_df %>% rename(UF = REGIAO) %>% mutate(NIVEL = "Região"),
-#   miss_brasil_df %>% rename(UF = REGIAO) %>% mutate(NIVEL = "Brasil")
-# )
+# Juntar as tabelas
+tft_merged_regi <- left_join(tftm_tabela_larga, tftf_todos, by = "UF") %>%
+  mutate(
+    TFTM = as.numeric(gsub(",", ".", TFTM)),
+    TFTF = as.numeric(gsub(",", ".", TFTF))
+  ) %>% 
+  filter((UF %in% c("BR","NO", "ND", "SU", "SD", "CO"))) %>%
+  # Criar uma coluna indicando se é BR ou não
+  mutate(destaque = ifelse(UF == "BR", "Brasil", "Regiões"))
 
+# Plotar
+RTFT_reigi = ggplot(tft_merged_regi, aes(x = TFTM, y = TFTF, label = UF)) +
+  # Pontos com cor condicional
+  geom_point(aes(color = destaque, size = destaque)) +
+  scale_color_manual(values = c("Brasil" = "#2166AC", "Regiões" = "#B2182B")) +
+  scale_size_manual(values = c("Brasil" = 1.5, "Regiões" = 1.5)) +
+  # Texto também com cor condicional (opcional)
+  geom_text(aes(color = destaque), vjust = -0.8, size = 3.5, show.legend = FALSE) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    x = "Male total fetility rate",
+    y = "Female total fetility rate"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12)
+  ) +
+  # Opcional: remover legenda do tamanho (se preferir)
+  guides(color = guide_legend(title = "Legend"), size = "none")
+
+ ggsave(paste0(path, "RTFT_reioes.pdf"), RTFT_reigi, width = 7, height = 5, dpi = 300)
 ```
-
-```{r}
-
-# 
-# # Dicionário com nomes originais e nomes novos
-# mapeamento_nomes <- c(
-#   IDADEPAI      = "Idade do pai",
-#   ESTCIVMAE     = "Estado civil da mãe",
-#   TPFUNCRESP    = "Função",
-#   IDADEMAE      = "Idade da mãe",
-#   HORANASC_turno = "Turno da hora do nascimento"
-# )
-# 
-# renomear_colunas_seguro <- function(df) {
-#   nomes_atuais <- colnames(df)
-#   nomes_novos <- nomes_atuais
-#   for (i in seq_along(nomes_atuais)) {
-#     if (nomes_atuais[i] %in% names(mapeamento_nomes)) {
-#       nomes_novos[i] <- mapeamento_nomes[nomes_atuais[i]]
-#     }
-#   }
-#   colnames(df) <- nomes_novos
-#   return(df)
-# }
-# 
-# library(tidyr)
-# library(scales)
-# 
-# # Ajustar tipos e ordenar
-# miss_total <- miss_total %>%
-#   mutate(
-#     n_miss = as.numeric(n_miss),
-#     pct_miss = as.numeric(pct_miss)
-#   ) %>%
-#   select(UF, everything()) %>%
-#   mutate(UF = factor(UF, levels = c("Brasil",names(regioes) , ufs_all))) %>%
-#   arrange(UF)
-# 
-# miss_total <- miss_total %>%
-#   rename(codigo_lugar = UF) 
-# 
-# # Tabela wide com percentuais formatados
-# tabela_pct <- miss_total %>%
-#   select(codigo_lugar, variable, pct_miss) %>%
-#   pivot_wider(names_from = variable, values_from = pct_miss) %>%
-#   mutate(across(where(is.numeric), ~ scales::percent(.x / 100, accuracy = 0.01)))
-# 
-# 
-# # Tabela wide com números absolutos formatados
-# tabela_abs <- miss_total %>%
-#   select(codigo_lugar, variable, n_miss) %>%
-#   pivot_wider(names_from = variable, values_from = n_miss) %>%
-#   mutate(across(where(is.numeric), ~ format(.x, big.mark = ".", decimal.mark = ",")))
-# 
-# # Renomear colunas (reaproveitando sua função)
-# tabela_abs <- renomear_colunas_seguro(tabela_abs)
-# tabela_pct <- renomear_colunas_seguro(tabela_pct)
-# 
-# # Exportar XLSX
-# openxlsx::write.xlsx(tabela_pct, paste0(path_res, ano, "_tabela_pct_miss.xlsx"), overwrite = TRUE)
-# openxlsx::write.xlsx(tabela_abs, paste0(path_res, ano, "_tabela_n_miss.xlsx"), overwrite = TRUE)
-# 
-
-
-```
-
-
 
