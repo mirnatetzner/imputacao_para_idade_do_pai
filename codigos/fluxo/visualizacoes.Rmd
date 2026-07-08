@@ -9,10 +9,18 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+
+library(here)
+library(showtext)
+library(writexl)
+
+font_add("Arial", paste0(here(),"/artigo/arial.ttf")) 
+showtext_auto()
+```
 
 
 ```{r}
-library(here)
 
 load(paste0(here(),"/codigos/resultados_todos_20250706.RData"))
 
@@ -33,38 +41,57 @@ tabela_larga_PB > PB_TFT
 
 library(tidyverse)
 library(stringr)
+library(ggplot2)
 
 dados_plot <- tabelas_por_idade %>%
   bind_rows(.id = "faixa_idade") %>%
   pivot_longer(
     cols = -c(faixa_idade, mecanismo, proporcao),
-    names_to = "metodo",
+    names_to = "Imputation method",
     values_to = "valor"
   ) %>%
   mutate(
-    valor = as.numeric(str_replace(valor, ",", ".")),
+    `REQM TEFM` = as.numeric(str_replace(valor, ",", ".")),
     cenario = paste(mecanismo, proporcao)
   ) %>%
+  select(-valor) %>% 
    mutate(
-    metodo = case_when(
-      metodo == "Mediana condicional\na idade da mãe" ~ "MCIM",
-      metodo == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCIMEC",
-      metodo == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCIMTN",
-      metodo == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCIMFR",
-      metodo == "Análise de casos completos"~ "ACC",
-      TRUE ~ metodo
+    `Imputation method` = case_when(
+      `Imputation method` == "Mediana" ~ "Median",
+      `Imputation method` == "Média" ~ "Mean",
+      `Imputation method` == "Mediana condicional\na idade da mãe" ~ "MCMA", # Median conditional on maternal age
+      `Imputation method` == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCMAMS", # Median conditional on maternal age and marital status
+      `Imputation method` == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCMABS",#Median conditional on maternal age and birth shift;
+      `Imputation method` == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCMARR", # Median conditional on maternal age and the role of the person responsible for completing the Live Birth Declaration
+      `Imputation method` == "Análise de casos completos"~ "CCA", #COMPLETE CASE ANALISES
+      TRUE ~ `Imputation method`
     )
-  )
+  ) %>% 
+  rename( "Age group" = faixa_idade,
+          Percentage = proporcao,
+          Mecanism = mecanismo, 
+          Setting = cenario
+          ) %>% 
+  mutate(
+    Mecanism = case_when(
+      Mecanism == "MA" ~ "MAR",
+      Mecanism == "MCA" ~ "MCAR",
+      Mecanism == "MNA" ~ "MNAR"
+  ),
+   Setting = Setting %>%
+      str_replace("^MA", "MAR") %>%
+      str_replace("^MCA", "MCAR") %>%
+      str_replace("^MNA", "MNAR"))
 
 REQM_TEFM = ggplot(dados_plot,
-       aes(x =faixa_idade,
-           y =  metodo,
-           fill = valor)) +
+       aes(x =`Age group`,
+           y =  `Imputation method`,
+           fill = `REQM TEFM`)) +
   geom_tile(color = "white") +
   labs(title = "REQM TEFM",
-       y= "Método de imputação",
-       x= "Faixa etária")+
-  facet_wrap(~ cenario) +
+       y= "Imputation method",
+       x= "Age group")+
+  facet_wrap(~ Setting) +
   scale_fill_gradient2(
     low = "#B2182B",    # negativos
     mid = "white",      # próximo de 0
@@ -72,14 +99,15 @@ REQM_TEFM = ggplot(dados_plot,
     midpoint = 0,
     name = "REQM"
   ) +
-  theme_minimal() +
+  theme_minimal(base_family = "Arial")+
   theme(
     axis.text.x = element_text(angle = 90, hjust = 0.5),
     plot.title = element_text(hjust = 0.5)
   )
 
-ggsave("REQM_TEFM.png",REQM_TEFM, width = 15.5,
-  height = 12, units = "cm", path = here(),  dpi=300)
+ggsave("REQM_TEFM.png",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+ggsave("REQM_TEFM.pdf",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+write_xlsx(dados_plot, paste0(here(), "/artigo", "/REQM_TEFM.xlsx"))
 ```
 
 
@@ -126,7 +154,7 @@ rb_TEFM = ggplot(dados_plot_erro,
     name = "Erro bruto"
   ) +
 
-  theme_minimal() +
+  `theme_minimal(base_family = "Arial") +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 0.5),
     plot.title = element_text(hjust = 0.5)
@@ -179,7 +207,7 @@ PB_TEFM = ggplot(dados_plot_PB,
     name = "Viés relativo"
   ) +
 
-  theme_minimal() +
+  `theme_minimal(base_family = "Arial") +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 0.5),
     plot.title = element_text(hjust = 0.5)
@@ -285,7 +313,7 @@ faz_grafico <- function(dados, titulo, legenda, titulo_x,titulo_y){
       y = titulo_y
     ) +
 
-    theme_minimal() +
+    `theme_minimal(base_family = "Arial") +
 
     theme(
       axis.text.x = element_text(
@@ -335,7 +363,7 @@ g_final <- (
 
 
 
-ggsave("Indicadores_TFTM.png",g_final,path = here(),width = 15,height = 15,units = "cm",dpi = 300)
+# ggsave("Indicadores_TFTM.png",g_final,path = here(),width = 15,height = 15,units = "cm",dpi = 300)
 ```
 
 
