@@ -24,7 +24,7 @@ pacotes %>% purrr::walk(~ { if (!require(.x, character.only = TRUE)) install.pac
 caminhos:
 ```{r}
 # base_path <- "D:/Mirna/ENCE/DISSERTACAO/"
-base_path <- "/home/mramos/Documentos/Dissetacao/"
+base_path <- "/home/mramos/Documentos/Dissetacao"
 
 path <- file.path(base_path, "Dissertacao_text/imagens/")
 path_font <- file.path(base_path, "imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/")
@@ -1773,14 +1773,14 @@ tft_merged_regi <- left_join(tftm_tabela_larga, tftf_todos, by = "UF") %>%
   ) %>% 
   filter((UF %in% c("BR","NO", "ND", "SU", "SD", "CO"))) %>%
   # Criar uma coluna indicando se é BR ou não
-  mutate(destaque = ifelse(UF == "BR", "Brasil", "Regiões"))
+  mutate(destaque = ifelse(UF == "BR", "Brazil", "Regions"))
 
 # Plotar
 RTFT_reigi = ggplot(tft_merged_regi, aes(x = TFTM, y = TFTF, label = UF)) +
   # Pontos com cor condicional
   geom_point(aes(color = destaque, size = destaque)) +
-  scale_color_manual(values = c("Brasil" = "#2166AC", "Regiões" = "#B2182B")) +
-  scale_size_manual(values = c("Brasil" = 1.5, "Regiões" = 1.5)) +
+  scale_color_manual(values = c("Brazil" = "#2166AC", "Regions" = "#B2182B")) +
+  scale_size_manual(values = c("Brazil" = 1.5, "Regions" = 1.5)) +
   # Texto também com cor condicional (opcional)
   geom_text(aes(color = destaque), vjust = -0.8, size = 3.5, show.legend = FALSE) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
@@ -1796,6 +1796,40 @@ RTFT_reigi = ggplot(tft_merged_regi, aes(x = TFTM, y = TFTF, label = UF)) +
   # Opcional: remover legenda do tamanho (se preferir)
   guides(color = guide_legend(title = "Legend"), size = "none")
 
- ggsave(paste0(path, "RTFT_reioes.pdf"), RTFT_reigi, width = 7, height = 5, dpi = 300)
+ ggsave(paste0(path, "RTFT_reioes.png"), RTFT_reigi, width = 7, height = 5, dpi = 300)
 ```
 
+```{r}
+# Juntar as tabelas
+tft_merged_regi <- left_join(tftm_tabela_larga, tftf_todos, by = "UF") %>%
+  mutate(
+    TFTM = as.numeric(gsub(",", ".", TFTM)),
+    TFTF = as.numeric(gsub(",", ".", TFTF))
+  ) %>% 
+  filter((!UF %in% c("NO", "ND", "SU", "SD", "CO"))) %>%
+  # Criar uma coluna indicando se é BR ou não
+  mutate(destaque = ifelse(UF == "BR", "Brazil", "Federative Unit"))
+
+# Plotar
+RTFT_reigi = ggplot(tft_merged_regi, aes(x = TFTM, y = TFTF, label = UF)) +
+  # Pontos com cor condicional
+  geom_point(aes(color = destaque, size = destaque)) +
+  scale_color_manual(values = c("Brazil" = "#2166AC", "Federative Unit" = "#B2182B")) +
+  scale_size_manual(values = c("Brazil" = 1.5, "Federative Unit" = 1.5)) +
+  # Texto também com cor condicional (opcional)
+  geom_text(aes(color = destaque), vjust = -0.8, size = 3.5, show.legend = FALSE) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    x = "Male total fetility rate",
+    y = "Female total fetility rate"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12)
+  ) +
+  # Opcional: remover legenda do tamanho (se preferir)
+  guides(color = guide_legend(title = "Legend"), size = "none")
+
+ ggsave(paste0(path, "RTFT_ufs_eng.png"), RTFT_reigi, width = 7, height = 5, dpi = 300)
+```
