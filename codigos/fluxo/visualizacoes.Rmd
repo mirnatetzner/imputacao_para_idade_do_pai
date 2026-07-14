@@ -10,10 +10,13 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-
+library(tidyverse)
+library(stringr)
+library(ggplot2)
 library(here)
 library(showtext)
 library(writexl)
+library(patchwork)
 
 font_add("Arial", paste0(here(),"/artigo/arial.ttf")) 
 showtext_auto()
@@ -39,9 +42,6 @@ tabela_larga_PB > PB_TFT
 ```{r}
 
 
-library(tidyverse)
-library(stringr)
-library(ggplot2)
 
 dados_plot <- tabelas_por_idade %>%
   bind_rows(.id = "faixa_idade") %>%
@@ -267,7 +267,7 @@ write_xlsx(dados_plot_PB, paste0(here(), "/artigo", "/PB_TEFM.xlsx"))
 
 
 ```{r}
-library(patchwork)
+
 
 padroniza_metodo <- function(df){
 
@@ -337,13 +337,13 @@ dados_final <- bind_rows(
 
 
 
-faz_grafico <- function(dados, titulo, legenda, titulo_x,titulo_y){
+faz_grafico <- function(dados, legenda, titulo_x,titulo_y){ #titulo, 
 
   ggplot(
     dados,
     aes(
       x = Percentage,
-      y = Method,
+      y = `Imputation method`,
       fill = valor
     )
   ) +
@@ -361,7 +361,7 @@ faz_grafico <- function(dados, titulo, legenda, titulo_x,titulo_y){
     ) +
 
     labs(
-      title = titulo,
+      # title = titulo,
       x = titulo_x,
       y = titulo_y
     ) +
@@ -374,24 +374,22 @@ faz_grafico <- function(dados, titulo, legenda, titulo_x,titulo_y){
         hjust = 0.5
       ),
 
-      plot.title = element_text(
-        hjust = 0.5
-      )
+      plot.title = element_blank()
     )
 }
 
 
 g_REQM <- faz_grafico(
   dados_REQM,
-   titulo= "",
-  "RMSE",
+   # titulo= "",
+  legenda ="RMSE",
   titulo_x= "",
   titulo_y =""
 )
 
 g_RB <- faz_grafico(
   dados_RB,
-   titulo="",
+   # titulo="",
   "Raw bias",
   titulo_x= "",
   titulo_y = "Imputation method"
@@ -399,7 +397,7 @@ g_RB <- faz_grafico(
 
 g_PB <- faz_grafico(
   dados_PB,
-   titulo ="",
+   # titulo ="",
   "Percent bias",
   titulo_x = "Percentage of missing data",
   titulo_y =""
