@@ -51,7 +51,7 @@ dados_plot <- tabelas_por_idade %>%
     values_to = "valor"
   ) %>%
   mutate(
-    `REQM TEFM` = as.numeric(str_replace(valor, ",", ".")),
+    `RMSE MTFR` = as.numeric(str_replace(valor, ",", ".")),
     cenario = paste(mecanismo, proporcao)
   ) %>%
   select(-valor) %>% 
@@ -86,9 +86,9 @@ dados_plot <- tabelas_por_idade %>%
 REQM_TEFM = ggplot(dados_plot,
        aes(x =`Age group`,
            y =  `Imputation method`,
-           fill = `REQM TEFM`)) +
+           fill = `RMSE MTFR`)) +
   geom_tile(color = "white") +
-  labs(title = "REQM TEFM",
+  labs( title = "", #"RMSE MTFR",
        y= "Imputation method",
        x= "Age group")+
   facet_wrap(~ Setting) +
@@ -97,7 +97,7 @@ REQM_TEFM = ggplot(dados_plot,
     mid = "white",      # próximo de 0
     high = "#2166AC",   # positivos
     midpoint = 0,
-    name = "REQM"
+    name = "RMSE"
   ) +
   theme_minimal(base_family = "Arial")+
   theme(
@@ -105,9 +105,9 @@ REQM_TEFM = ggplot(dados_plot,
     plot.title = element_text(hjust = 0.5)
   )
 
-ggsave("REQM_TEFM.png",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
-ggsave("REQM_TEFM.pdf",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
-write_xlsx(dados_plot, paste0(here(), "/artigo", "/REQM_TEFM.xlsx"))
+ggsave("RMSE_MTFR.png",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+ggsave("RMSE_MTFR.pdf",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+write_xlsx(dados_plot, paste0(here(), "/artigo", "/RMSE_MTFR.xlsx"))
 ```
 
 
@@ -119,49 +119,69 @@ dados_plot_erro <- tabelas_por_idade_erro %>%
   bind_rows(.id = "faixa_idade") %>%
   pivot_longer(
     cols = -c(faixa_idade, mecanismo, proporcao),
-    names_to = "metodo",
+    names_to = "Imputation method",
     values_to = "valor"
   ) %>%
   mutate(
-    valor = as.numeric(str_replace(valor, ",", ".")),
+    `RB MTFR` = as.numeric(str_replace(valor, ",", ".")),
     cenario = paste(mecanismo, proporcao)
   ) %>%
+  select(-valor) %>% 
    mutate(
-    metodo = case_when(
-      metodo == "Mediana condicional\na idade da mãe" ~ "MCIM",
-      metodo == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCIMEC",
-      metodo == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCIMTN",
-      metodo == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCIMFR",
-      metodo == "Análise de casos completos"~ "ACC",
-      TRUE ~ metodo
+    `Imputation method` = case_when(
+      `Imputation method` == "Mediana" ~ "Median",
+      `Imputation method` == "Média" ~ "Mean",
+      `Imputation method` == "Mediana condicional\na idade da mãe" ~ "MCMA", # Median conditional on maternal age
+      `Imputation method` == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCMAMS", # Median conditional on maternal age and marital status
+      `Imputation method` == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCMABS",#Median conditional on maternal age and birth shift;
+      `Imputation method` == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCMARR", # Median conditional on maternal age and the role of the person responsible for completing the Live Birth Declaration
+      `Imputation method` == "Análise de casos completos"~ "CCA", #COMPLETE CASE ANALISES
+      TRUE ~ `Imputation method`
     )
-  )
+  ) %>% 
+  rename( "Age group" = faixa_idade,
+          Percentage = proporcao,
+          Mecanism = mecanismo, 
+          Setting = cenario
+          ) %>% 
+  mutate(
+    Mecanism = case_when(
+      Mecanism == "MA" ~ "MAR",
+      Mecanism == "MCA" ~ "MCAR",
+      Mecanism == "MNA" ~ "MNAR"
+  ),
+   Setting = Setting %>%
+      str_replace("^MA", "MAR") %>%
+      str_replace("^MCA", "MCAR") %>%
+      str_replace("^MNA", "MNAR"))
+
 
 rb_TEFM = ggplot(dados_plot_erro,
-       aes(x =faixa_idade,
-           y =  metodo,
-           fill = valor)) +
+       aes(x =`Age group`,
+           y =  `Imputation method`,
+           fill = `RB MTFR`)) +
   geom_tile(color = "white") +
-  labs(title = "Erro bruto TEFM",
-       y= "Método de imputação",
-       x= "Faixa etária")+
-  facet_wrap(~ cenario) +
+  labs(title = "",# Raw bias MTFR
+       y= "Imputation method",
+       x= "Age group")+
+  facet_wrap(~ Setting) +
    scale_fill_gradient2(
     low = "#B2182B",    
     mid = "white",      
     high = "#2166AC",   
     midpoint = 0,
-    name = "Erro bruto"
+    name = "Raw bias"
   ) +
-
-  `theme_minimal(base_family = "Arial") +
+  theme_minimal(base_family = "Arial") +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 0.5),
     plot.title = element_text(hjust = 0.5)
   )
 
-ggsave("EB_TEFM.png",rb_TEFM, width = 15.5,
-  height = 12, units = "cm", path = here(),  dpi=300)
+
+ggsave("RB_MTFR.png",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+ggsave("RB_MTFR.pdf",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+write_xlsx(dados_plot, paste0(here(), "/artigo", "/RB_MTFR.xlsx"))
 ```
 
 
@@ -172,49 +192,71 @@ dados_plot_PB <- tabelas_por_idade_PB %>%
   bind_rows(.id = "faixa_idade") %>%
   pivot_longer(
     cols = -c(faixa_idade, mecanismo, proporcao),
-    names_to = "metodo",
+    names_to = "Imputation method",
     values_to = "valor"
   ) %>%
   mutate(
-    valor = as.numeric(str_replace(valor, ",", ".")),
+    `Percent bias MTFR` = as.numeric(str_replace(valor, ",", ".")),
     cenario = paste(mecanismo, proporcao)
   ) %>%
+   select(-valor) %>% 
    mutate(
-    metodo = case_when(
-      metodo == "Mediana condicional\na idade da mãe" ~ "MCIM",
-      metodo == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCIMEC",
-      metodo == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCIMTN",
-      metodo == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCIMFR",
-      metodo == "Análise de casos completos"~ "ACC",
-      TRUE ~ metodo
+    `Imputation method` = case_when(
+      `Imputation method` == "Mediana" ~ "Median",
+      `Imputation method` == "Média" ~ "Mean",
+      `Imputation method` == "Mediana condicional\na idade da mãe" ~ "MCMA", # Median conditional on maternal age
+      `Imputation method` == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCMAMS", # Median conditional on maternal age and marital status
+      `Imputation method` == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCMABS",#Median conditional on maternal age and birth shift;
+      `Imputation method` == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCMARR", # Median conditional on maternal age and the role of the person responsible for completing the Live Birth Declaration
+      `Imputation method` == "Análise de casos completos"~ "CCA", #COMPLETE CASE ANALISES
+      TRUE ~ `Imputation method`
     )
-  )
+  ) %>% 
+  rename( "Age group" = faixa_idade,
+          Percentage = proporcao,
+          Mecanism = mecanismo, 
+          Setting = cenario
+          ) %>% 
+  mutate(
+    Mecanism = case_when(
+      Mecanism == "MA" ~ "MAR",
+      Mecanism == "MCA" ~ "MCAR",
+      Mecanism == "MNA" ~ "MNAR"
+  ),
+   Setting = Setting %>%
+      str_replace("^MA", "MAR") %>%
+      str_replace("^MCA", "MCAR") %>%
+      str_replace("^MNA", "MNAR"))
+
 
 PB_TEFM = ggplot(dados_plot_PB,
-       aes(x =faixa_idade,
-           y =  metodo,
-           fill = valor)) +
+      aes(x =`Age group`,
+           y =  `Imputation method`,
+           fill = `Percent bias MTFR`)) +
   geom_tile(color = "white") +
-  labs(title = "Viés relativo TEFM",
-       y= "Método de imputação",
-       x= "Faixa etária")+
-  facet_wrap(~ cenario) +
+  labs(title = "",#"Percent bias MTFR",
+       y= "Imputation method",
+       x= "Age group")+
+  facet_wrap(~ Setting) +
    scale_fill_gradient2(
     low = "#B2182B",    
     mid = "white",      
     high = "#2166AC",   
     midpoint = 0,
-    name = "Viés relativo"
+    name = "Percent bias"
   ) +
-
-  `theme_minimal(base_family = "Arial") +
+  theme_minimal(base_family = "Arial") +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 0.5),
     plot.title = element_text(hjust = 0.5)
   )
 
-ggsave("PB_TEFM.png",PB_TEFM, width = 15.5,
-  height = 12, units = "cm", path = here(),  dpi=300)
+
+
+ggsave("PB_TEFM.png",PB_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+ggsave("PB_TEFM.pdf",PB_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+write_xlsx(dados_plot_PB, paste0(here(), "/artigo", "/PB_TEFM.xlsx"))
+
 ```
 
 
@@ -232,22 +274,33 @@ padroniza_metodo <- function(df){
   df %>%
 pivot_longer(
       cols = -c(mecanismo, proporcao),
-      names_to = "metodo",
+      names_to = "Imputation method",,
       values_to = "valor"
     ) %>%
 mutate(
       valor = as.numeric(str_replace(valor, ",", ".")),
-
-      metodo = case_when(
-        metodo == "Mediana condicional\na idade da mãe" ~ "MCIM",
-        metodo == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCIMEC",
-        metodo == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCIMTN",
-        metodo == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCIMFR",
-        metodo == "Análise de casos completos" ~ "ACC",
-        TRUE ~ metodo
-      )
+      `Imputation method` = case_when(
+      `Imputation method` == "Mediana" ~ "Median",
+      `Imputation method` == "Média" ~ "Mean",
+      `Imputation method` == "Mediana condicional\na idade da mãe" ~ "MCMA", # Median conditional on maternal age
+      `Imputation method` == "Mediana condicional\n a idade da mãe\ne ao estado civil" ~ "MCMAMS", # Median conditional on maternal age and marital status
+      `Imputation method` == "Mediana condicional\n a idade da mãe\ne ao turno de nascimento" ~ "MCMABS",#Median conditional on maternal age and birth shift;
+      `Imputation method` == "Mediana condicional \na idade da mãe\ne a função do responsável\npelo preenchimento da DN" ~ "MCMARR", # Median conditional on maternal age and the role of the person responsible for completing the Live Birth Declaration
+      `Imputation method` == "Análise de casos completos"~ "CCA", #COMPLETE CASE ANALISES
+      TRUE ~ `Imputation method`
+        )
     ) |> 
-    filter( metodo != "ACC")
+    filter( `Imputation method` != "CCA") %>% 
+  rename(Percentage = proporcao,
+          Mecanism = mecanismo
+          ) %>% 
+  mutate(
+    Mecanism = case_when(
+      Mecanism == "MA" ~ "MAR",
+      Mecanism == "MCA" ~ "MCAR",
+      Mecanism == "MNA" ~ "MNAR"
+  ))
+
   
 }
 
@@ -256,21 +309,21 @@ mutate(
 #-----------------------------
 
 dados_REQM <- padroniza_metodo(tabela_larga) %>%
-  mutate(indicador = "REQM")
+  mutate(indicador = "RMSE")
 
 #-----------------------------
 # Erro bruto
 #-----------------------------
 
 dados_RB <- padroniza_metodo(tabela_larga_erro) %>%
-  mutate(indicador = "Erro bruto")
+  mutate(indicador = "Raw bias")
 
 #-----------------------------
 # Viés relativo
 #-----------------------------
 
 dados_PB <- padroniza_metodo(tabela_larga_PB) %>%
-  mutate(indicador = "Viés relativo")
+  mutate(indicador = "Percent bias")
 
 #-----------------------------
 # Junta tudo
@@ -289,15 +342,15 @@ faz_grafico <- function(dados, titulo, legenda, titulo_x,titulo_y){
   ggplot(
     dados,
     aes(
-      x = proporcao,
-      y = metodo,
+      x = Percentage,
+      y = Method,
       fill = valor
     )
   ) +
 
     geom_tile(color = "white") +
 
-    facet_wrap(~ mecanismo) +
+    facet_wrap(~ Mecanism) +
 
     scale_fill_gradient2(
       low = "#B2182B",
@@ -313,7 +366,7 @@ faz_grafico <- function(dados, titulo, legenda, titulo_x,titulo_y){
       y = titulo_y
     ) +
 
-    `theme_minimal(base_family = "Arial") +
+    theme_minimal(base_family = "Arial") +
 
     theme(
       axis.text.x = element_text(
@@ -331,7 +384,7 @@ faz_grafico <- function(dados, titulo, legenda, titulo_x,titulo_y){
 g_REQM <- faz_grafico(
   dados_REQM,
    titulo= "",
-  "REQM",
+  "RMSE",
   titulo_x= "",
   titulo_y =""
 )
@@ -339,16 +392,16 @@ g_REQM <- faz_grafico(
 g_RB <- faz_grafico(
   dados_RB,
    titulo="",
-  "Erro bruto",
+  "Raw bias",
   titulo_x= "",
-  titulo_y = "Métodos de imputação"
+  titulo_y = "Imputation method"
 )
 
 g_PB <- faz_grafico(
   dados_PB,
    titulo ="",
-  "Viés relativo",
-  titulo_x = "Percentual de dados faltantes",
+  "Percent bias",
+  titulo_x = "Percentage of missing data",
   titulo_y =""
 )
 
@@ -361,7 +414,14 @@ g_final <- (
 )
 
 
+ggsave("TFR.png",g_final, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+ggsave("TFR.pdf",g_final, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
 
+tabela_TFR = bind_rows( dados_REQM,
+dados_RB,
+dados_PB)
+
+write_xlsx(tabela_TFR, paste0(here(), "/artigo", "/tabel_TFR.xlsx"))
 
 # ggsave("Indicadores_TFTM.png",g_final,path = here(),width = 15,height = 15,units = "cm",dpi = 300)
 ```
