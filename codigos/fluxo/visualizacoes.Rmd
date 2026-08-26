@@ -105,9 +105,9 @@ REQM_TEFM = ggplot(dados_plot,
     plot.title = element_text(hjust = 0.5)
   )
 
-ggsave("RMSE_MTFR.png",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
-ggsave("RMSE_MTFR.pdf",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
-write_xlsx(dados_plot, paste0(here(), "/artigo", "/RMSE_MTFR.xlsx"))
+# ggsave("RMSE_MTFR.png",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+# ggsave("RMSE_MTFR.pdf",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+# write_xlsx(dados_plot, paste0(here(), "/artigo", "/RMSE_MTFR.xlsx"))
 ```
 
 
@@ -170,7 +170,7 @@ rb_TEFM = ggplot(dados_plot_erro,
     mid = "white",      
     high = "#2166AC",   
     midpoint = 0,
-    name = "Raw bias"
+    name = "Absolute\nerror"
   ) +
   theme_minimal(base_family = "Arial") +
   theme(
@@ -179,9 +179,9 @@ rb_TEFM = ggplot(dados_plot_erro,
   )
 
 
-ggsave("RB_MTFR.png",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
-ggsave("RB_MTFR.pdf",REQM_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
-write_xlsx(dados_plot, paste0(here(), "/artigo", "/RB_MTFR.xlsx"))
+ggsave("AE_MTFR.png",rb_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+ggsave("AE_MTFR.pdf",rb_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+write_xlsx(dados_plot_erro %>% rename( `Absolute error MTFR`=`RB MTFR`), paste0(here(), "/artigo", "/AE_MTFR.xlsx"))
 ```
 
 
@@ -243,7 +243,7 @@ PB_TEFM = ggplot(dados_plot_PB,
     mid = "white",      
     high = "#2166AC",   
     midpoint = 0,
-    name = "Percent bias"
+    name = "Relative\nerror"
   ) +
   theme_minimal(base_family = "Arial") +
   theme(
@@ -253,9 +253,9 @@ PB_TEFM = ggplot(dados_plot_PB,
 
 
 
-ggsave("PB_TEFM.png",PB_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
-ggsave("PB_TEFM.pdf",PB_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
-write_xlsx(dados_plot_PB, paste0(here(), "/artigo", "/PB_TEFM.xlsx"))
+ggsave("RE_TEFM.png",PB_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+ggsave("RE_TEFM.pdf",PB_TEFM, width = 16.5, height = 12, units = "cm", path = paste0(here(), "/artigo"),  dpi=300)
+write_xlsx(dados_plot_PB %>% rename(`Relative error` = `Percent bias MTFR`), paste0(here(), "/artigo", "/RE_TEFM.xlsx"))
 
 ```
 
@@ -316,14 +316,14 @@ dados_REQM <- padroniza_metodo(tabela_larga) %>%
 #-----------------------------
 
 dados_RB <- padroniza_metodo(tabela_larga_erro) %>%
-  mutate(indicador = "Raw bias")
+  mutate(indicador = "Absolute error")
 
 #-----------------------------
 # Viés relativo
 #-----------------------------
 
 dados_PB <- padroniza_metodo(tabela_larga_PB) %>%
-  mutate(indicador = "Percent bias")
+  mutate(indicador = "Relative error")
 
 #-----------------------------
 # Junta tudo
@@ -382,7 +382,7 @@ faz_grafico <- function(dados, legenda, titulo_x,titulo_y){ #titulo,
 g_REQM <- faz_grafico(
   dados_REQM,
    # titulo= "",
-  legenda ="RMSE",
+  legenda ="RMSE           ",
   titulo_x= "",
   titulo_y =""
 )
@@ -390,7 +390,7 @@ g_REQM <- faz_grafico(
 g_RB <- faz_grafico(
   dados_RB,
    # titulo="",
-  "Raw bias",
+  "Absolute error",
   titulo_x= "",
   titulo_y = "Imputation method"
 )
@@ -398,7 +398,7 @@ g_RB <- faz_grafico(
 g_PB <- faz_grafico(
   dados_PB,
    # titulo ="",
-  "Percent bias",
+  "Relative error",
   titulo_x = "Percentage of missing data",
   titulo_y =""
 )
