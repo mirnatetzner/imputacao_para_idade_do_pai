@@ -24,7 +24,7 @@ pacotes %>% purrr::walk(~ { if (!require(.x, character.only = TRUE)) install.pac
 caminhos:
 ```{r}
 # base_path <- "D:/Mirna/ENCE/DISSERTACAO/"
-base_path <- "/home/mramos/Documentos/Dissetacao"
+base_path <- "/home/mramos/Documentos/Dissetacao/"
 
 path <- file.path(base_path, "Dissertacao_text/imagens/")
 path_font <- file.path(base_path, "imputacao_para_idade_do_pai/codigos/Simulacao/aprimorando_experimento/")
@@ -1155,7 +1155,9 @@ teff_regioes <- map_dfr(regioes, function(reg) {
 teff_br$UF <- "BR"
 teff_regioes_br <- bind_rows(teff_regioes, teff_br)
 
-# Dados dos estados teff
+## Dados dos estados teff
+# -- não lembro se usei, comentado dia 26/06/2026
+
 teff_estados <- map_dfr(UFs, function(uf) {
   df <- get(paste0("teff_", uf))
   df$UF <- uf
@@ -1498,11 +1500,97 @@ salvar_graficos_por_regiao(uf_regiao, path_base = path)
 
 
 
-
 # graficos das tefs Brasil e regiões
 ```{r}
 library(dplyr)
 library(ggplot2)
+
+# TEFF
+dados_teff <- teff_br %>%
+  mutate(
+    TEF = as.numeric(gsub(",", ".", TEFF)),
+    Sexo = "Female"
+  ) %>%
+  select(Grupo_idade, TEF, Sexo)
+
+# TEFM
+dados_tefm <- fluxo_um_tefm_br %>%
+  mutate(
+    TEF = as.numeric(gsub(",", ".", TEFM)),
+    Sexo = "Male"
+  ) %>%
+  select(Grupo_idade, TEF, Sexo)
+
+# Juntar as duas séries
+dados_tef_br <- bind_rows(
+  dados_teff,
+  dados_tefm
+)
+
+
+ordem_idade <- c(
+  "[15,20)",
+  "[20,25)",
+  "[25,30)",
+  "[30,35)",
+  "[35,40)",
+  "[40,45)",
+  "[45,50)",
+  "[50,55)",
+  "[55,60)"
+)
+
+dados_tef_br <- dados_tef_br %>%
+  mutate(
+    Grupo_idade = factor(
+      Grupo_idade,
+      levels = ordem_idade
+    )
+  )
+
+
+grafico_tef = ggplot(
+  dados_tef_br,
+  aes(
+    x = Grupo_idade,
+    y = TEF,
+    color = Sexo,
+    group = Sexo
+  )
+) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    x = "Age group",
+    y = "Age-specific fertility rate",
+    color = NULL
+  ) +
+  scale_y_continuous(
+    limits = c(0, 0.10),
+    labels = scales::number_format(
+      accuracy = 0.001,
+      decimal.mark = ","
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    ),
+    legend.position = "bottom"
+  )
+
+
+tabela_dados_tef_brasil = dados_tef_br %>% rename(`Age group` = Grupo_idade, ASFR = TEF )
+
+write_xlsx(tabela_dados_tef_brasil, "tabela_grafico_asfr.xlsx")
+
+ggsave("asfr_BR.png",grafico_tef, width = 16.5, height = 12, units = "cm", path = paste0("/home/mramos/Documentos/Dissetacao/imputacao_para_idade_do_pai/artigo"),  dpi=300)
+```
+
+# graficos das tefs Brasil e regiões
+```{r}
 library(purrr)
 library(glue)
 
@@ -1563,11 +1651,8 @@ ggplot(dados_total, aes(x = Grupo_idade, y = TEF, color = UF, group = UF)) +
 
 
 ```{r}
-library(dplyr)
-library(ggplot2)
-library(glue)
+
 library(fs)
-library(purrr)
 
 # Função principal para região ou Brasil
 plot_teff_tefm_regiao <- function(regiao, teff_todos, fluxo_tefm, fluxo_tefm_br, uf_regiao) {
